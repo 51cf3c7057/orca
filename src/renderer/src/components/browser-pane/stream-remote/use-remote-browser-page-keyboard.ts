@@ -10,6 +10,8 @@ import {
 import { iterateBrowserTextInsertionChunks } from '../../../../../shared/browser-text-insertion-chunks'
 import { assertClipboardTextWithinLimitWithYield } from '../../../../../shared/clipboard-text'
 import { isEditableKeyboardTarget } from '../host-guest/browser-keyboard'
+import { useAppStore } from '@/store'
+import { keybindingMatchesAction } from '../../../../../shared/keybindings'
 import {
   getRemoteBrowserKeyboardShortcut,
   getRemoteBrowserKeypressKey
@@ -196,6 +198,17 @@ export function useRemoteBrowserPageKeyboard({
 
   const handleRemoteScreenshotKeyDown = (event: React.KeyboardEvent<HTMLImageElement>): void => {
     if (isEditableKeyboardTarget(event.target)) {
+      return
+    }
+    // The annotate chord arms the picker here; typing it into the page too would double-act.
+    if (
+      keybindingMatchesAction(
+        'browser.annotateElement',
+        event.nativeEvent,
+        getShortcutPlatform(),
+        useAppStore.getState().keybindings
+      )
+    ) {
       return
     }
     const clipboardCommand = getNativeClipboardChordCommand(

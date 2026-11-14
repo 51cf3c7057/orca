@@ -13,6 +13,7 @@ import { RuntimeBrowserTabClose } from '../tabs/browser-tab-close'
 import { RuntimeBrowserProfiles } from './browser-profiles'
 import { RuntimeBrowserScreencasts } from '../screencast/browser-screencasts'
 import { RuntimeBrowserDialogs } from './browser-dialogs'
+import { RuntimeBrowserGrab } from './browser-grab-commands'
 
 export class RuntimeBrowserCommands {
   readonly browserSnapshot: RuntimeBrowserCommandTargets['browserSnapshot']
@@ -95,6 +96,13 @@ export class RuntimeBrowserCommands {
   readonly browserScreencast: RuntimeBrowserScreencasts['browserScreencast']
   readonly browserDialogAccept: RuntimeBrowserDialogs['browserDialogAccept']
   readonly browserDialogDismiss: RuntimeBrowserDialogs['browserDialogDismiss']
+  readonly browserGrabSetMode: RuntimeBrowserGrab['browserGrabSetMode']
+  readonly browserGrabAwait: RuntimeBrowserGrab['browserGrabAwait']
+  readonly browserGrabCancel: RuntimeBrowserGrab['browserGrabCancel']
+  readonly browserGrabCaptureSelection: RuntimeBrowserGrab['browserGrabCaptureSelection']
+  readonly browserGrabExtractHover: RuntimeBrowserGrab['browserGrabExtractHover']
+  readonly browserGrabViewportBridge: RuntimeBrowserGrab['browserGrabViewportBridge']
+  readonly browserGrabWatch: RuntimeBrowserGrab['browserGrabWatch']
 
   readonly browserProfileDetectBrowsers: RuntimeBrowserProfiles['browserProfileDetectBrowsers']
   readonly browserProfileImportFromBrowser: RuntimeBrowserProfiles['browserProfileImportFromBrowser']
@@ -116,6 +124,7 @@ export class RuntimeBrowserCommands {
     const profiles = new RuntimeBrowserProfiles(host, targets, catalog)
     const screencasts = new RuntimeBrowserScreencasts(host, targets, catalog)
     const dialogs = new RuntimeBrowserDialogs(targets)
+    const grab = new RuntimeBrowserGrab(targets, catalog)
     this.browserProfileDetectBrowsers = profiles.browserProfileDetectBrowsers.bind(profiles)
     this.browserProfileImportFromBrowser = profiles.browserProfileImportFromBrowser.bind(profiles)
     this.browserProfileClearGoogleCookies = profiles.browserProfileClearGoogleCookies.bind(profiles)
@@ -202,5 +211,12 @@ export class RuntimeBrowserCommands {
     this.browserScreencast = screencasts.browserScreencast.bind(screencasts)
     this.browserDialogAccept = dialogs.browserDialogAccept.bind(dialogs)
     this.browserDialogDismiss = dialogs.browserDialogDismiss.bind(dialogs)
+    this.browserGrabSetMode = grab.browserGrabSetMode.bind(grab)
+    this.browserGrabAwait = grab.browserGrabAwait.bind(grab)
+    this.browserGrabCancel = grab.browserGrabCancel.bind(grab)
+    this.browserGrabCaptureSelection = grab.browserGrabCaptureSelection.bind(grab)
+    this.browserGrabExtractHover = grab.browserGrabExtractHover.bind(grab)
+    this.browserGrabViewportBridge = grab.browserGrabViewportBridge.bind(grab)
+    this.browserGrabWatch = grab.browserGrabWatch.bind(grab)
   }
 }

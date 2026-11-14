@@ -4,7 +4,6 @@ import { cn } from '@/lib/class-names'
 import '@/lib/workspace/ownership/connection-context'
 import { getConnectionIdFromState } from '@/lib/workspace/ownership/connection-owner-resolution'
 import { useAppStore } from '@/store/index'
-import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import '../../../../../shared/constants'
 import { ORCA_BROWSER_BLANK_URL } from '../../../../../shared/browser/browser-blank-page'
 import { normalizeExternalBrowserUrl } from '../../../../../shared/browser-url'
@@ -17,19 +16,16 @@ import {
 } from '../host-guest/browser-page-viewport'
 import { isBrowserPagePanePaintable } from '../host-guest/browser-page-paintability'
 import { getShareableBrowserArtifactFile } from '../describe-page/browser-artifact-upload'
-import { useGrabMode } from '../annotate/useGrabMode'
 import { getOpenableExternalUrl, toDisplayUrl } from '../describe-page/browser-page-url-display'
-import type { BrowserOverlayViewport } from '../describe-page/browser-annotation-geometry'
 import type { BrowserPagePaneProps } from '../describe-page/browser-page-types'
 import { BrowserPageChromeHeader } from './browser-page-chrome-header'
 import { BrowserPageContextMenu } from './browser-page-context-menu'
 import { BrowserPageViewportOverlays } from './browser-page-viewport-overlays'
-import { useBrowserPageAnnotationSend } from '../annotate/use-browser-page-annotation-send'
 import { useBrowserPageChromeFocus } from './use-browser-page-chrome-focus'
 import { useWebviewGuestFocus } from './browser-page-guest-focus'
 import { useBrowserPageFindShortcuts } from './use-browser-page-find-shortcuts'
-import { useBrowserPageGrabAnnotations } from '../annotate/use-browser-page-grab-annotations'
-import { useBrowserPageKeyboardShortcuts } from '../host-guest/use-browser-page-keyboard-shortcuts'
+import { useBrowserGuestAnnotateTools } from '../annotate/use-browser-guest-annotate-tools'
+import { useBrowserPageWebviewShortcuts } from '../host-guest/use-browser-page-webview-shortcuts'
 import { useBrowserPageMarkupCapture } from '../annotate/use-browser-page-markup-capture'
 import { useBrowserPageNavigationDownloads } from '../navigate/use-browser-page-navigation-downloads'
 import { useBrowserPageReloadActions } from '../navigate/use-browser-page-reload-actions'
@@ -118,11 +114,6 @@ export function BrowserPagePane({
     isActiveRef.current = isActive
   }, [isActive])
   const [findOpen, setFindOpen] = useState(false)
-  const [browserOverlayViewport, setBrowserOverlayViewport] = useState<BrowserOverlayViewport>({
-    scrollX: 0,
-    scrollY: 0,
-    version: 0
-  })
 
   const workspaceConnectionId = useAppStore((state) => getConnectionIdFromState(state, worktreeId))
   const certificateFailure = useAppStore(
@@ -132,7 +123,6 @@ export function BrowserPagePane({
     sessionProfileId,
     sessionPartition
   })
-  const grabElementShortcut = useShortcutLabel('browser.grabElement')
   const slotViewport = useBrowserPageSlotViewport(workspaceId)
 
   const zoom = useBrowserPageZoomFeedback()
@@ -158,22 +148,30 @@ export function BrowserPagePane({
     guestFocus,
     inputLocked
   })
-  const annotationSend = useBrowserPageAnnotationSend({
-    browserTabId: browserTab.id,
-    worktreeId
-  })
-  const grab = useGrabMode(browserTab.id)
   const markup = useBrowserPageMarkupCapture(webviewRef)
-  const grabAnnotations = useBrowserPageGrabAnnotations({
-    browserTabId: browserTab.id,
-    isActive,
+  // Why: a blank tab reads as 'about:blank' or the resolved data: URL, so match both to keep the "New Browser Tab" overlay visible.
+  const isBlankTab = browserTab.url === 'about:blank' || browserTab.url === ORCA_BROWSER_BLANK_URL
+  const {
     grab,
+    annotationSend,
+    grabAnnotations,
+    browserOverlayViewport,
+    setBrowserOverlayViewport,
+    viewportBridge,
+    elementTools,
+    notes
+  } = useBrowserGuestAnnotateTools({
+    browserPageId: browserTab.id,
+    worktreeId,
+    isActive,
+    toolsDisabled: isBlankTab,
+    markupIsActive: markup.isActive,
     containerRef,
+    guestSurfaceRef: webviewRef,
     trackingContainer: pageViewport?.container ?? null,
     trackingScroller: pageViewport?.scroller ?? null,
-    webviewRef,
-    setBrowserOverlayViewport,
-    browserAnnotationsLength: annotationSend.browserAnnotations.length
+    currentDocumentUrl: browserTab.url,
+    shortcuts: { workspaceId, chromeShortcutScope }
   })
   const nav = useBrowserPageNavigationDownloads({
     browserTabId: browserTab.id,
@@ -214,12 +212,11 @@ export function BrowserPagePane({
     onUpdatePageState,
     onSetUrl,
     setAddressBarValue: nav.setAddressBarValue,
-    cancelPendingBrowserCapture: grabAnnotations.cancelPendingBrowserCapture,
+    annotationViewportBridge: viewportBridge,
     setBrowserOverlayViewport,
     setFindOpen,
     focusAddressBarNow,
     focusWebviewNow,
-    pendingAnnotationPayload: grabAnnotations.pendingAnnotationPayload,
     inputLocked,
     faviconUrl: browserTab.faviconUrl,
     webviewRef,
@@ -257,23 +254,17 @@ export function BrowserPagePane({
     chromeShortcutScope,
     setFindOpen
   })
-  useBrowserPageKeyboardShortcuts({
+  useBrowserPageWebviewShortcuts({
     browserTabId: browserTab.id,
     workspaceId,
     isActive,
     chromeShortcutScope,
     isActiveRef,
-    markupIsActive: markup.isActive,
     webviewRef,
     showBrowserZoomFeedback: zoom.showBrowserZoomFeedback,
-    reloadWebviewOrRecoverGuest: reload.reloadWebviewOrRecoverGuest,
-    startGrabIntent: grabAnnotations.startGrabIntent,
-    handleGrabActionShortcut: grabAnnotations.handleGrabActionShortcut,
-    grabIsInteractive: grab.state !== 'idle' && grab.state !== 'error'
+    reloadWebviewOrRecoverGuest: reload.reloadWebviewOrRecoverGuest
   })
 
-  // Why: a blank tab reads as 'about:blank' or the resolved data: URL, so match both to keep the "New Browser Tab" overlay visible.
-  const isBlankTab = browserTab.url === 'about:blank' || browserTab.url === ORCA_BROWSER_BLANK_URL
   // Why: synchronous webview URL access blocks render; navigation handlers update this cache before their store writes can re-render the pane.
   const liveBrowserUrl = getLiveBrowserUrl(browserTab.id) ?? browserTab.url
   const externalUrl = getOpenableExternalUrl(liveBrowserUrl)
@@ -341,11 +332,12 @@ export function BrowserPagePane({
         grab={grab}
         grabAnnotations={grabAnnotations}
         annotationSend={annotationSend}
+        elementTools={elementTools}
+        notes={notes}
         onOpenFind={() => setFindOpen(true)}
         markupIsActive={markup.isActive}
         markupStart={markup.start}
         markupCancel={markup.cancel}
-        grabElementShortcut={grabElementShortcut}
         shareableArtifactFile={shareableArtifactFile}
         currentBrowserUrl={currentBrowserUrl}
         externalUrl={externalUrl}

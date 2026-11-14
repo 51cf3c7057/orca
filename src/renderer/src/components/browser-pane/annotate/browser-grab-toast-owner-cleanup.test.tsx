@@ -9,6 +9,7 @@ import type {
 import { useBrowserPageGrabAnnotations } from './use-browser-page-grab-annotations'
 import { formatGrabPayloadAsText } from './GrabConfirmationSheet'
 import type { GrabModeHook } from './useGrabMode'
+import { ipcBrowserGuestToolsTransport } from './browser-guest-tools-transport'
 
 const state = vi.hoisted(() => ({
   recordFeatureInteraction: vi.fn(),
@@ -133,10 +134,11 @@ function mount({
     toggle: vi.fn(),
     cancel: vi.fn(),
     rearm: vi.fn(),
-    exit: vi.fn()
+    exit: vi.fn(),
+    transport: ipcBrowserGuestToolsTransport
   }
   const containerRef = { current: container }
-  const webviewRef = { current: null }
+  const guestSurfaceRef = { current: null }
   const view = renderHook(
     ({ target }) =>
       useBrowserPageGrabAnnotations({
@@ -145,7 +147,7 @@ function mount({
         isActive: true,
         grab,
         containerRef,
-        webviewRef,
+        guestSurfaceRef,
         setBrowserOverlayViewport: vi.fn(),
         browserAnnotationsLength: 0
       }),

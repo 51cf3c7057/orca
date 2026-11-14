@@ -18,13 +18,13 @@ function renderActivation(isActive = true, stagedPage = false) {
   const closeStream = vi.fn()
   const open = vi.fn(() => closeStream)
   const lifecycle = { open }
-  const clearPendingRemoteWheel = vi.fn()
+  const clearPendingRemoteInput = vi.fn()
   const hook = renderHook(
     ({ active, staged }) =>
       useRemoteBrowserStreamActivation({
         activeRuntimeEnvironmentId: 'env-1',
         browserPageId: 'page-1',
-        clearPendingRemoteWheel,
+        clearPendingRemoteInput,
         isActive: active,
         lifecycle,
         reopenNonce: 0,
@@ -33,7 +33,7 @@ function renderActivation(isActive = true, stagedPage = false) {
       }),
     { initialProps: { active: isActive, staged: stagedPage } }
   )
-  return { ...hook, clearPendingRemoteWheel, closeStream, open }
+  return { ...hook, clearPendingRemoteInput, closeStream, open }
 }
 
 describe('useRemoteBrowserStreamActivation', () => {
@@ -61,7 +61,7 @@ describe('useRemoteBrowserStreamActivation', () => {
 
     await act(async () => vi.advanceTimersByTime(1))
     expect(harness.closeStream).toHaveBeenCalledTimes(1)
-    expect(harness.clearPendingRemoteWheel).toHaveBeenCalledTimes(1)
+    expect(harness.clearPendingRemoteInput).toHaveBeenCalledTimes(1)
 
     await act(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }))

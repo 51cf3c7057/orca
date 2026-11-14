@@ -370,7 +370,7 @@ export function HtmlDocPreview({
           annotationSend={annotationSend}
           grabAnnotations={grabAnnotations}
           containerRef={containerRef}
-          webviewRef={webviewRef}
+          guestSurfaceRef={webviewRef}
           browserOverlayViewport={browserOverlayViewport}
           worktreeId={worktreeId}
         />

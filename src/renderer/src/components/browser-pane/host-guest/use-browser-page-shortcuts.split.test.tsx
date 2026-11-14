@@ -10,7 +10,9 @@ import type { BrowserPageZoomCommand } from '../../../../../shared/browser-page-
 import { paneChannel } from '../client-hosted-browser-pane-test-rig'
 import type { BrowserChromeShortcutScope } from '../describe-page/browser-page-types'
 import type { GrabIntent } from '../../../../../shared/browser/element-grab/browser-grab-types'
-import { useBrowserPageKeyboardShortcuts } from './use-browser-page-keyboard-shortcuts'
+import { useBrowserPageWebviewShortcuts } from './use-browser-page-webview-shortcuts'
+import { useBrowserGrabShortcuts } from '../annotate/use-browser-grab-shortcuts'
+import { ipcBrowserGuestToolsTransport } from '../annotate/browser-guest-tools-transport'
 
 // Why: the chords are Cmd on macOS and Ctrl elsewhere, so the platform cannot be left to the runner.
 const MAC_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
@@ -58,16 +60,22 @@ function PaneHarness({
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the hook only calls the history members the fake provides.
   const webviewRef = useRef(spies.webview as unknown as Electron.WebviewTag)
   const isActiveRef = useRef(true)
-  useBrowserPageKeyboardShortcuts({
+  useBrowserPageWebviewShortcuts({
     browserTabId: `page-${id}`,
     workspaceId: `workspace-${id}`,
     isActive: true,
     chromeShortcutScope: scope,
     isActiveRef,
-    markupIsActive,
     webviewRef,
     showBrowserZoomFeedback: vi.fn(),
-    reloadWebviewOrRecoverGuest: spies.reload,
+    reloadWebviewOrRecoverGuest: spies.reload
+  })
+  useBrowserGrabShortcuts({
+    transport: ipcBrowserGuestToolsTransport,
+    browserTabId: `page-${id}`,
+    workspaceId: `workspace-${id}`,
+    chromeShortcutScope: scope,
+    markupIsActive,
     startGrabIntent: spies.startGrabIntent,
     handleGrabActionShortcut: vi.fn(),
     grabIsInteractive: false
@@ -167,7 +175,7 @@ afterEach(() => {
   cleanup()
 })
 
-describe('useBrowserPageKeyboardShortcuts in a split of two active browser panes', () => {
+describe('browser page shortcuts in a split of two active browser panes', () => {
   it('acts only in the pane whose guest forwarded the chord', () => {
     const { a, b } = renderSplit('focused', 'inactive')
 

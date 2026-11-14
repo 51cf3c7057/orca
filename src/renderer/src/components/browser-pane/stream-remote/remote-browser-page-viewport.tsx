@@ -51,7 +51,9 @@ export function RemoteBrowserPageViewport({
   handleRemotePointerUp,
   handleRemoteContextMenu,
   handleRemoteScreenshotKeyDown,
-  handleRemoteScreenshotPaste
+  handleRemoteScreenshotPaste,
+  handleRemotePointerMove,
+  annotateOverlays
 }: {
   remoteViewportRef: React.RefObject<HTMLDivElement | null>
   imageRef: React.RefObject<HTMLImageElement | null>
@@ -80,6 +82,9 @@ export function RemoteBrowserPageViewport({
   handleRemoteContextMenu: (event: React.MouseEvent<HTMLImageElement>) => void
   handleRemoteScreenshotKeyDown: (event: React.KeyboardEvent<HTMLImageElement>) => void
   handleRemoteScreenshotPaste: (event: React.ClipboardEvent<HTMLImageElement>) => void
+  /** Present only while a page tool needs hover. */
+  handleRemotePointerMove?: (event: React.PointerEvent<HTMLImageElement>) => void
+  annotateOverlays: React.ReactNode
 }): React.JSX.Element {
   const t = useTranslate()
   const remoteFrameStyle = useMemo(() => getRemoteBrowserFrameStyle(frameMetadata), [frameMetadata])
@@ -125,6 +130,7 @@ export function RemoteBrowserPageViewport({
           style={remoteFrameStyle}
           className="absolute top-0 left-0 max-w-none cursor-default bg-white outline-none"
           onPointerDown={handleRemotePointerDown}
+          onPointerMove={handleRemotePointerMove}
           onPointerUp={handleRemotePointerUp}
           onContextMenu={handleRemoteContextMenu}
           onKeyDown={handleRemoteScreenshotKeyDown}
@@ -156,6 +162,7 @@ export function RemoteBrowserPageViewport({
       {isBlankBrowserUrl(browserTab.url) ? (
         <BrowserNewTabPage worktreeId={worktreeId} onOpenUrl={onNavigateToUrl} />
       ) : null}
+      {annotateOverlays}
       {showRemoteFailureOverlay && loadError ? (
         <BrowserLoadFailureOverlay
           loadError={loadError}

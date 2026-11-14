@@ -1,7 +1,6 @@
 import { issueBrowserGuestNavigation } from '../host-guest/browser-guest-metadata-cache'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { ArtifactPublishButton } from '@/components/artifacts/ArtifactPublishButton'
-import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { useAppStore } from '@/store'
 import type { BrowserReloadTrigger } from '../navigate/browser-reload-action'
 import BrowserAddressBar from './BrowserAddressBar'
@@ -23,7 +22,6 @@ import {
   canOpenBrowserFileInWorkspaceEditor,
   openBrowserFileSource
 } from '../navigate/browser-file-editor-open'
-import type { GrabModeHook } from '../annotate/useGrabMode'
 import type {
   BrowserPageConversionOrigin,
   BrowserViewportPresetId
@@ -34,8 +32,7 @@ import {
 } from '@/lib/browser/history/browser-page-conversion-history'
 import '@/lib/browser/documents/file-preview'
 import { convertBrowserPageToWorkspaceDoc } from '@/lib/browser/documents/file-preview-page-conversion'
-import type { GrabIntent } from '../../../../../shared/browser/element-grab/browser-grab-types'
-import type { BrowserChromeNoteActions } from './browser-chrome-toolbar'
+import type { BrowserChromeElementTools, BrowserChromeNoteActions } from './browser-chrome-toolbar'
 
 /** Binds the shared browser chrome to a browsing page: an editable address bar and session tools. */
 export function BrowserPageToolbar({
@@ -65,15 +62,12 @@ export function BrowserPageToolbar({
   navigateToUrl,
   addressBarInputRef,
   dismissAddressBarSuggestionsRef,
-  grab,
-  grabIntent,
-  startGrabIntent,
+  elementTools,
+  grabIdle,
   isBlankTab,
   markupIsActive,
   markupStart,
   markupCancel,
-  grabElementShortcut,
-  browserAnnotationsLength,
   notes,
   onOpenFind,
   shareableArtifactFile,
@@ -108,22 +102,18 @@ export function BrowserPageToolbar({
   navigateToUrl: (url: string) => void
   addressBarInputRef: RefObject<HTMLInputElement | null>
   dismissAddressBarSuggestionsRef: RefObject<(() => void) | null>
-  grab: GrabModeHook
-  grabIntent: GrabIntent
-  startGrabIntent: (intent: GrabIntent) => void
+  elementTools: BrowserChromeElementTools
+  grabIdle: boolean
   isBlankTab: boolean
   markupIsActive: boolean
   markupStart: () => Promise<void>
   markupCancel: () => void
-  grabElementShortcut: string
-  browserAnnotationsLength: number
   notes: BrowserChromeNoteActions
   onOpenFind: () => void
   shareableArtifactFile: { filePath: string } | null
   currentBrowserUrl: string
   externalUrl: string | null
 }): React.JSX.Element {
-  const annotateElementShortcut = useShortcutLabel('browser.annotateElement')
   const browserTourStep = useAppStore((state) =>
     state.activeContextualTourId === 'browser' ? state.activeContextualTourStepIndex : null
   )
@@ -239,17 +229,10 @@ export function BrowserPageToolbar({
           />
         ))
       }
-      elementTools={{
-        activeIntent: grab.state !== 'idle' ? grabIntent : null,
-        onStartIntent: startGrabIntent,
-        disabled: isBlankTab || markupIsActive,
-        grabShortcutLabel: grabElementShortcut,
-        annotateShortcutLabel: annotateElementShortcut,
-        annotationCount: browserAnnotationsLength
-      }}
+      elementTools={elementTools}
       markup={{
         active: markupIsActive,
-        disabled: isBlankTab || grab.state !== 'idle',
+        disabled: isBlankTab || !grabIdle,
         onToggle: () => (markupIsActive ? markupCancel() : void markupStart()),
         canShowDiscoveryHint: isActive
       }}

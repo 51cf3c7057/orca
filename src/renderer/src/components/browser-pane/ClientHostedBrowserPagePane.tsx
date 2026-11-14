@@ -22,7 +22,7 @@ import { useBrowserClientHostedPermissionNotices } from './browser-client-hosted
 import { useClientHostedBrowserIntroTour } from './use-client-hosted-browser-intro-tour'
 import { ClientHostedBrowserUnavailableNotice } from './client-hosted-browser-unavailable-notice'
 import { watchBrowserClientPageGuestLoss } from './host-guest/browser-client-page-guest-loss'
-import { useClientHostedBrowserMarkup } from './annotate/use-client-hosted-browser-markup'
+import { useClientHostedBrowserAnnotate } from './annotate/use-client-hosted-browser-annotate'
 import BrowserFind from './assemble-chrome/BrowserFind'
 import { BrowserNavigationControlRow } from './assemble-chrome/browser-navigation-control-row'
 import BrowserAddressBar from './assemble-chrome/BrowserAddressBar'
@@ -144,6 +144,9 @@ export function ClientHostedBrowserPagePane(props: Props) {
     [webviewRef]
   )
   useBrowserAgentCursor(browserTab.id, webviewRef, getAgentCursorHost)
+
+  const annotate = useClientHostedBrowserAnnotate(props, initialization, webviewRef, viewportRef)
+  const bindAnnotationGuest = annotate.bindGuest
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
@@ -268,6 +271,7 @@ export function ClientHostedBrowserPagePane(props: Props) {
     }
     const onNavigate = (): void => setFindOpen(false)
     webview.addEventListener('did-navigate', onNavigate)
+    const unbindAnnotationDocument = bindAnnotationGuest(webview)
     const onFailLoad = createBrowserClientPageLoadFailureHandler(webview, (loadError) => {
       loadFailureRef.current = loadError
       updatePageStateFromGuest(browserTab.id, { loading: false, loadError })
@@ -278,6 +282,7 @@ export function ClientHostedBrowserPagePane(props: Props) {
       unsubscribeMetadata()
       webview.removeEventListener('did-fail-load', onFailLoad)
       webview.removeEventListener('did-navigate', onNavigate)
+      unbindAnnotationDocument()
       guestLoss.dispose()
       publisher.dispose()
       forgetBrowserClientPageMetadataReports(browserTab.id)
@@ -301,18 +306,9 @@ export function ClientHostedBrowserPagePane(props: Props) {
     browserHostGeneration,
     pageHostGeneration,
     runtimeEnvironmentId,
-    setAddressBarValueFromPage
+    setAddressBarValueFromPage,
+    bindAnnotationGuest
   ])
-
-  const markup = useClientHostedBrowserMarkup({
-    webviewRef,
-    browserPageId: browserTab.id,
-    runtimeEnvironmentId,
-    placement,
-    isActive,
-    unavailable: initialization.unavailable,
-    showFailureOverlay: initialization.showFailureOverlay
-  })
 
   return (
     <div
@@ -364,16 +360,17 @@ export function ClientHostedBrowserPagePane(props: Props) {
           reloadLabel={reload.reloadButtonLabel}
           reloadShowsStop={reload.reloadButtonLabelKind === 'stop'}
         >
-          {markup.drawButton}
+          {annotate.toolbarButton}
         </BrowserNavigationControlRow>
       </div>
+      {annotate.banner}
       <div className={BROWSER_DEVTOOLS_DOCK_SPLIT_CLASS_NAME}>
         <div
           ref={viewportRef}
           className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
           style={devToolsPageFlex === null ? undefined : { flex: devToolsPageFlex }}
         >
-          {markup.overlay}
+          {annotate.overlays}
           <BrowserPageFeedbackBadge ref={zoom.feedbackBadgeRef} />
           <BrowserFind
             browserPageId={browserTab.id}

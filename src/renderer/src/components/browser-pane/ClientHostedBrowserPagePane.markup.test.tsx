@@ -110,14 +110,26 @@ function renderPane(overrides: Partial<PaneProps> = {}, attaches = true) {
   }
 }
 
-function drawButton(): HTMLButtonElement {
-  return screen.getByRole('button', { name: 'Draw on screenshot' })
+// Draw lives in the annotate split button's menu; while drawing, the button's face stops it.
+function annotateButton(): HTMLButtonElement {
+  return screen.getByRole('button', { name: 'Annotate page element' })
+}
+function toggleDraw(): void {
+  if (annotateButton().getAttribute('aria-pressed') === 'true') {
+    fireEvent.click(annotateButton())
+    return
+  }
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'More annotate tools' }), {
+    button: 0,
+    ctrlKey: false
+  })
+  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Draw on screenshot' }))
 }
 function overlay(): HTMLElement | null {
   return document.querySelector('[data-orca-markup-overlay]')
 }
 async function startDrawing() {
-  fireEvent.click(drawButton())
+  toggleDraw()
   await waitFor(() => expect(overlay()).not.toBeNull())
 }
 
@@ -130,10 +142,10 @@ describe('client-hosted screenshot markup', () => {
       })
     )
     const { webview } = renderPane()
-    fireEvent.click(drawButton())
+    toggleDraw()
     expect(mocks.capture).toHaveBeenCalledWith({ kind: 'webview', webview })
     expect(webview.style.display).toBe('flex')
-    expect(drawButton().getAttribute('aria-pressed')).toBe('true')
+    expect(annotateButton().getAttribute('aria-pressed')).toBe('true')
     expect(overlay()).toBeNull()
 
     await act(async () => resolveCapture(image))
@@ -155,7 +167,7 @@ describe('client-hosted screenshot markup', () => {
     )
     await waitFor(() => expect(overlay()).toBeNull())
     expect(webview.style.display).toBe('flex')
-    expect(drawButton().getAttribute('aria-pressed')).toBe('false')
+    expect(annotateButton().getAttribute('aria-pressed')).toBe('false')
   })
 
   it.each(['Cancel', 'Escape', 'toggle'])('restores the guest after %s', async (action) => {
@@ -166,7 +178,7 @@ describe('client-hosted screenshot markup', () => {
     } else if (action === 'Escape') {
       fireEvent.keyDown(window, { key: 'Escape' })
     } else {
-      fireEvent.click(drawButton())
+      toggleDraw()
     }
     expect(overlay()).toBeNull()
     expect(webview.style.display).toBe('flex')
@@ -176,11 +188,11 @@ describe('client-hosted screenshot markup', () => {
   it('returns to idle after a capture failure', async () => {
     mocks.capture.mockRejectedValue(new Error('guest capture failed'))
     const { webview } = renderPane()
-    fireEvent.click(drawButton())
+    toggleDraw()
     await waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith('Could not capture the page to draw on.')
     )
-    expect(drawButton().getAttribute('aria-pressed')).toBe('false')
+    expect(annotateButton().getAttribute('aria-pressed')).toBe('false')
     expect(webview.style.display).toBe('flex')
     expect(overlay()).toBeNull()
   })
@@ -195,9 +207,9 @@ describe('client-hosted screenshot markup', () => {
         })
       )
       const pane = renderPane()
-      fireEvent.click(drawButton())
+      toggleDraw()
       if (action === 'cancel') {
-        fireEvent.click(drawButton())
+        toggleDraw()
       }
       if (action === 'deactivate') {
         pane.update({ isActive: false })
@@ -218,7 +230,7 @@ describe('client-hosted screenshot markup', () => {
       expect(overlay()).toBeNull()
       if (action === 'loss') {
         // Guest loss clears the ref and detaches it; stale element styles aren't the UI contract.
-        expect(drawButton().disabled).toBe(true)
+        expect(annotateButton().disabled).toBe(true)
         expect(screen.getByText('Client-hosted browser unavailable')).toBeTruthy()
         expect(mocks.attach.mock.results[0].value.detach).toHaveBeenCalled()
       } else {

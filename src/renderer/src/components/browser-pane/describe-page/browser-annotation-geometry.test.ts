@@ -35,8 +35,6 @@ function anchorFor(
     getBoundingClientRect: () => ({ left: 0, top: 0, width: paneWidth, height: paneHeight })
   }
   return getBrowserOverlayAnchor(payload({ isFixed: true, rectViewport: rect }), pane, pane, {
-    scrollX: 0,
-    scrollY: 0,
     version: 0
   })
 }
@@ -59,25 +57,24 @@ describe('browser annotation composer placement', () => {
 describe('browser annotation geometry', () => {
   it('uses the viewport rect for fixed targets and scroll-adjusts flowing targets', () => {
     const fixed = payload({ isFixed: true })
-    expect(getLiveBrowserAnnotationRect(fixed, { scrollX: 99, scrollY: 99, version: 2 })).toEqual(
-      fixed.target.rectViewport
-    )
+    expect(
+      getLiveBrowserAnnotationRect(fixed, { version: 2, guest: { scrollX: 99, scrollY: 99 } })
+    ).toEqual(fixed.target.rectViewport)
 
     const flowing = payload({ isFixed: false })
-    expect(getLiveBrowserAnnotationRect(flowing, { scrollX: 30, scrollY: 40, version: 1 })).toEqual(
-      {
-        ...flowing.target.rectViewport,
-        x: 70,
-        y: 160
-      }
-    )
-    expect(getLiveBrowserAnnotationRect(flowing, { scrollX: 30, scrollY: 40, version: 0 })).toEqual(
-      {
-        ...flowing.target.rectViewport,
-        x: 95,
-        y: 185
-      }
-    )
+    expect(
+      getLiveBrowserAnnotationRect(flowing, { version: 1, guest: { scrollX: 30, scrollY: 40 } })
+    ).toEqual({ ...flowing.target.rectViewport, x: 70, y: 160 })
+  })
+
+  // A pane resize re-measures overlays before any guest report; it must not read as scroll 0.
+  it('keeps the capture-time scroll until the guest reports, however often the pane re-measures', () => {
+    const flowing = payload({ isFixed: false })
+    expect(getLiveBrowserAnnotationRect(flowing, { version: 3 })).toEqual({
+      ...flowing.target.rectViewport,
+      x: 95,
+      y: 185
+    })
   })
 })
 
@@ -91,7 +88,7 @@ describe('browser annotation card follows the live element', () => {
   it('uses the guest-measured box over the click-time one after a box inside the page scrolls', () => {
     // Window scroll did not move, so the click-time math alone would leave the card in place.
     const viewport = applyBrowserAnnotationViewportReport(
-      { scrollX: 0, scrollY: 0, version: 0 },
+      { version: 0 },
       { scrollX: 5, scrollY: 15, target: { x: 10, y: 300, width: 40, height: 20 } }
     )
     expect(getLiveBrowserAnnotationRect(clicked, viewport)).toEqual({
@@ -111,7 +108,7 @@ describe('browser annotation card follows the live element', () => {
   it('converts guest pixels to pane pixels when the page is zoomed', () => {
     // 120% page zoom: the guest lays out 1000 CSS pixels across a 1200-pixel-wide view.
     const viewport = applyBrowserAnnotationViewportReport(
-      { scrollX: 0, scrollY: 0, version: 0 },
+      { version: 0 },
       {
         scrollX: 0,
         scrollY: 0,
@@ -133,7 +130,7 @@ describe('browser annotation card follows the live element', () => {
       rectViewport: { x: 100, y: 40, width: 100, height: 20 }
     })
     const pane = box(0, 0, 900, 310)
-    const viewport = { scrollX: 0, scrollY: 0, version: 0 }
+    const viewport = { version: 0 }
     // 250 pixels below the target: too shallow for the assumed 240-pixel card plus margin.
     expect(getBrowserOverlayAnchor(fixed, pane, pane, viewport).side).toBe('right')
     expect(getBrowserOverlayAnchor(fixed, pane, pane, viewport, 200).side).toBe('bottom')

@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
 import '../../../../../shared/protocol-version'
-import { BROWSER_CERTIFICATE_TRUST_RUNTIME_CAPABILITY } from '../../../../../shared/browser/runtime/browser-runtime-capabilities'
+import {
+  BROWSER_CERTIFICATE_TRUST_RUNTIME_CAPABILITY,
+  BROWSER_GRAB_RUNTIME_CAPABILITY
+} from '../../../../../shared/browser/runtime/browser-runtime-capabilities'
 import type { BrowserPage as BrowserPageState } from '../../../../../shared/browser-workspace-types'
-import { runtimeEnvironmentSupportsCapability } from '@/runtime/rpc/compatibility/runtime-capability-proof'
+import { useRuntimeEnvironmentCapability } from '@/runtime/rpc/compatibility/use-runtime-environment-capability'
 import '@/lib/browser/documents/file-preview'
 import { convertBrowserPageToWorkspaceDoc } from '@/lib/browser/documents/file-preview-page-conversion'
 import { openWorkspaceBrowserTab } from '@/lib/browser/workspace/workspace-browser-tab-open'
@@ -12,8 +15,6 @@ import { useBrowserPageChromeFocus } from '../assemble-chrome/use-browser-page-c
 import { useBrowserAddressBarEditSession } from '../assemble-chrome/use-browser-address-bar-edit-session'
 import { useElementGuestFocus } from '../assemble-chrome/browser-page-guest-focus'
 import { consumeBrowserPageDeferredNavigation } from '../navigate/browser-page-deferred-navigation'
-import { useMarkupMode, type MarkupCaptureContext } from '../annotate/useMarkupMode'
-import { deliverMarkupToClipboard } from '../annotate/markup-clipboard-delivery'
 import {
   isRemoteBrowserStreamBusy,
   remoteBrowserStreamNotice
@@ -40,6 +41,7 @@ import {
 } from './remote-browser-page-context-menu'
 import { RemoteBrowserPageToolbar } from './remote-browser-page-toolbar'
 import { RemoteBrowserPageViewport } from './remote-browser-page-viewport'
+import { useRemoteBrowserPageAnnotate } from './use-remote-browser-page-annotate'
 
 export function RemoteBrowserPagePane({
   browserTab,
@@ -92,41 +94,15 @@ export function RemoteBrowserPagePane({
   const stagedPage = remotePageHandle?.staged === true
 
   // Why: runtimes predating browser.certificate-trust.v1 can't honor a proceed request, so hide "Proceed Anyway" until support is advertised.
-  const [remoteCertificateTrustSupported, setRemoteCertificateTrustSupported] = useState(false)
   const certificateChallengeId = certificateFailure?.challengeId ?? null
-  useEffect(() => {
-    if (!remotePageHandle?.environmentId || !certificateChallengeId) {
-      setRemoteCertificateTrustSupported(false)
-      return
-    }
-    let cancelled = false
-    void runtimeEnvironmentSupportsCapability(
-      remotePageHandle?.environmentId,
-      BROWSER_CERTIFICATE_TRUST_RUNTIME_CAPABILITY
-    )
-      .then((supported) => {
-        if (!cancelled) {
-          setRemoteCertificateTrustSupported(supported)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRemoteCertificateTrustSupported(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [remotePageHandle?.environmentId, certificateChallengeId])
+  const remoteCertificateTrustSupported = useRuntimeEnvironmentCapability(
+    certificateChallengeId ? remotePageHandle?.environmentId : null,
+    BROWSER_CERTIFICATE_TRUST_RUNTIME_CAPABILITY,
+    certificateChallengeId
+  )
 
-  const {
-    enqueueRemoteInput,
-    clearPendingRemoteWheel,
-    resetRemoteInputQueue,
-    pendingRemoteWheelRef,
-    remoteWheelFrameRef,
-    remoteWheelInFlightRef
-  } = useRemoteBrowserPageInputQueue()
+  const { inputQueue, enqueueRemoteInput, clearPendingRemoteInput, resetRemoteInputQueue } =
+    useRemoteBrowserPageInputQueue()
 
   const {
     lifecycle,
@@ -156,9 +132,14 @@ export function RemoteBrowserPagePane({
     isActive,
     setPaneNotice,
     setPaneBusy,
-    clearPendingRemoteWheel,
+    clearPendingRemoteInput,
     resetRemoteInputQueue
   })
+  const grabSupported = useRuntimeEnvironmentCapability(
+    remotePageHandle?.environmentId,
+    BROWSER_GRAB_RUNTIME_CAPABILITY,
+    streamStatus.kind
+  )
 
   // Stopped streams cannot clear paneBusy with frames; staged pages remain busy until creation. Stream notices outrank consequent RPC failures.
   const busy = stagedPage
@@ -241,21 +222,48 @@ export function RemoteBrowserPagePane({
     applyTabInfo: applyRemoteTabInfo,
     clearStreamFrame,
     closeMissingRemotePage,
-    clearPendingRemoteWheel,
+    clearPendingRemoteInput,
     setPaneNotice,
     setPaneBusy,
     setFrameUrl,
     setFrameMetadata
   })
 
+  const { markup, annotateTools, annotateBanner, annotateOverlays, pagePointerOwned } =
+    useRemoteBrowserPageAnnotate({
+      browserTab,
+      workspaceId,
+      worktreeId,
+      isActive,
+      chromeShortcutScope,
+      busy,
+      frameUrl,
+      stagedPage,
+      grabSupported,
+      imageRef,
+      remoteViewportRef,
+      runtimeEnvironmentId,
+      remotePageId:
+        remotePageHandle?.environmentId === runtimeEnvironmentId
+          ? remotePageHandle.remotePageId
+          : null,
+      runtimeTarget,
+      runtimeWorktree,
+      lifecycle,
+      inputQueue
+    })
+
   const {
     getRemoteImagePoint,
     handleRemotePointerDown,
     handleRemotePointerUp,
+    handleRemotePointerMove,
     handleRemoteScreenshotKeyDown,
     handleRemoteScreenshotPaste
   } = useRemoteBrowserPageInput({
     busy,
+    pagePointerOwned,
+    inputQueue,
     imageRef,
     remoteViewportRef,
     remoteCssViewportSizeRef,
@@ -281,19 +289,17 @@ export function RemoteBrowserPagePane({
     lifecycle,
     runtimeWorktree,
     getRemoteImagePoint,
-    enqueueRemoteInput,
+    inputQueue,
     createRemoteOperationToken,
     isCurrentRemoteOperationToken,
     closeMissingRemotePage,
     scheduleRemoteTabInfoRefresh,
-    setPaneNotice,
-    pendingRemoteWheelRef,
-    remoteWheelFrameRef,
-    remoteWheelInFlightRef
+    setPaneNotice
   })
 
   const { contextMenu, setContextMenu, handleRemoteContextMenu } = useRemoteBrowserPageContextMenu({
     busy,
+    pagePointerOwned,
     browserTabUrl: browserTab.url,
     imageRef,
     runtimeTarget,
@@ -306,28 +312,6 @@ export function RemoteBrowserPagePane({
     closeMissingRemotePage,
     mountedRef,
     setPaneNotice
-  })
-
-  // Why: markup snapshots the displayed screencast <img> (no injection), so it works on remote panes even though element-grab doesn't.
-  const markup = useMarkupMode({
-    getCaptureContext: useCallback((): MarkupCaptureContext | null => {
-      const element = imageRef.current
-      if (!element || !remoteViewportRef.current) {
-        return null
-      }
-      // Why the image's box: the frame is letterboxed, and the pane's shape would distort it.
-      const rect = element.getBoundingClientRect()
-      if (rect.width <= 0 || rect.height <= 0) {
-        return null
-      }
-      return {
-        source: { kind: 'image', element },
-        cssWidth: rect.width,
-        cssHeight: rect.height,
-        outputScale: window.devicePixelRatio || 1
-      }
-    }, []),
-    onDeliver: deliverMarkupToClipboard
   })
 
   return (
@@ -384,13 +368,12 @@ export function RemoteBrowserPagePane({
         busy={busy}
         loading={browserTab.loading}
         loadFailed={browserTab.loadError !== null}
-        markup={markup}
-        frameUrl={frameUrl}
-        isActive={isActive}
+        annotateTools={annotateTools}
         onBack={() => void runRemoteNavigation('browser.back')}
         onForward={() => void runRemoteNavigation('browser.forward')}
         onReload={() => void runRemoteNavigation('browser.reload')}
       />
+      {annotateBanner}
       <RemoteBrowserPageViewport
         remoteViewportRef={remoteViewportRef}
         imageRef={imageRef}
@@ -418,6 +401,8 @@ export function RemoteBrowserPagePane({
         handleRemoteContextMenu={handleRemoteContextMenu}
         handleRemoteScreenshotKeyDown={handleRemoteScreenshotKeyDown}
         handleRemoteScreenshotPaste={handleRemoteScreenshotPaste}
+        handleRemotePointerMove={handleRemotePointerMove}
+        annotateOverlays={annotateOverlays}
       />
     </div>
   )

@@ -69,9 +69,9 @@ export function runBrowserGrabActionShortcut({
   } else {
     // armed/awaiting — extract hovered element via IPC without clicking
     void (async () => {
-      let result: Awaited<ReturnType<typeof window.api.browser.extractHoverPayload>>
+      let result: Awaited<ReturnType<typeof grab.transport.extractHoverPayload>>
       try {
-        result = await window.api.browser.extractHoverPayload({
+        result = await grab.transport.extractHoverPayload({
           browserPageId: toolTargetIdRef.current
         })
       } catch {
@@ -87,7 +87,7 @@ export function runBrowserGrabActionShortcut({
 
       if (key === 's') {
         try {
-          const ssResult = await window.api.browser.captureSelectionScreenshot({
+          const ssResult = await grab.transport.captureSelectionScreenshot({
             browserPageId: toolTargetIdRef.current,
             rect: payload.target.rectViewport
           })

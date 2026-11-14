@@ -1,4 +1,4 @@
-import { MessageSquarePlus, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
@@ -7,8 +7,12 @@ import BrowserAddressBar from '../assemble-chrome/BrowserAddressBar'
 import type { BrowserAddressBarEditSessionBinding } from '../assemble-chrome/use-browser-address-bar-edit-session'
 import type { BrowserPageDocLocation } from '../../../../../shared/browser-workspace-types'
 import { RemoteRuntimeEgressIndicator } from '../assemble-chrome/browser-egress-indicator'
-import { MarkupDrawButton } from '../annotate/MarkupDrawButton'
-import type { MarkupModeController } from '../annotate/useMarkupMode'
+import {
+  BrowserAnnotateSplitButton,
+  type BrowserChromeElementTools,
+  type BrowserChromeMarkupTool,
+  type BrowserChromeNoteActions
+} from '../assemble-chrome/browser-annotate-split-button'
 
 export function RemoteBrowserPageToolbar({
   runtimeEnvironmentId,
@@ -22,9 +26,7 @@ export function RemoteBrowserPageToolbar({
   busy,
   loading,
   loadFailed,
-  markup,
-  frameUrl,
-  isActive,
+  annotateTools,
   onBack,
   onForward,
   onReload
@@ -41,9 +43,11 @@ export function RemoteBrowserPageToolbar({
   busy: boolean
   loading: boolean
   loadFailed: boolean
-  markup: MarkupModeController
-  frameUrl: string | null
-  isActive: boolean
+  annotateTools: {
+    tools: BrowserChromeElementTools
+    markup: BrowserChromeMarkupTool
+    notes: BrowserChromeNoteActions
+  }
   onBack: () => void
   onForward: () => void
   onReload: () => void
@@ -100,37 +104,12 @@ export function RemoteBrowserPageToolbar({
         </Tooltip>
       }
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 opacity-50"
-            aria-disabled="true"
-            aria-label={t(
-              'auto.components.browser.pane.BrowserPane.deb5293610',
-              'Browser annotations unavailable in remote runtime'
-            )}
-            onClick={(event) => {
-              event.preventDefault()
-            }}
-          >
-            <MessageSquarePlus className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={4}>
-          {t(
-            'auto.components.browser.pane.BrowserPane.8b7e6d1f5a',
-            'Browser annotations are only available in local browser tabs.'
-          )}
-        </TooltipContent>
-      </Tooltip>
-      <MarkupDrawButton
-        onClick={() => (markup.isActive ? markup.cancel() : void markup.start())}
-        disabled={!frameUrl}
-        active={markup.isActive}
-        surfaceActive={isActive}
-        className="h-7 w-7"
+      <BrowserAnnotateSplitButton
+        tools={annotateTools.tools}
+        markup={annotateTools.markup}
+        notes={annotateTools.notes}
+        compact={false}
+        showTourAnchors={false}
       />
     </BrowserNavigationControlRow>
   )
