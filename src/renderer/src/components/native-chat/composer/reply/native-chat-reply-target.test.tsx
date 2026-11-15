@@ -17,7 +17,6 @@ import {
   withNativeChatReplyContext
 } from './native-chat-reply-target'
 import { readNativeChatContextMenuTarget } from '../../pane/actions/native-chat-context-menu-target'
-import { useNativeChatMessageRevealAnswer } from './native-chat-reply-context'
 import { NativeChatReplyStrip } from './NativeChatReplyStrip'
 import {
   deleteNativeChatComposerDraft,
@@ -25,7 +24,7 @@ import {
 } from '../../drafts/native-chat-composer-draft-removal'
 import { registerNativeChatComposerDestination } from '../focus/native-chat-composer-destination'
 import type { NativeChatComposerHandle } from '../native-chat-composer-types'
-import { startNativeChatReply } from './native-chat-reply-context'
+import { startNativeChatReply, useNativeChatMessageRevealAnswer } from './native-chat-reply-context'
 import { clearNativeChatComposerDraftsForTests } from '../../drafts/native-chat-draft-reset'
 import { readNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-store'
 import { returnMessageToComposer } from '../../session/structured/delivery/structured-agent-session-message-hand-back'
@@ -265,7 +264,17 @@ describe('where Reply goes', () => {
     const box = document.createElement('div')
     root.append(box)
     document.body.append(root)
-    const handle = { current: { focus: () => true } as unknown as NativeChatComposerHandle }
+    const composer: NativeChatComposerHandle = {
+      insertAgentReferences: () => false,
+      focus: () => true,
+      insertTypedText: () => false,
+      acceptsText: () => true,
+      appendText: () => {},
+      handlePasteEvent: () => {},
+      pasteFromClipboard: () => {},
+      contains: () => false
+    }
+    const handle = { current: composer }
     registerNativeChatComposerDestination(box, handle, primary, scope)
     return root
   }
