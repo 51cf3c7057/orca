@@ -23,14 +23,17 @@ const FOOTER_TEXT =
 export function NativeChatComposerWorkspace({
   terminalTabId,
   structuredTransport,
+  pendingCreationId,
   isWorking = false
 }: {
   terminalTabId: string
+  pendingCreationId?: string
   structuredTransport?: NativeChatComposerWorkspaceTarget
   isWorking?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
   const { worktreeId, runtimeEnvironmentId } = structuredTransport ?? {}
+  const creationId = pendingCreationId ?? structuredTransport?.pendingCreationId
   const hasTransport = structuredTransport !== undefined
   const selector = useMemo(
     () =>
@@ -38,9 +41,10 @@ export function NativeChatComposerWorkspace({
         terminalTabId,
         hasTransport
           ? { worktreeId, runtimeEnvironmentId: runtimeEnvironmentId ?? null }
-          : undefined
+          : undefined,
+        creationId
       ),
-    [terminalTabId, worktreeId, runtimeEnvironmentId, hasTransport]
+    [terminalTabId, worktreeId, runtimeEnvironmentId, hasTransport, creationId]
   )
   const {
     worktreeId: rowWorktreeId,

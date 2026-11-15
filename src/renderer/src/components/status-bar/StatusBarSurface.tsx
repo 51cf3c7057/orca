@@ -39,7 +39,6 @@ import {
 } from './usage/usage-unit-label'
 import { useStatusBarController } from './composition/use-status-bar-controller'
 import { isOwnerNotSetUpPlaceholder } from './usage/owner-usage-rate-limits'
-import { getAccountOwnerKey } from './accounts/owner-account-rows'
 import { StatusBarVisibilityMenu } from './composition/StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/app-shell/chrome/desktop-window-chrome'
 import { GitBlameStatusSegment } from './GitBlameStatusSegment'
@@ -168,6 +167,7 @@ export function StatusBarSurface({
                     type="button"
                     className="inline-flex items-center gap-3 rounded px-1 py-0.5 hover:bg-accent/70"
                     aria-label={t('auto.components.status.bar.UsageRosterPanel.title', 'Usage')}
+                    title={remoteOwner?.label}
                   >
                     {unitLabelState !== 'absent' ? (
                       <UsageUnitLabel
@@ -218,6 +218,8 @@ export function StatusBarSurface({
                   onCloseAutoFocus={usageMenuFocusHandoff.onCloseAutoFocus}
                 >
                   <UsageRosterPanel
+                    actionsAvailable={remoteOwner === null || remoteOwner.environmentId !== null}
+                    unavailableReason={remoteOwner?.unavailableReason}
                     providers={rosterProviders}
                     display={usagePercentageDisplay}
                     statusBarUsageMode={statusBarUsageMode}
@@ -261,7 +263,6 @@ export function StatusBarSurface({
                       if (p.provider === 'codex') {
                         return (
                           <CodexSwitcherMenu
-                            key={getAccountOwnerKey(ownerUsage.owner)}
                             codex={p}
                             ownerUsage={ownerUsage}
                             compact={compact}
