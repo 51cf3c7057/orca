@@ -20266,7 +20266,6 @@
       "splitDown": "Diviser vers le bas",
       "reply": {
         "action": "Répondre",
-        "you": "Vous",
         "showOriginal": "Afficher le message d’origine",
         "originalUnavailable": "Message indisponible",
         "cancel": "Annuler la réponse",
@@ -20275,7 +20274,9 @@
         "repliedTo": "Réponse à {{name}}",
         "repliedToYou": "Réponse à votre message",
         "agentFallback": "Agent",
-        "cancelled": "Réponse annulée"
+        "cancelled": "Réponse annulée",
+        "replyingToYouLabel": "Réponse à votre message",
+        "replyingToYouName": "Réponse à <name>votre message</name>"
       }
     },
     "tab": {

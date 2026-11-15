@@ -54,6 +54,30 @@ export function useNativeChatNavigationRequest(
   }
 }
 
+function nativeChatMessageIdWithText(
+  slots: readonly NativeChatTranscriptSlot[],
+  excerpt: string
+): string | null {
+  const line = excerpt
+    .split(/\r?\n/)
+    .find((entry) => entry.trim())
+    ?.trim()
+    .replace(/…$/, '')
+  if (!line) {
+    return null
+  }
+  for (let index = slots.length - 1; index >= 0; index -= 1) {
+    const slot = slots[index]
+    if (
+      slot.kind === 'message' &&
+      slot.message.blocks.some((block) => block.type === 'text' && block.text.includes(line))
+    ) {
+      return slot.message.id
+    }
+  }
+  return null
+}
+
 export function useNativeChatNavigation({
   request,
   rail,
@@ -152,17 +176,24 @@ export function useNativeChatNavigation({
     scrollToBottom()
   }, [beginNavigation, scrollToBottom])
   // Any loaded message, not only a rail prompt: the window keeps its slot drawn until the jump lands.
+  // A reply restored from sent text names no message; its words find the latest one that says them.
   const revealMessage = useCallback(
-    (messageId: string, probe: boolean): boolean => {
-      if (nativeChatSlotIndexOf(slots, messageId) < 0) {
-        return false
+    (messageId: string, probe: boolean, excerpt?: string): string | null => {
+      const found =
+        nativeChatSlotIndexOf(slots, messageId) >= 0
+          ? messageId
+          : excerpt
+            ? nativeChatMessageIdWithText(slots, excerpt)
+            : null
+      if (!found) {
+        return null
       }
       if (!probe) {
         beginNavigation()
         readerLeavesEnd()
-        issue({ kind: 'rail', messageId, requestId: nextRequestId() })
+        issue({ kind: 'rail', messageId: found, requestId: nextRequestId() })
       }
-      return true
+      return found
     },
     [beginNavigation, issue, nextRequestId, readerLeavesEnd, slots]
   )

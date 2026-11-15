@@ -21715,7 +21715,6 @@
       },
       "reply": {
         "action": "Responder",
-        "you": "Você",
         "showOriginal": "Mostrar a mensagem original",
         "originalUnavailable": "Mensagem indisponível",
         "cancel": "Cancelar resposta",
@@ -21724,7 +21723,9 @@
         "repliedTo": "Resposta a {{name}}",
         "repliedToYou": "Resposta à sua mensagem",
         "agentFallback": "Agente",
-        "cancelled": "Resposta cancelada"
+        "cancelled": "Resposta cancelada",
+        "replyingToYouLabel": "Respondendo à sua mensagem",
+        "replyingToYouName": "Respondendo à <name>sua mensagem</name>"
       }
     },
     "tab": {

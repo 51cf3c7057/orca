@@ -29,15 +29,34 @@ export function NativeChatReplyStrip({
 }): React.JSX.Element {
   const t = useTranslate()
   const target = useNativeChatReplyTarget(scopeKey)
-  const label = !target
-    ? ''
+  const agentName = agent
+    ? formatAgentTypeLabel(agent)
+    : t('components.native-chat.reply.agentFallback', 'Agent')
+  // Whole sentences per author, so each language words "your message" and a name its own way.
+  const words = !target
+    ? null
     : target.author === 'user'
-      ? t('components.native-chat.reply.you', 'You')
-      : agent
-        ? formatAgentTypeLabel(agent)
-        : t('components.native-chat.reply.agentFallback', 'Agent')
-  const announcement = target
-    ? t('components.native-chat.reply.replyingToLabel', 'Replying to {{name}}', { name: label })
+      ? {
+          label: t('components.native-chat.reply.replyingToYouLabel', 'Replying to your message'),
+          heading: t(
+            'components.native-chat.reply.replyingToYouName',
+            'Replying to <name>your message</name>'
+          )
+        }
+      : {
+          label: t('components.native-chat.reply.replyingToLabel', 'Replying to {{name}}', {
+            name: agentName
+          }),
+          heading: t(
+            'components.native-chat.reply.replyingToName',
+            'Replying to <name>{{name}}</name>',
+            {
+              name: agentName
+            }
+          )
+        }
+  const announcement = words
+    ? words.label
     : // Only a user's cancel is announced; a send that uses the reply ends it silently.
       nativeChatReplyWasCancelled(scopeKey)
       ? t('components.native-chat.reply.cancelled', 'Reply cancelled')
@@ -48,10 +67,10 @@ export function NativeChatReplyStrip({
       <span className="sr-only" role="status" aria-live="polite">
         {announcement}
       </span>
-      {target ? (
+      {target && words ? (
         <ReplyStripRow
           key={target.id}
-          label={label}
+          words={words}
           target={target}
           onCancel={() => cancelNativeChatReplyTarget(scopeKey)}
           onDone={onDone}
@@ -62,12 +81,12 @@ export function NativeChatReplyStrip({
 }
 
 function ReplyStripRow({
-  label,
+  words,
   target,
   onCancel,
   onDone
 }: {
-  label: string
+  words: { label: string; heading: string }
   target: NativeChatReplyTarget
   onCancel: () => void
   onDone: () => void
@@ -80,12 +99,12 @@ function ReplyStripRow({
   // the transcript's messages change, so a removed or returning original shows correctly.
   useEffect(() => {
     const probe = (): void =>
-      setAvailable(requestNativeChatMessageReveal(ref.current, target.messageId, true))
+      setAvailable(requestNativeChatMessageReveal(ref.current, target, { probe: true }))
     probe()
     const root = ref.current?.closest('[data-native-chat-root]')
     root?.addEventListener(NATIVE_CHAT_MESSAGES_CHANGED_EVENT, probe)
     return () => root?.removeEventListener(NATIVE_CHAT_MESSAGES_CHANGED_EVENT, probe)
-  }, [target.messageId])
+  }, [target])
   const snippet = target.excerpt.split(/\r?\n/).find((line) => line.trim()) ?? ''
   const showOriginal = t('components.native-chat.reply.showOriginal', 'Show the original message')
   const unavailable = t('components.native-chat.reply.originalUnavailable', 'Message unavailable')
@@ -94,9 +113,7 @@ function ReplyStripRow({
     <div
       ref={ref}
       role="group"
-      aria-label={t('components.native-chat.reply.replyingToLabel', 'Replying to {{name}}', {
-        name: label
-      })}
+      aria-label={words.label}
       className="mb-1.5 flex min-w-0 items-center gap-1.5 rounded-lg bg-muted/70 py-1 pr-1 pl-2 text-xs text-muted-foreground"
     >
       <Reply aria-hidden className="size-3.5 shrink-0" />
@@ -104,11 +121,7 @@ function ReplyStripRow({
       <span className="shrink-0">
         <Trans
           i18n={i18n}
-          defaults={t(
-            'components.native-chat.reply.replyingToName',
-            'Replying to <name>{{name}}</name>',
-            { name: label }
-          )}
+          defaults={words.heading}
           components={{ name: <span className="font-medium text-foreground" /> }}
         />
       </span>
@@ -117,8 +130,15 @@ function ReplyStripRow({
           type="button"
           title={showOriginal}
           aria-label={`${showOriginal}: ${snippet}`}
-          onClick={() => {
-            if (!requestNativeChatMessageReveal(ref.current, target.messageId, false)) {
+          onClick={(event) => {
+            // detail 0: activated from the keyboard (Enter or Space), not a pointer click.
+            const fromKeyboard = event.detail === 0
+            if (
+              !requestNativeChatMessageReveal(ref.current, target, {
+                probe: false,
+                focus: fromKeyboard
+              })
+            ) {
               setAvailable(false)
             }
           }}

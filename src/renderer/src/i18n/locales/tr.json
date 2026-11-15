@@ -20366,16 +20366,17 @@
       "splitDown": "Aşağı Böl",
       "reply": {
         "action": "Yanıtla",
-        "you": "Siz",
         "showOriginal": "Asıl mesajı göster",
         "originalUnavailable": "Mesaj kullanılamıyor",
         "cancel": "Yanıtı iptal et",
-        "replyingToLabel": "{{name}} adlı mesaja yanıt veriliyor",
-        "replyingToName": "<name>{{name}}</name> adlı mesaja yanıt veriliyor",
-        "repliedTo": "{{name}} adlı mesaja yanıt",
+        "replyingToLabel": "Yanıtlanan: {{name}}",
+        "replyingToName": "Yanıtlanan: <name>{{name}}</name>",
+        "repliedTo": "Yanıt verilen: {{name}}",
         "repliedToYou": "Kendi mesajınıza yanıt",
         "agentFallback": "Ajan",
-        "cancelled": "Yanıt iptal edildi"
+        "cancelled": "Yanıt iptal edildi",
+        "replyingToYouLabel": "Kendi mesajınıza yanıt veriliyor",
+        "replyingToYouName": "<name>Kendi mesajınıza</name> yanıt veriliyor"
       }
     },
     "tab": {

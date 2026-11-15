@@ -8,6 +8,8 @@ export type NativeChatReplyTarget = {
   readonly id: string
   readonly messageId: string
   readonly author: 'agent' | 'user'
+  /** The agent name a restored quote was written with, kept when it is sent again. */
+  readonly agentLabel?: string
   /** What the strip shows and the quote carries; the agent already holds the full message. */
   readonly excerpt: string
 }
@@ -162,7 +164,8 @@ export function restoreNativeChatReplyTarget(
   scopeKey: string,
   target: NativeChatReplyTarget
 ): void {
-  if (!readNativeChatReplyTarget(scopeKey)) {
+  // A reply the user cancelled while its send was pending stays cancelled.
+  if (!readNativeChatReplyTarget(scopeKey) && !cancelled.has(scopeKey)) {
     setNativeChatReplyTarget(scopeKey, target)
   }
 }
@@ -224,7 +227,7 @@ const OWN_HEAD = '> Replying to my earlier message:'
 /** The text a reply sends: a quote of the message it answers, written for the agent, then the user's words. */
 export function withNativeChatReplyContext(
   text: string,
-  target: Pick<NativeChatReplyTarget, 'author' | 'excerpt'> | null,
+  target: Pick<NativeChatReplyTarget, 'author' | 'excerpt' | 'agentLabel'> | null,
   agentLabel: string
 ): string {
   if (!target) {
@@ -235,7 +238,9 @@ export function withNativeChatReplyContext(
     .map((line) => (line.trim() ? `> ${line}` : '>'))
     .join('\n')
   const head =
-    target.author === 'agent' ? `> Replying to the earlier message from ${agentLabel}:` : OWN_HEAD
+    target.author === 'agent'
+      ? `> Replying to the earlier message from ${target.agentLabel ?? agentLabel}:`
+      : OWN_HEAD
   const body = text.trim()
   return body ? `${head}\n${quoted}\n\n${text}` : `${head}\n${quoted}`
 }
@@ -267,6 +272,29 @@ export function nativeChatReplyQuoteOf(
     label: agentHead?.[1] ?? null,
     excerpt,
     rest: lines.slice(end).join('\n').trim()
+  }
+}
+
+/** Splits a sent reply back into the user's words and the reply it carried, so they can be edited again. */
+export function nativeChatReplyTargetFromSentText(text: string): {
+  rest: string
+  target: NativeChatReplyTarget | null
+} {
+  const quote = nativeChatReplyQuoteOf(text)
+  if (!quote) {
+    return { rest: text, target: null }
+  }
+  sequence += 1
+  return {
+    rest: quote.rest,
+    target: {
+      id: `${Date.now().toString(36)}-${sequence}`,
+      // The sent text names no message; the transcript finds the original by its words.
+      messageId: '',
+      author: quote.author,
+      ...(quote.label ? { agentLabel: quote.label } : {}),
+      excerpt: quote.excerpt
+    }
   }
 }
 

@@ -1,3 +1,10 @@
+import {
+  clearNativeChatReplyTarget,
+  nativeChatReplyTargetFromSentText,
+  readNativeChatReplyTarget,
+  setNativeChatReplyTarget,
+  withNativeChatReplyContext
+} from '../../composer/reply/native-chat-reply-target'
 import type { AgentJournalMessageItem } from '../../../../../../shared/agent-session/journal/agent-session-journal-types'
 import { withoutImageReference } from '../../../../../../shared/native-chat/attachments/native-chat-image-reference'
 import {
@@ -63,8 +70,15 @@ export function createNativeChatQueuedEditDraft(
 ): NativeChatQueuedEditDraft {
   const scopeKey = `queued-edit:${createUuidV4()}`
   const kept = queuedEditKeptImages(body)
+  // The card's reply quote is edited as a reply strip on this scope and put back on save.
+  const { rest, target: reply } = nativeChatReplyTargetFromSentText(
+    queuedMessageEditableText(body) ?? ''
+  )
+  if (reply) {
+    setNativeChatReplyTarget(scopeKey, reply)
+  }
   const text = promptMarkersToImageReferences(
-    queuedMessageEditableText(body) ?? '',
+    rest,
     kept.map(({ id }) => id)
   )
   const initial: NativeChatComposerDraft = {
@@ -89,9 +103,13 @@ export function nativeChatQueuedEditInput(
   skillsCapable: boolean
 ): QueuedMessageEdit {
   const draft = readNativeChatComposerDraft(edit.scopeKey)
-  const text = imageReferencesToPromptMarkers(
-    resolveNativeChatPastedText(edit.scopeKey, draft.text),
-    draft.images.map(({ id }) => id)
+  const text = withNativeChatReplyContext(
+    imageReferencesToPromptMarkers(
+      resolveNativeChatPastedText(edit.scopeKey, draft.text),
+      draft.images.map(({ id }) => id)
+    ),
+    readNativeChatReplyTarget(edit.scopeKey),
+    'the agent'
   )
   const images = draft.images.map(
     (image) =>
@@ -171,6 +189,7 @@ export function handBackNativeChatQueuedEdit(
 }
 
 export function discardNativeChatQueuedEdit(edit: NativeChatQueuedEditDraft): void {
+  clearNativeChatReplyTarget(edit.scopeKey)
   clearNativeChatPendingAttachments(edit.scopeKey)
   closeNativeChatEditDraft(edit.scopeKey)
 }

@@ -19908,7 +19908,6 @@
       "splitDown": "向下分割",
       "reply": {
         "action": "回覆",
-        "you": "你",
         "showOriginal": "顯示原始訊息",
         "originalUnavailable": "訊息無法使用",
         "cancel": "取消回覆",
@@ -19917,7 +19916,9 @@
         "repliedTo": "已回覆 {{name}}",
         "repliedToYou": "已回覆你的訊息",
         "agentFallback": "代理程式",
-        "cancelled": "已取消回覆"
+        "cancelled": "已取消回覆",
+        "replyingToYouLabel": "正在回覆你的訊息",
+        "replyingToYouName": "正在回覆<name>你的訊息</name>"
       }
     },
     "tab": {

@@ -9,6 +9,9 @@ import {
   resetNativeChatReplyTargetsForTests,
   nativeChatReplyExcerpt,
   nativeChatReplyQuoteOf,
+  nativeChatReplyTargetFromSentText,
+  cancelNativeChatReplyTarget,
+  restoreNativeChatReplyTarget,
   setNativeChatReplyTarget,
   useNativeChatReplyTarget,
   withNativeChatReplyContext
@@ -18,6 +21,8 @@ import { useNativeChatMessageRevealAnswer } from './native-chat-reply-context'
 import { NativeChatReplyStrip } from './NativeChatReplyStrip'
 import { deleteNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-removal'
 import { clearNativeChatComposerDraftsForTests } from '../../drafts/native-chat-draft-reset'
+import { readNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-store'
+import { returnMessageToComposer } from '../../session/structured/delivery/structured-agent-session-message-hand-back'
 
 const reply = (id: string, messageId = 'm-1') => ({
   id,
@@ -87,7 +92,7 @@ function Chat({
   pickerOpen?: boolean
 }): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
-  useNativeChatMessageRevealAnswer(scrollRef, (id) => messages.includes(id))
+  useNativeChatMessageRevealAnswer(scrollRef, (id) => (messages.includes(id) ? id : null))
   return (
     <div data-native-chat-root="true">
       <div ref={scrollRef}>
@@ -133,13 +138,24 @@ describe('reply strip', () => {
     expect(interrupt).toHaveBeenCalledTimes(1)
   })
 
-  it('outlines and focuses the original it jumps to', () => {
+  it('outlines the original; keyboard activation also moves focus there, a click keeps it', () => {
     setNativeChatReplyTarget('scope', reply('r', 'm-7'))
     render(<Chat messages={['m-7']} />)
-    fireEvent.click(screen.getByRole('button', { name: /Show the original message/ }))
+    const jump = screen.getByRole('button', { name: /Show the original message/ })
     const row = screen.getByText('m-7')
+    jump.focus()
+    fireEvent.click(jump, { detail: 1 })
     expect(row.hasAttribute('data-native-chat-reply-landed')).toBe(true)
+    expect(document.activeElement).toBe(jump)
+    fireEvent.click(jump, { detail: 0 })
     expect(document.activeElement).toBe(row)
+  })
+
+  it('names your own message as a whole sentence', () => {
+    setNativeChatReplyTarget('scope', { ...reply('r', 'm-7'), author: 'user' })
+    render(<Chat messages={['m-7']} />)
+    expect(screen.getByRole('group', { name: 'Replying to your message' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('Replying to your message')
   })
 })
 
@@ -176,5 +192,47 @@ describe('reply quotes', () => {
     })
     expect(target.replyTo).toBeNull()
     view.remove()
+  })
+
+  it('splits a sent reply back into the words and a reply that finds its original by those words', () => {
+    const sent = withNativeChatReplyContext(
+      'Why blue?',
+      { author: 'agent', excerpt: 'Updated the cards.' },
+      'Claude'
+    )
+    const { rest, target } = nativeChatReplyTargetFromSentText(sent)
+    expect(rest).toBe('Why blue?')
+    expect(target).toMatchObject({
+      messageId: '',
+      author: 'agent',
+      agentLabel: 'Claude',
+      excerpt: 'Updated the cards.'
+    })
+    // Sent again unchanged, it keeps the agent it was written for.
+    expect(withNativeChatReplyContext(rest, target, 'Codex')).toBe(sent)
+  })
+})
+
+describe('restored replies', () => {
+  it('a reply cancelled while its send was pending stays cancelled', () => {
+    setNativeChatReplyTarget('scope', reply('r'))
+    cancelNativeChatReplyTarget('scope')
+    restoreNativeChatReplyTarget('scope', reply('r'))
+    expect(readNativeChatReplyTarget('scope')).toBeNull()
+  })
+
+  it('a rewound reply comes back as the user words with its reply strip', () => {
+    returnMessageToComposer('agent-session:rewound', 'rw', [
+      {
+        type: 'text',
+        text: withNativeChatReplyContext(
+          'Why blue?',
+          { author: 'agent', excerpt: 'Updated the cards.' },
+          'Claude'
+        )
+      }
+    ])
+    expect(readNativeChatComposerDraft('agent-session:rewound').text).toBe('Why blue?')
+    expect(readNativeChatReplyTarget('agent-session:rewound')?.excerpt).toBe('Updated the cards.')
   })
 })
