@@ -1,5 +1,8 @@
 import { useLayoutEffect, type RefObject } from 'react'
 import { createNativeChatReplyTarget, setNativeChatReplyTarget } from './native-chat-reply-target'
+import { nativeChatPrimaryComposer } from '../focus/native-chat-composer-destination'
+import { resolveNativeChatDraftOwner } from '../../drafts/native-chat-draft-owner'
+import { useAppStore } from '@/store'
 
 export type NativeChatReplySource = {
   messageId: string
@@ -7,23 +10,21 @@ export type NativeChatReplySource = {
   text: string
 }
 
-/** The chat's message box: the last composer in its root, below any queued-message editors. */
-function nativeChatMainComposer(from: Element | null): HTMLElement | null {
-  const composers = from
-    ?.closest('[data-native-chat-root]')
-    ?.querySelectorAll<HTMLElement>('[data-native-chat-composer-scope]')
-  return composers ? ([...composers].at(-1) ?? null) : null
-}
-
-/** Points the chat's message box at `source` and hands the user back to typing there. */
-export function startNativeChatReply(from: Element | null, source: NativeChatReplySource): void {
-  const composer = nativeChatMainComposer(from)
-  const scopeKey = composer?.dataset.nativeChatComposerScope
-  if (!composer || !scopeKey) {
-    return
+/** Points the chat's message box at `source` and hands the user back to typing there. Does nothing
+ *  while the box is not shown (a question card answers instead); a queued-message editor never takes it. */
+export function startNativeChatReply(from: Element | null, source: NativeChatReplySource): boolean {
+  const root = from?.closest<HTMLElement>('[data-native-chat-root]') ?? null
+  const composer = nativeChatPrimaryComposer(root)
+  if (!composer) {
+    return false
   }
-  setNativeChatReplyTarget(scopeKey, createNativeChatReplyTarget(source))
-  composer.querySelector<HTMLElement>('[contenteditable="true"], textarea')?.focus()
+  const owner = resolveNativeChatDraftOwner(useAppStore.getState(), composer.scopeKey)
+  setNativeChatReplyTarget(composer.scopeKey, {
+    ...createNativeChatReplyTarget(source),
+    ...(owner ? { owner } : {})
+  })
+  composer.handle.focus()
+  return true
 }
 
 /** A message jump the transcript answers when it holds that message; `found` reports whether it did. */
@@ -106,6 +107,10 @@ export function useNativeChatMessageRevealAnswer(
     root.addEventListener(REVEAL_MESSAGE_EVENT, onReveal)
     // `reveal` changes with the transcript's messages; anything showing availability asks again.
     root.dispatchEvent(new Event(NATIVE_CHAT_MESSAGES_CHANGED_EVENT))
-    return () => root.removeEventListener(REVEAL_MESSAGE_EVENT, onReveal)
+    return () => {
+      root.removeEventListener(REVEAL_MESSAGE_EVENT, onReveal)
+      // The transcript leaving (an empty, loading or error view) is a change too.
+      root.dispatchEvent(new Event(NATIVE_CHAT_MESSAGES_CHANGED_EVENT))
+    }
   }, [reveal, scrollRef])
 }

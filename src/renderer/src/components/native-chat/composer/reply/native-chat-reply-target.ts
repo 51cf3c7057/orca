@@ -2,6 +2,7 @@
 // draft schema stays unchanged; small and bounded, so localStorage holds it across reloads.
 
 import { useSyncExternalStore } from 'react'
+import type { NativeChatComposerDraftOwner } from '../../drafts/native-chat-composer-draft-storage'
 
 export type NativeChatReplyTarget = {
   /** Unique per Reply click: a send consumes only the target it captured, never a newer one. */
@@ -10,6 +11,8 @@ export type NativeChatReplyTarget = {
   readonly author: 'agent' | 'user'
   /** The agent name a restored quote was written with, kept when it is sent again. */
   readonly agentLabel?: string
+  /** The workspace whose chat this is, so removing the workspace forgets the reply. */
+  readonly owner?: NativeChatComposerDraftOwner
   /** What the strip shows and the quote carries; the agent already holds the full message. */
   readonly excerpt: string
 }
@@ -24,6 +27,16 @@ const targets = new Map<string, NativeChatReplyTarget>()
 const listeners = new Map<string, Set<() => void>>()
 /** Scopes whose last reply the user cancelled, so the strip can say so; a send clears silently. */
 const cancelled = new Set<string>()
+/** Bumped whenever a scope's reply is decided (picked, cancelled, deleted); a failed send may put its
+ *  reply back only while nothing has decided since it took it. */
+const custody = new Map<string, number>()
+const decide = (scopeKey: string): void => {
+  custody.set(scopeKey, (custody.get(scopeKey) ?? 0) + 1)
+}
+
+export function nativeChatReplyCustody(scopeKey: string): number {
+  return custody.get(scopeKey) ?? 0
+}
 let loaded = false
 let sequence = 0
 
@@ -114,6 +127,7 @@ export function readNativeChatReplyTarget(scopeKey: string): NativeChatReplyTarg
 
 export function setNativeChatReplyTarget(scopeKey: string, target: NativeChatReplyTarget): void {
   load()
+  decide(scopeKey)
   cancelled.delete(scopeKey)
   targets.delete(scopeKey)
   targets.set(scopeKey, target)
@@ -141,6 +155,7 @@ export function cancelNativeChatReplyTarget(scopeKey: string): boolean {
     return false
   }
   clearNativeChatReplyTarget(scopeKey, current.id)
+  decide(scopeKey)
   cancelled.add(scopeKey)
   return true
 }
@@ -159,21 +174,36 @@ export function cancelNativeChatReplyFrom(target: EventTarget | null): boolean {
   return scopeKey ? cancelNativeChatReplyTarget(scopeKey) : false
 }
 
-/** Puts back a reply a refused send had taken, unless the user has picked another since. */
+/** Puts back a reply a refused send had taken, unless its reply was decided since `takenAt`
+ *  (another picked or cancelled, or the chat deleted); without `takenAt`, only into an empty slot. */
 export function restoreNativeChatReplyTarget(
   scopeKey: string,
-  target: NativeChatReplyTarget
+  target: NativeChatReplyTarget,
+  takenAt?: number
 ): void {
-  // A reply the user cancelled while its send was pending stays cancelled.
-  if (!readNativeChatReplyTarget(scopeKey) && !cancelled.has(scopeKey)) {
+  const undecided =
+    takenAt === undefined
+      ? !readNativeChatReplyTarget(scopeKey) && !cancelled.has(scopeKey)
+      : nativeChatReplyCustody(scopeKey) === takenAt
+  if (undecided) {
     setNativeChatReplyTarget(scopeKey, target)
   }
 }
 
-/** Forgets replies for drafts that are deleted, such as a closed chat or removed workspace. */
-export function clearNativeChatReplyTargetsWhere(matches: (scopeKey: string) => boolean): void {
+/** Forgets replies for drafts that are deleted, such as a closed chat or removed workspace; a pending
+ *  send in those chats can no longer put its reply back. */
+export function clearNativeChatReplyTargetsWhere(
+  matches: (scopeKey: string, owner: NativeChatComposerDraftOwner | undefined) => boolean
+): void {
   load()
-  const removed = [...targets.keys()].filter(matches)
+  for (const key of custody.keys()) {
+    if (matches(key, targets.get(key)?.owner)) {
+      decide(key)
+    }
+  }
+  const removed = [...targets]
+    .filter(([key, target]) => matches(key, target.owner))
+    .map(([key]) => key)
   if (removed.length === 0) {
     return
   }
@@ -187,16 +217,17 @@ export function clearNativeChatReplyTargetsWhere(matches: (scopeKey: string) => 
 }
 
 /** Clears the scope's target; with `id`, only when it is still that target, so a newer Reply survives a send. */
-export function clearNativeChatReplyTarget(scopeKey: string, id?: string): void {
+export function clearNativeChatReplyTarget(scopeKey: string, id?: string): boolean {
   load()
   const current = targets.get(scopeKey)
   if (!current || (id !== undefined && current.id !== id)) {
-    return
+    return false
   }
   cancelled.delete(scopeKey)
   targets.delete(scopeKey)
   save()
   notify(scopeKey)
+  return true
 }
 
 function subscribe(scopeKey: string, listener: () => void): () => void {
@@ -301,6 +332,7 @@ export function nativeChatReplyTargetFromSentText(text: string): {
 /** Test-only: forget all targets and reload from storage on next read. */
 export function resetNativeChatReplyTargetsForTests(): void {
   targets.clear()
+  custody.clear()
   cancelled.clear()
   listeners.clear()
   loaded = false

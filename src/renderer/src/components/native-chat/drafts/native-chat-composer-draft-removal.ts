@@ -22,7 +22,13 @@ export function deleteNativeChatComposerDraftsWhere(
 ): void {
   deleteLoadingNativeChatComposerDraftsWhere(matches)
   retireNativeChatComposerSubmissionsWhere(matches)
-  clearNativeChatReplyTargetsWhere((scope) => matches(scope, records.get(scope)))
+  // A reply alone, with no text, still belongs to its workspace through the owner it was picked in.
+  clearNativeChatReplyTargetsWhere((scope, owner) =>
+    matches(
+      scope,
+      records.get(scope) ?? (owner ? { text: '', images: [], savedAt: 0, owner } : undefined)
+    )
+  )
   for (const scope of new Set([...records.keys(), ...scopeListeners.keys()])) {
     const draft = records.get(scope)
     if (matches(scope, draft)) {

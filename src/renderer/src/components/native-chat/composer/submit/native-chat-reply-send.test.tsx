@@ -8,12 +8,14 @@ import {
   setNativeChatComposerDraftStorageForTests
 } from '../../drafts/native-chat-composer-draft-storage'
 import { useNativeChatDraft } from '../../drafts/use-native-chat-draft'
+import { deleteNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-removal'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../../../shared/agent-session/view/structured-agent-session-composer'
 import type { NativeChatStructuredComposerTransport } from './native-chat-structured-composer-transport'
 import { useNativeChatStructuredComposerSend } from './use-native-chat-structured-composer-send'
 import { useNativeChatPtyComposerSend } from './use-native-chat-pty-composer-send'
 import type { NativeChatResolvedTarget } from './native-chat-composer-target'
 import {
+  cancelNativeChatReplyTarget,
   readNativeChatReplyTarget,
   resetNativeChatReplyTargetsForTests,
   setNativeChatReplyTarget
@@ -159,6 +161,31 @@ describe('replying to a message from a structured chat', () => {
       await pending
     })
     expect(readNativeChatReplyTarget(scope)?.id).toBe('reply-2')
+  })
+
+  it('does not bring a reply back after its chat was deleted or a newer reply was cancelled', async () => {
+    for (const decide of [
+      () => deleteNativeChatComposerDraft(scope),
+      () => {
+        setNativeChatReplyTarget(scope, { ...target, id: 'reply-2' })
+        cancelNativeChatReplyTarget(scope)
+      }
+    ]) {
+      setNativeChatReplyTarget(scope, target)
+      const admission = Promise.withResolvers<boolean>()
+      const { send } = fixture(() => admission.promise)
+      let pending: Promise<boolean> | undefined
+      await act(async () => {
+        pending = send('Why blue?')
+      })
+      decide()
+      await act(async () => {
+        admission.resolve(false)
+        await pending
+      })
+      expect(readNativeChatReplyTarget(scope)).toBeNull()
+      cleanup()
+    }
   })
 
   it('never quotes a command and leaves the reply for the next message', async () => {

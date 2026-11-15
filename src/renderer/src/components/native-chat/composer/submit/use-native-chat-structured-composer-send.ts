@@ -2,6 +2,7 @@ import { serializeNativeChatAgentReferences } from '../pickers/native-chat-agent
 import {
   clearNativeChatReplyTarget,
   readNativeChatReplyTarget,
+  nativeChatReplyCustody,
   restoreNativeChatReplyTarget,
   withNativeChatReplyContext
 } from '../reply/native-chat-reply-target'
@@ -149,6 +150,7 @@ export function useNativeChatStructuredComposerSend({
       }
       const submission = captureNativeChatComposerSubmission(draftScopeKey)
       let consumed = false
+      let replyTakenAt: number | undefined
       let completeAddition = false
       submission.stopObserving = subscribeToNativeChatComposerDraftAppend(
         draftScopeKey,
@@ -173,8 +175,9 @@ export function useNativeChatStructuredComposerSend({
         }
         consumed = true
         // Only the reply this send captured; a newer Reply picked meanwhile stays.
-        if (reply) {
-          clearNativeChatReplyTarget(draftScopeKey, reply.id)
+        // Custody only if this send really took its reply; one picked meanwhile stays the user's.
+        if (reply && clearNativeChatReplyTarget(draftScopeKey, reply.id)) {
+          replyTakenAt = nativeChatReplyCustody(draftScopeKey)
         }
         const left = nativeChatComposerDraftLeftAfterSend(
           readNativeChatComposerDraft(draftScopeKey),
@@ -217,8 +220,8 @@ export function useNativeChatStructuredComposerSend({
       }
       // A refusal after the pending hand-off restores the draft; the reply it carried comes back with it.
       const returnReply = () => {
-        if (reply && consumed) {
-          restoreNativeChatReplyTarget(draftScopeKey, reply)
+        if (reply && replyTakenAt !== undefined) {
+          restoreNativeChatReplyTarget(draftScopeKey, reply, replyTakenAt)
         }
       }
       const prepareAttachments: StructuredAgentSessionAttachmentPreparation | undefined =

@@ -19,7 +19,13 @@ import {
 import { readNativeChatContextMenuTarget } from '../../pane/actions/native-chat-context-menu-target'
 import { useNativeChatMessageRevealAnswer } from './native-chat-reply-context'
 import { NativeChatReplyStrip } from './NativeChatReplyStrip'
-import { deleteNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-removal'
+import {
+  deleteNativeChatComposerDraft,
+  deleteNativeChatComposerDraftsOwnedBy
+} from '../../drafts/native-chat-composer-draft-removal'
+import { registerNativeChatComposerDestination } from '../focus/native-chat-composer-destination'
+import type { NativeChatComposerHandle } from '../native-chat-composer-types'
+import { startNativeChatReply } from './native-chat-reply-context'
 import { clearNativeChatComposerDraftsForTests } from '../../drafts/native-chat-draft-reset'
 import { readNativeChatComposerDraft } from '../../drafts/native-chat-composer-draft-store'
 import { returnMessageToComposer } from '../../session/structured/delivery/structured-agent-session-message-hand-back'
@@ -84,24 +90,32 @@ function Input({ pickerOpen }: { pickerOpen: boolean }): React.JSX.Element {
   return <div contentEditable data-testid="input" onKeyDown={onKeyDown} />
 }
 
-function Chat({
-  messages,
-  pickerOpen = false
-}: {
-  messages: readonly string[]
-  pickerOpen?: boolean
-}): React.JSX.Element {
+function Transcript({ messages }: { messages: readonly string[] }): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   useNativeChatMessageRevealAnswer(scrollRef, (id) => (messages.includes(id) ? id : null))
   return (
+    <div ref={scrollRef}>
+      {messages.map((id) => (
+        <div key={id} data-native-chat-message-id={id}>
+          {id}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Chat({
+  messages,
+  pickerOpen = false,
+  transcript = true
+}: {
+  messages: readonly string[]
+  pickerOpen?: boolean
+  transcript?: boolean
+}): React.JSX.Element {
+  return (
     <div data-native-chat-root="true">
-      <div ref={scrollRef}>
-        {messages.map((id) => (
-          <div key={id} data-native-chat-message-id={id}>
-            {id}
-          </div>
-        ))}
-      </div>
+      {transcript ? <Transcript messages={messages} /> : null}
       <div data-native-chat-composer-scope="scope">
         <NativeChatReplyStrip scopeKey="scope" agent="claude" onDone={() => {}} />
         <Input pickerOpen={pickerOpen} />
@@ -234,5 +248,48 @@ describe('restored replies', () => {
     ])
     expect(readNativeChatComposerDraft('agent-session:rewound').text).toBe('Why blue?')
     expect(readNativeChatReplyTarget('agent-session:rewound')?.excerpt).toBe('Updated the cards.')
+  })
+
+  it('forgets a reply-only chat when its workspace is removed, with no draft text', () => {
+    const owner = { workspaceId: 'ws-1', executionHostId: 'local' } as const
+    setNativeChatReplyTarget('agent-session:closed', { ...reply('r'), owner })
+    deleteNativeChatComposerDraftsOwnedBy(owner)
+    expect(readNativeChatReplyTarget('agent-session:closed')).toBeNull()
+  })
+})
+
+describe('where Reply goes', () => {
+  function registered(primary: boolean, scope: string): HTMLElement {
+    const root = document.createElement('div')
+    root.setAttribute('data-native-chat-root', 'true')
+    const box = document.createElement('div')
+    root.append(box)
+    document.body.append(root)
+    const handle = { current: { focus: () => true } as unknown as NativeChatComposerHandle }
+    registerNativeChatComposerDestination(box, handle, primary, scope)
+    return root
+  }
+
+  it('picks the chat message box and never a queued-message editor', () => {
+    const onlyEditor = registered(false, 'queued-edit:1')
+    expect(
+      startNativeChatReply(onlyEditor, { messageId: 'm-1', author: 'agent', text: 'Hi' })
+    ).toBe(false)
+    expect(readNativeChatReplyTarget('queued-edit:1')).toBeNull()
+    const chat = registered(true, 'agent-session:main')
+    expect(startNativeChatReply(chat, { messageId: 'm-1', author: 'agent', text: 'Hi' })).toBe(true)
+    expect(readNativeChatReplyTarget('agent-session:main')?.messageId).toBe('m-1')
+    onlyEditor.remove()
+    chat.remove()
+  })
+})
+
+describe('reply strip without a transcript', () => {
+  it('shows the original as unavailable once the transcript goes away', () => {
+    setNativeChatReplyTarget('scope', reply('r', 'm-7'))
+    const view = render(<Chat messages={['m-7']} />)
+    expect(screen.queryByText('Message unavailable')).toBeNull()
+    view.rerender(<Chat messages={['m-7']} transcript={false} />)
+    expect(screen.getByText('Message unavailable')).toBeTruthy()
   })
 })
