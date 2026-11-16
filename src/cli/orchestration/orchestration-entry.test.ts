@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
@@ -126,5 +129,132 @@ describe('orchestration inbox --run', () => {
 
     expect(callMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
+  })
+})
+
+describe('orchestration body input', () => {
+  useCliEntryEnvironment()
+  let directory: string
+  const body = 'Quotes: \' " $ ` \\; Unicode: λ 🐋\r\nBlank line:\r\n\r\nEOF\nfinal newline\n'
+
+  beforeEach(async () => {
+    vi.stubEnv('ORCA_TERMINAL_HANDLE', 'term_sender')
+    directory = await mkdtemp(join(tmpdir(), 'orca-body-input-'))
+    await writeFile(join(directory, 'message body.txt'), body, 'utf8')
+    callMock.mockResolvedValue(okFixture('req_body', { message: { id: 'msg_sent' } }))
+  })
+
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true })
+  })
+
+  function args(command: string): string[] {
+    return [
+      'orchestration',
+      command,
+      ...(command === 'send'
+        ? ['--to', 'term_worker', '--subject', 'review']
+        : ['--id', 'msg_question']),
+      '--json'
+    ]
+  }
+
+  it.each([
+    ['send', false],
+    ['send', true],
+    ['reply', false],
+    ['reply', true]
+  ])('passes %s file bytes unchanged (absolute path: %s)', async (command, absolute) => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const path = absolute ? join(directory, 'message body.txt') : 'message body.txt'
+    await main(
+      [
+        ...args(command),
+        '--body-file',
+        path,
+        '--retry-request',
+        '4591161d-c7a0-4ac4-a2f5-dc99e0d18328'
+      ],
+      directory
+    )
+
+    expect(callMock).toHaveBeenCalledWith(
+      `orchestration.${command}`,
+      expect.objectContaining({ body }),
+      { orchestrationRequestId: '4591161d-c7a0-4ac4-a2f5-dc99e0d18328' }
+    )
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it.each(['send', 'reply'])('reads %s from stdin without trimming', async (command) => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(process.stdin, Symbol.asyncIterator).mockImplementation(async function* () {
+      yield Buffer.from('First line\n')
+      yield Buffer.from('\nλ 🐋\n')
+      return undefined
+    })
+    await main([...args(command), '--body-file', '-'], directory)
+
+    expect(callMock).toHaveBeenCalledWith(
+      `orchestration.${command}`,
+      expect.objectContaining({ body: 'First line\n\nλ 🐋\n' })
+    )
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it.each(['send', 'reply'])(
+    'rejects conflicting %s body inputs before sending',
+    async (command) => {
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+      await main(
+        [...args(command), '--body', 'inline', '--body-file', 'message body.txt'],
+        directory
+      )
+
+      expect(callMock).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+      expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+        error: { code: 'invalid_argument', message: 'Use either --body or --body-file, not both' }
+      })
+    }
+  )
+
+  it.each(['send', 'reply'])(
+    'rejects an unreadable %s body file before sending',
+    async (command) => {
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+      await main([...args(command), '--body-file', 'missing.txt'], directory)
+
+      expect(callMock).not.toHaveBeenCalled()
+      expect(process.exitCode).toBe(1)
+      expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+        error: {
+          code: 'invalid_argument',
+          message: `Could not read ${join(directory, 'missing.txt')}: ENOENT`
+        }
+      })
+    }
+  )
+
+  it('requires a reply body', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await main(args('reply'), directory)
+
+    expect(callMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      error: { code: 'invalid_argument', message: 'Missing --body or --body-file' }
+    })
+  })
+
+  it('allows a send without a body', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    await main(args('send'), directory)
+
+    expect(callMock).toHaveBeenCalledWith(
+      'orchestration.send',
+      expect.objectContaining({ body: undefined })
+    )
+    expect(process.exitCode).toBeUndefined()
   })
 })

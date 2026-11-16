@@ -10,6 +10,7 @@ import {
 import { withResolvedNextCommands } from '../recovery/orchestration-mutation-recovery'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../../arguments/flags'
 import { RuntimeClientError } from '../../runtime/connection/types'
+import { readTextOrFileFlag } from '../../arguments/command-body-input'
 import { readInjectedAgentSessionId } from '../../../shared/agent-session/lifecycle/launch/agent-session-caller-env'
 import { requireWorkerDoneSettlement } from '../workers/orchestration-worker-settlement'
 import { getOptionalStructuredMessagePayload } from './message-payload'
@@ -108,7 +109,7 @@ export const ORCHESTRATION_SEND_HANDLER: Record<string, CommandHandler> = {
       run: getOptionalStringFlag(flags, 'run'),
       on: getOptionalStringFlag(flags, 'on'),
       subject: getRequiredStringFlag(flags, 'subject'),
-      body: getOptionalStringFlag(flags, 'body'),
+      body: await readTextOrFileFlag(flags, cwd, 'body', false),
       type,
       priority: getOptionalStringFlag(flags, 'priority'),
       threadId: getOptionalStringFlag(flags, 'thread-id'),

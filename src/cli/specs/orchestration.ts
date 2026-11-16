@@ -3,6 +3,8 @@ import type { CommandSpec } from '../discovery/command-spec'
 import { ORCHESTRATION_GATE_COMMAND_SPECS } from './orchestration-gate-specs'
 import { ORCHESTRATION_WORKER_COMMAND_SPECS } from './orchestration-worker-specs'
 
+const REPLY_FLAGS = ['id', 'body', 'body-file', 'run', 'from', 'on', 'retry-request']
+
 export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['orchestration', 'run-create'],
@@ -50,7 +52,7 @@ export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
     path: ['orchestration', 'send'],
     summary: 'Send an inter-agent message',
     usage:
-      'orca orchestration send --subject <text> [--to <run:id|dispatch:id|legacy_handle>] [--on <server>] [--run <run_id>] [--from <handle>] [--body <text>] [--type <type>] [--priority <level>] [--thread-id <id>] [--payload <json>] [--task-id <id>] [--dispatch-id <id>] [--outcome <succeeded|failed>] [--files-modified <csv>] [--report-path <path>] [--phase <text>] [--retry-request <id>] [--json]',
+      'orca orchestration send --subject <text> [--to <run:id|dispatch:id|legacy_handle>] [--on <server>] [--run <run_id>] [--from <handle>] [--body <text> | --body-file <path|->] [--type <type>] [--priority <level>] [--thread-id <id>] [--payload <json>] [--task-id <id>] [--dispatch-id <id>] [--outcome <succeeded|failed>] [--files-modified <csv>] [--report-path <path>] [--phase <text>] [--retry-request <id>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'to',
@@ -59,6 +61,7 @@ export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
       'from',
       'subject',
       'body',
+      'body-file',
       'type',
       'priority',
       'thread-id',
@@ -85,6 +88,7 @@ export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
       'Use --to dispatch:<id> for attempt-specific coordinator guidance; Orca durably relays it to a connected worker server.',
       'A worker_done with the active task/dispatch IDs completes that task only from the dispatched pane. When stable pane identity is unavailable, the sender handle must exactly match the dispatch assignee; injected preambles include the correct --from value.',
       'Prefer --task-id/--dispatch-id/etc. over raw --payload JSON in worker commands; PowerShell strips JSON quotes easily.',
+      'For a long or multi-line body, write it to a file and pass --body-file <path> (or - for stdin); the CLI reads it on this computer, so no shell quoting applies.',
       '--on <server> mails a terminal or chat agent on a paired server (--to term_… or orca_session_id:…). Your own Orca carries it, and replies come back to your own check. From an agent, --environment runs the command on that server and delivers no mail.'
     ]
   },
@@ -128,9 +132,9 @@ export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
     path: ['orchestration', 'reply'],
     summary: 'Reply to a message',
     usage:
-      'orca orchestration reply --id <msg_id> --body <text> [--run <run_id>] [--from <handle>] [--retry-request <id>] [--json]',
+      'orca orchestration reply --id <msg_id> (--body <text> | --body-file <path|->) [--run <run_id>] [--from <handle>] [--retry-request <id>] [--json]',
     // --on is accepted only to refuse it with the fix; a reply finds its server by itself.
-    allowedFlags: [...GLOBAL_FLAGS, 'id', 'body', 'run', 'from', 'on', 'retry-request'],
+    allowedFlags: [...GLOBAL_FLAGS, ...REPLY_FLAGS],
     identityFlagRoles: { from: 'caller' },
     notes: [
       'A reply to mail from an agent on another server goes back to that server by itself; no flag is needed.'
