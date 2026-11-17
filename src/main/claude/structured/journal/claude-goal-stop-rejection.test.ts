@@ -2,9 +2,13 @@ import { expect, it } from 'vitest'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session/journal/agent-session-journal-types'
 import { createClaudeJournalTranslator } from './claude-structured-journal-translation'
 
-it.each([false, true])(
-  'keeps a rejected goal active until another model reply can satisfy it (continued: %s)',
-  (continued) => {
+it.each([
+  { continued: false, otherHook: false, expectedStatus: 'active' },
+  { continued: true, otherHook: false, expectedStatus: 'complete' },
+  { continued: true, otherHook: true, expectedStatus: 'complete' }
+])(
+  'settles rejected goals after model continuation: $continued, other hook rejection: $otherHook',
+  ({ continued, otherHook, expectedStatus }) => {
     const rows: AgentJournalItemBody[] = []
     const translator = createClaudeJournalTranslator({
       goalBackgroundWork: () => 'exited',
@@ -51,6 +55,16 @@ it.each([false, true])(
       if (continued) {
         answer('The worker reported and the task is finished.')
       }
+      if (otherHook) {
+        frame({
+          type: 'user',
+          isSynthetic: true,
+          message: {
+            role: 'user',
+            content: [{ type: 'text', text: 'Stop hook feedback:\n[./verify-output]: Try again.' }]
+          }
+        })
+      }
       frame({ type: 'result', subtype: 'success', terminal_reason: 'completed', num_turns: 2 })
 
       expect(
@@ -59,7 +73,7 @@ it.each([false, true])(
         kind: 'status',
         threadGoal: {
           state: 'set',
-          goal: { objective: 'Finish the worker task', status: continued ? 'complete' : 'active' }
+          goal: { objective: 'Finish the worker task', status: expectedStatus }
         }
       })
     } finally {

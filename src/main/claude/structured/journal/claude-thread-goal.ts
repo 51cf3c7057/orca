@@ -124,11 +124,17 @@ export class ClaudeThreadGoal {
   }
 
   observe(message: Record<string, unknown>): void {
-    if (!isRootClaudeFrame(message) || this.current?.status !== 'active') {
+    const goal = this.current
+    if (!isRootClaudeFrame(message) || goal?.status !== 'active') {
       return
     }
     const envelope = message.type === 'user' ? readClaudeMessageEnvelope(message) : null
-    if (envelope && claudeEnvelopeStopHookFeedbackRow(envelope)) {
+    const feedback = envelope ? claudeText(claudeRecord(envelope.content[0])?.text) : null
+    if (
+      envelope &&
+      feedback?.startsWith(`Stop hook feedback:\n[${goal.objective}]: `) &&
+      claudeEnvelopeStopHookFeedbackRow(envelope)
+    ) {
       // Claude's hook cap can end successfully without another model reply after this rejection.
       this.modelWorked = false
       return
