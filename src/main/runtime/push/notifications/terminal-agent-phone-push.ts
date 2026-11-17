@@ -63,12 +63,6 @@ export class TerminalAgentPhonePush {
     this.turnNews.observe(change)
   }
 
-  /** Whether a windowless host pushes this pane's turn itself: a confirmed hook row in the same state. */
-  pushesHookTurn(paneKey: string, agentState: string | undefined): boolean {
-    const row = this.deps.readHookRow(paneKey)
-    return row !== null && row.state === agentState && row.restoredUnconfirmed !== true
-  }
-
   private buildEvent(
     worktreeId: string,
     paneKey: string,

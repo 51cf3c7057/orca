@@ -67,7 +67,7 @@ export type MobilePushRegistrar = {
   test(deviceId: string): Promise<MobilePushTestResult>
   register(input: MobilePushRegisterInput): Promise<MobilePushRegisterResult>
   unregister(deviceId: string): Promise<{ unregistered: boolean }>
-  coveredTokenDigests(request: PushCoverageRequest): string[]
+  coveredTokenDigests(request: PushCoverageRequest): Promise<string[]>
 }
 
 export class RuntimeMobileNotificationController {
@@ -120,8 +120,8 @@ export class RuntimeMobileNotificationController {
   }
 
   /** The subset of these phones this host pushes itself; empty when it pushes none. */
-  coveredPushTokenDigests(request: PushCoverageRequest): string[] {
-    return this.pushRegistrar?.coveredTokenDigests(request) ?? []
+  async coveredPushTokenDigests(request: PushCoverageRequest): Promise<string[]> {
+    return (await this.pushRegistrar?.coveredTokenDigests(request)) ?? []
   }
 
   /** `bindForget` runs for a connection without a live report, before it is recorded. */
