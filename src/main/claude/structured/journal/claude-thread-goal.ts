@@ -5,7 +5,12 @@ import type {
   AgentJournalThreadGoal
 } from '../../../../shared/agent-session/journal/agent-session-journal-types'
 import type { AgentJournalItemIdentity } from '../../../../shared/agent-session/journal/agent-session-journal-identity'
-import { claudeRecord, claudeText } from './claude-structured-item-translation'
+import {
+  claudeRecord,
+  claudeText,
+  readClaudeMessageEnvelope
+} from './claude-structured-item-translation'
+import { claudeEnvelopeStopHookFeedbackRow } from './claude-stop-hook-feedback'
 import { isRootClaudeFrame } from '../turns/claude-turn-opening'
 import type { ClaudeGoalBackgroundWork } from '../../background-tasks/claude-background-task-tracker'
 
@@ -119,13 +124,17 @@ export class ClaudeThreadGoal {
   }
 
   observe(message: Record<string, unknown>): void {
+    if (!isRootClaudeFrame(message) || this.current?.status !== 'active') {
+      return
+    }
+    const envelope = message.type === 'user' ? readClaudeMessageEnvelope(message) : null
+    if (envelope && claudeEnvelopeStopHookFeedbackRow(envelope)) {
+      // Claude's hook cap can end successfully without another model reply after this rejection.
+      this.modelWorked = false
+      return
+    }
     const reply = claudeRecord(message.message)
-    if (
-      message.type === 'assistant' &&
-      isRootClaudeFrame(message) &&
-      reply?.model !== '<synthetic>' &&
-      this.current?.status === 'active'
-    ) {
+    if (message.type === 'assistant' && reply?.model !== '<synthetic>') {
       this.modelWorked = true
     }
   }
