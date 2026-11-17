@@ -48,6 +48,7 @@ export type RuntimeServiceCommandSurface = {
   registerMobilePushDevice: RuntimeMobileNotificationController['registerPushDevice']
   unregisterMobilePushDevice: RuntimeMobileNotificationController['unregisterPushDevice']
   coveredMobilePushTokenDigests: RuntimeMobileNotificationController['coveredPushTokenDigests']
+  recordMobileMirrorPush: RuntimeMobileNotificationController['recordMirrorPush']
   setAccountServices: RuntimeAccountController['setServices']
   getDataAccountsSnapshot: RuntimeAccountController['dataAccountsSnapshot']
   setCommitMessageAgentEnvironmentResolvers: RuntimeAccountController['setCommitMessageAgentEnvironment']
@@ -166,6 +167,7 @@ export function installRuntimeServiceCommandSurface(
     registerMobilePushDevice: notifications.registerPushDevice.bind(notifications),
     unregisterMobilePushDevice: notifications.unregisterPushDevice.bind(notifications),
     coveredMobilePushTokenDigests: notifications.coveredPushTokenDigests.bind(notifications),
+    recordMobileMirrorPush: notifications.recordMirrorPush.bind(notifications),
     setAccountServices: accounts.setServices.bind(accounts),
     getDataAccountsSnapshot: accounts.dataAccountsSnapshot.bind(accounts),
     setCommitMessageAgentEnvironmentResolvers:

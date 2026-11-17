@@ -68,6 +68,7 @@ export type MobilePushRegistrar = {
   register(input: MobilePushRegisterInput): Promise<MobilePushRegisterResult>
   unregister(deviceId: string): Promise<{ unregistered: boolean }>
   coveredTokenDigests(request: PushCoverageRequest): Promise<string[]>
+  recordMirrorPush(request: PushCoverageRequest): void
 }
 
 export class RuntimeMobileNotificationController {
@@ -122,6 +123,11 @@ export class RuntimeMobileNotificationController {
   /** The subset of these phones this host pushes itself; empty when it pushes none. */
   async coveredPushTokenDigests(request: PushCoverageRequest): Promise<string[]> {
     return (await this.pushRegistrar?.coveredTokenDigests(request)) ?? []
+  }
+
+  /** A mirroring desktop pushed these phones, so this host's own copy stays back. */
+  recordMirrorPush(request: PushCoverageRequest): void {
+    this.pushRegistrar?.recordMirrorPush(request)
   }
 
   /** `bindForget` runs for a connection without a live report, before it is recorded. */
