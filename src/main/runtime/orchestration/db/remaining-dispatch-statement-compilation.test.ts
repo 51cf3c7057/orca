@@ -63,6 +63,8 @@ function fixture(count = 1, version: 'fresh' | 'v41' = 'fresh') {
       DROP INDEX idx_dispatch_assignee_orca_session_id;
       DROP INDEX idx_dispatch_assignee_orca_session_backfill;
       DROP INDEX idx_dispatch_creator_orca_session_backfill;
+      DROP INDEX idx_dispatch_creator_session_work;
+      DROP INDEX idx_dispatch_creator_handle_work;
       DROP INDEX idx_dispatch_session_presentation;
       DROP TRIGGER trg_runs_remember_coordinator_insert;
       DROP TRIGGER trg_runs_remember_coordinator_update;

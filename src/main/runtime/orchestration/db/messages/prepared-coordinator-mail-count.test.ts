@@ -94,19 +94,17 @@ it.each([
     const prepare = db.db.prepare.bind(db.db)
     vi.spyOn(db.db, 'prepare').mockImplementation((sql) => {
       const statement = prepare(sql)
-      return new Proxy(statement, {
-        get(target, key) {
-          if (key === 'all') {
-            return (...args: Parameters<typeof target.all>) => {
-              const rows = target.all(...args)
-              historyRows += rows.length
-              return rows
-            }
-          }
-          const value = Reflect.get(target, key)
-          return typeof value === 'function' ? value.bind(target) : value
-        }
-      })
+      return {
+        all(...args) {
+          const rows = statement.all(...args)
+          historyRows += rows.length
+          return rows
+        },
+        get: statement.get.bind(statement),
+        run: statement.run.bind(statement),
+        iterate: statement.iterate.bind(statement),
+        setReadBigInts: statement.setReadBigInts.bind(statement)
+      }
     })
     expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
     expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)

@@ -7,10 +7,11 @@ import {
   encodeWorkerOutputCursor
 } from '../workers/transcripts/worker-output-cursor'
 import type { resolvePinnedFederatedServer } from './pinned-federated-server'
+import type { WorkerTerminalReleaseRuntime } from '../terminal-authority/release/worker-terminal-release-runtime'
 
 // Old peers expose only terminal reads; retain fences and cursor scope instead of silently degrading transcript cursors.
 export async function readLegacyFederatedTerminal(args: {
-  runtime: Parameters<typeof resolvePinnedFederatedServer>[0]
+  runtime: Pick<WorkerTerminalReleaseRuntime, 'callOrchestrationWorkerServer'>
   server: Awaited<ReturnType<typeof resolvePinnedFederatedServer>>
   federated: Parameters<typeof resolvePinnedFederatedServer>[1]
   workerState: string
