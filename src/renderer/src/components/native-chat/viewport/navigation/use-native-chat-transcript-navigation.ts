@@ -17,6 +17,7 @@ import { nativeChatSlotIndexOf } from '../../conversation/slots/native-chat-tran
 import type { NativeChatTranscriptSlot } from '../../conversation/slots/native-chat-transcript-slots'
 import { nativeChatRailJumpStep, useNativeChatHistoryJump } from './use-native-chat-history-jump'
 import { useNativeChatRailJumpLanding } from './use-native-chat-rail-jump-landing'
+import { useNativeChatMessageRevealAnswer } from '../../composer/reply/native-chat-reply-context'
 import type { NativeChatAlignEdge } from '../virtualization/use-native-chat-viewport-align'
 
 type NavigationRequest =
@@ -197,6 +198,8 @@ export function useNativeChatNavigation({
     },
     [beginNavigation, issue, nextRequestId, readerLeavesEnd, slots]
   )
+  // Answers a composer's "show the original"; a subagent's view holds no conversation messages.
+  useNativeChatMessageRevealAnswer(scrollRef, subagentId === null ? revealMessage : null)
   useNativeChatRailJumpLanding({
     railJump: request.railJump,
     slots,
