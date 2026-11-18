@@ -1,6 +1,6 @@
 import { isOrcaSessionId } from '../../../../../shared/agent-session/identity/orca-session-address'
 import { ORCHESTRATION_WORKER_TURN_STOP_REPORTS_RUNTIME_CAPABILITY } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
-import { RuntimeStatusSchema } from '../../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
+import type { RuntimeStatus } from '../../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import type { OrcaRuntimeService } from '../../../orca-runtime'
 import { projectWorkerListFleet } from '../../../rpc/methods/orchestration/worker/fleet/worker-list-projection'
 import { addressableSessionParty } from '../../mailbox/routing/structured-session-mail-address'
@@ -88,17 +88,18 @@ export async function structuredSessionHasPendingWake(
             peerFingerprint: remote.peer_fingerprint,
             expectedRuntimeEpoch: remote.remote_runtime_epoch,
             capability: ORCHESTRATION_WORKER_TURN_STOP_REPORTS_RUNTIME_CAPABILITY,
-            probe: async () =>
-              RuntimeStatusSchema.parse(
-                await runtime.callOrchestrationWorkerServer(
-                  server.environmentId,
-                  'status.get',
-                  undefined,
-                  3_000,
-                  undefined,
-                  { expectedEnvironmentPairingRevision: server.pairingRevision }
-                )
+            probe: async () => {
+              const status = await runtime.callOrchestrationWorkerServer(
+                server.environmentId,
+                'status.get',
+                undefined,
+                3_000,
+                undefined,
+                { expectedEnvironmentPairingRevision: server.pairingRevision }
               )
+              // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: status.get returns the paired host's RuntimeStatus protocol.
+              return status as RuntimeStatus
+            }
           })
           if (!support.supported) {
             continue
