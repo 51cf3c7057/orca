@@ -18,5 +18,6 @@ export const FederationOutputReadParams = FederationDispatchParams.extend({
 })
 
 export const FederationFleetSnapshotParams = z.object({
-  dispatchIds: z.array(requiredString('Missing Dispatch ID')).min(1).max(100)
+  dispatchIds: z.array(requiredString('Missing Dispatch ID')).min(1).max(100),
+  workingOnly: z.boolean().optional()
 })

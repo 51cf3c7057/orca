@@ -19,7 +19,7 @@ import {
 it('defers for the parent’s running work until it settles, never for another session', async () => {
   await openChat(COORDINATOR)
   await openChat(PEER_CHAT)
-  const { taskId } = await coordinatorRunAndTask()
+  const { taskId, runId } = await coordinatorRunAndTask()
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
   const started = db.createStartingWorkerDispatch({
     creator: { kind: 'session', orcaSessionId: testOrcaSessionId(COORDINATOR) },
@@ -42,6 +42,20 @@ it('defers for the parent’s running work until it settles, never for another s
   await vi.waitFor(() => expect(connectionFor(PEER_CHAT).turns).toHaveLength(1), WAIT)
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   expect(await structuredSessionHasPendingWake(runtime, PEER_CHAT)).toBe(false)
+  const question = db.createQuestion({
+    runId,
+    dispatchId: started.dispatch.id,
+    askerHandle: formatOrcaSessionAddress(testOrcaSessionId(PEER_CHAT)),
+    question: 'What next?'
+  })
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+  db.answerQuestion({
+    messageId: question.message.id,
+    runId,
+    body: 'Continue',
+    consumerGeneration: db.getRun(runId)!.consumer_generation
+  })
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   await settleTurn(PEER_CHAT, 0)
   // A turn-stop report leaves the Dispatch ready; an idle worker owes no further wake.
   expect(db.getWorkerDispatch(started.dispatch.id)?.state).toBe('ready')

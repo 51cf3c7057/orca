@@ -37,6 +37,25 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
             observation: { status: 'unverifiable' as const, exactWorker: false }
           }
         }
+        if (params.workingOnly) {
+          const working =
+            attachment.state === 'ready' &&
+            !!attachment.pane_key &&
+            !!attachment.process_incarnation &&
+            !runtime.getOrchestrationDb().awaitsAnswerToLatestQuestion(dispatchId) &&
+            runtime.isOrchestrationWorkerWorking(
+              attachment.pane_key,
+              attachment.process_incarnation
+            )
+          return {
+            dispatchId,
+            observation: {
+              status: working ? 'live' : 'unverifiable',
+              exactWorker: working,
+              working
+            }
+          }
+        }
         const observation = await observeRemoteAttachmentLiveness(runtime, dispatchId)
         const db = runtime.getOrchestrationDb()
         const autoReleaseAt = db.getLiveWorkerTerminalAutoReleaseAt(dispatchId)
@@ -99,10 +118,6 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         authenticatedCallerFingerprint
       )
       const observation = await observeRemoteAttachmentLiveness(runtime, params.dispatchId)
-      const activity =
-        observation.exact && observation.status === 'live' && attachment.terminal_handle
-          ? await runtime.getTerminalAgentStatus(attachment.terminal_handle).catch(() => null)
-          : null
       return {
         dispatchId: params.dispatchId,
         runtimeEpoch: runtime.getRuntimeId(),
@@ -115,7 +130,6 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         observation: {
           status: observation.status,
           exactWorker: observation.exact,
-          working: activity?.isRunningAgent === true && activity.status === 'working',
           ...(observation.reason ? { reason: observation.reason } : {}),
           ...(observation.agentWait !== undefined ? { agentWait: observation.agentWait } : {})
         }

@@ -63,7 +63,7 @@ import { startPRWatchRuntime } from '../../agent-session/lifecycle/pr-watch-runt
 const DEFAULT_WORKTREE_PS_LIMIT = 200
 
 export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEvents {
-  abstract structuredSessionHasPendingWake(sessionId: string): Promise<boolean>
+  abstract structuredSessionHasPendingWake(...args: [string, (() => boolean)?]): Promise<boolean>
 
   protected readonly workerAutoReleaseActivity = new WorkerAutoReleaseActivity(
     () => this._orchestrationDb
@@ -312,7 +312,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
           ...this.workerTurnStopReportDeps,
           openExistingDb: () => this.getExistingOrchestrationDb()
         }),
-      hasPendingOrchestrationWake: (sessionId) => this.structuredSessionHasPendingWake(sessionId),
+      hasPendingOrchestrationWake: this.structuredSessionHasPendingWake.bind(this),
       // Re-read dispatch ownership each sweep; absence of a database cannot keep the worker alive.
       hasOpenDispatch: (record) =>
         structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record)

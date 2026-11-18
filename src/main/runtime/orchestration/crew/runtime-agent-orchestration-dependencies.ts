@@ -1,3 +1,4 @@
+import { selectFreshExplicitAgentStatus } from '../../workspaces/process-listing/runtime-hook-agent-row-selection'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/workspace-layout/layout-owner-switch'
 import { captureOrchestrationTerminalCandidates } from './orchestration-terminal-candidates'
 import {
@@ -17,6 +18,27 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
   abstract readonly readObservedAgentStatusPaneIdentityFn: (
     paneKey: string
   ) => ObservedAgentStatusPaneIdentity
+
+  isOrchestrationWorkerWorking(paneKey: string, processIncarnation: string): boolean {
+    const handle = this.getAgentStatusTerminalHandleForPaneKey(paneKey)
+    const observed = this.readObservedAgentStatusPaneIdentityFn(paneKey)
+    if (
+      !handle ||
+      this.getTerminalProcessIncarnation(handle) !== processIncarnation ||
+      observed.kind !== 'observed' ||
+      observed.processIncarnation !== processIncarnation ||
+      observed.terminalHandle !== handle
+    ) {
+      return false
+    }
+    return (
+      selectFreshExplicitAgentStatus({
+        handle,
+        paneKey,
+        hookRows: this.publicPaneStatusFn?.(paneKey, handle) ?? []
+      })?.status === 'working'
+    )
+  }
 
   protected agentOrchestrationDependencies(bound?: Partial<RuntimeAgentOrchestrationDependencies>) {
     return {

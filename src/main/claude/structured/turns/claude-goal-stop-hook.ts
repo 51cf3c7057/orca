@@ -4,7 +4,7 @@ import type { ClaudeSession } from '../claude-structured-session-state'
 export function claudeGoalStopHook(
   sessionId: string,
   currentSession: () => ClaudeSession | null,
-  hasPendingWake: ((sessionId: string) => Promise<boolean>) | undefined
+  hasPendingWake: ((sessionId: string, isCurrent?: () => boolean) => Promise<boolean>) | undefined
 ): HookCallback {
   return async (hook, _toolUseId, { signal }) => {
     const session = currentSession()
@@ -18,7 +18,7 @@ export function claudeGoalStopHook(
       return {}
     }
     try {
-      if (!(await hasPendingWake?.(sessionId)) || !current()) {
+      if (!(await hasPendingWake?.(sessionId, current)) || !current()) {
         return {}
       }
       session?.translator?.goal.deferForWake()
