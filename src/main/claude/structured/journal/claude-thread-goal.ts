@@ -15,10 +15,10 @@ import { isRootClaudeFrame } from '../turns/claude-turn-opening'
 import type { ClaudeGoalBackgroundWork } from '../../background-tasks/claude-background-task-tracker'
 
 const GOAL_SET = 'Goal set: '
-const GOAL_ACTIVE = /^Goal active: ([\s\S]+) \((?:not yet evaluated|\d+ turns?)\)$/u
+const GOAL_ACTIVE = /^Goal active: ([\s\S]+) \((?:not yet evaluated|(\d+) turns?)\)$/u
 
 type GoalStatusBody = Extract<AgentJournalItemBody, { kind: 'status' }>
-type GoalReport = { kind: 'set'; objective: string } | { kind: 'cleared' }
+type GoalReport = { kind: 'set'; objective: string; checks?: number } | { kind: 'cleared' }
 
 function syntheticReplyText(message: Record<string, unknown>): string | null {
   const reply = claudeRecord(message.message)
@@ -48,8 +48,8 @@ function goalReport(text: string): GoalReport | null {
   if (text.startsWith('Goal cleared') || text.startsWith('No goal set')) {
     return { kind: 'cleared' }
   }
-  const active = GOAL_ACTIVE.exec(text)?.[1]
-  return active ? { kind: 'set', objective: active } : null
+  const active = GOAL_ACTIVE.exec(text)
+  return active ? { kind: 'set', objective: active[1]!, checks: Number(active[2] ?? 0) } : null
 }
 
 function goalRow(text: string, goal: AgentJournalThreadGoal | null): GoalStatusBody {
@@ -78,10 +78,11 @@ export class ClaudeThreadGoal {
   private known: AgentJournalThreadGoal | null | undefined
   private row: { identity: AgentJournalItemIdentity; text: string } | null = null
   private modelWorked = false
+  private deferredForWake = false
 
   constructor(private readonly journalGoal: () => SavedGoal | undefined) {}
 
-  private get current(): AgentJournalThreadGoal | null {
+  get current(): AgentJournalThreadGoal | null {
     if (this.known === undefined) {
       const saved = this.journalGoal()
       if (saved) {
@@ -106,9 +107,12 @@ export class ClaudeThreadGoal {
     const next: AgentJournalThreadGoal | null =
       report.kind === 'cleared'
         ? null
-        : current?.status === 'active' && current.objective === report.objective
-          ? current
+        : report.checks !== undefined &&
+            current?.status === 'active' &&
+            current.objective === report.objective
+          ? { ...current, checks: report.checks }
           : {
+              checks: report.checks ?? 0,
               objective: report.objective,
               status: 'active',
               tokenBudget: null,
@@ -120,23 +124,44 @@ export class ClaudeThreadGoal {
     this.known = next
     this.row = next ? { identity, text } : null
     this.modelWorked = false
+    this.deferredForWake = false
     return goalRow(text, next)
   }
 
-  observe(message: Record<string, unknown>): void {
+  feedback(message: Record<string, unknown>): GoalRowWrite | null {
     const goal = this.current
-    if (!isRootClaudeFrame(message) || goal?.status !== 'active') {
-      return
-    }
     const envelope = message.type === 'user' ? readClaudeMessageEnvelope(message) : null
-    const feedback = envelope ? claudeText(claudeRecord(envelope.content[0])?.text) : null
+    const text = envelope ? claudeText(claudeRecord(envelope.content[0])?.text) : null
+    const prefix = goal ? `Stop hook feedback:\n[${goal.objective}]: ` : null
     if (
-      envelope &&
-      feedback?.startsWith(`Stop hook feedback:\n[${goal.objective}]: `) &&
-      claudeEnvelopeStopHookFeedbackRow(envelope)
+      !goal ||
+      !this.row ||
+      !envelope ||
+      !text ||
+      !prefix ||
+      !text.startsWith(prefix) ||
+      !claudeEnvelopeStopHookFeedbackRow(envelope)
     ) {
-      // Claude's hook cap can end successfully without another model reply after this rejection.
-      this.modelWorked = false
+      return null
+    }
+    const next: AgentJournalThreadGoal = {
+      ...goal,
+      status: 'active',
+      checks: (goal.checks ?? 0) + 1,
+      lastCheck: text.slice(prefix.length).trim()
+    }
+    this.known = next
+    // A rejection cap can end successfully without another model reply.
+    this.modelWorked = false
+    return { identity: this.row.identity, body: goalRow(this.row.text, next) }
+  }
+
+  deferForWake(): void {
+    this.deferredForWake = true
+  }
+
+  observe(message: Record<string, unknown>): void {
+    if (!isRootClaudeFrame(message) || this.current?.status !== 'active') {
       return
     }
     const reply = claudeRecord(message.message)
@@ -160,8 +185,9 @@ export class ClaudeThreadGoal {
       return null
     }
     const goal = this.current
-    const worked = this.modelWorked
+    const worked = this.modelWorked && !this.deferredForWake
     this.modelWorked = false
+    this.deferredForWake = false
     // A bare /goal has no model time to charge.
     if (goal?.status !== 'active' || (!worked && result.num_turns === 0)) {
       return null

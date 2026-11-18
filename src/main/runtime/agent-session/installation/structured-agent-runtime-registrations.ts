@@ -117,6 +117,7 @@ function createClaudeAdapter(
   const resolveAccountHome = deps.resolveAgentAccountHome
   return createStructuredClaudeRuntimeAdapter({
     store,
+    hasPendingOrchestrationWake: deps.hasPendingOrchestrationWake,
     namingInputs: claudeNamingInvocation(
       structuredAgentLaunchSources(context),
       () => deps.resolveLaunchArgs('claude'),

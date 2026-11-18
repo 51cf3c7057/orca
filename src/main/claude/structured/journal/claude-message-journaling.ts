@@ -153,7 +153,14 @@ export function journalClaudeMessage(
     changed = true
   }
   const stopHookFeedback = claudeEnvelopeStopHookFeedbackRow(envelope)
-  if (stopHookFeedback) {
+  const goalFeedback = stopHookFeedback ? ctx.threadGoal.feedback(message) : null
+  if (goalFeedback) {
+    ctx.sink.appendItem(goalFeedback.identity, goalFeedback.body, {
+      ...stamp(goalFeedback.identity, goalFeedback.body),
+      lifecycle: true
+    })
+    changed = true
+  } else if (stopHookFeedback) {
     ctx.turn.ensureOpen(message, source, observedAt)
     ctx.sink.appendItem(identity, stopHookFeedback, {
       ...stamp(identity, stopHookFeedback),

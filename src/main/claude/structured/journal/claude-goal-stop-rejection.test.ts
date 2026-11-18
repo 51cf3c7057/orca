@@ -68,12 +68,20 @@ it.each([
       frame({ type: 'result', subtype: 'success', terminal_reason: 'completed', num_turns: 2 })
 
       expect(
+        rows.filter((row) => row.kind === 'status' && row.presentation === 'hook-sent-back').length
+      ).toBe(otherHook ? 1 : 0)
+      expect(
         rows.findLast((row) => row.kind === 'status' && row.threadGoal !== undefined)
       ).toMatchObject({
         kind: 'status',
         threadGoal: {
           state: 'set',
-          goal: { objective: 'Finish the worker task', status: expectedStatus }
+          goal: {
+            objective: 'Finish the worker task',
+            status: expectedStatus,
+            checks: 1,
+            lastCheck: 'The worker has not reported.'
+          }
         }
       })
     } finally {

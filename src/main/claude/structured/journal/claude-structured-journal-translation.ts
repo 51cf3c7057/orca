@@ -254,6 +254,7 @@ export function createClaudeJournalTranslator(
   const handleTurnFrames = withClaudePromptSuggestions(turn, deps.sink, handle)
   return {
     handle: (event) => delivery.interpret(event, handleTurnFrames),
+    goal: messageContext.threadGoal,
     journalPrompts: prompts,
     get currentTurnId() {
       return turn.id

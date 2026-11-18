@@ -1,8 +1,8 @@
+import { claudeRecord } from './structured/journal/claude-structured-item-translation'
 import { withOrcaClaudeChatEntrypoint } from '../../shared/agent-launch/startup/claude-chat-entrypoint'
 import { claudeStartupAnswerObservation } from './child-process/claude-startup-answer-observation'
 import type { ProviderProcessSpawner } from '../provider-process/provider-process-spawn'
 import type * as ClaudeAgentSdk from '@anthropic-ai/claude-agent-sdk'
-import type { CanUseTool, OnUserDialog, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { spawnProcess } from '@orca/process-host'
 import { buildClaudeChildProcessEnv } from './child-process/claude-child-process-environment'
 import { withoutInheritedClaudeConfigDir } from './structured/launch/claude-config-dir-pin'
@@ -39,10 +39,6 @@ export function loadClaudeAgentSdk(): Promise<typeof ClaudeAgentSdk> {
   return claudeAgentSdk
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
 export type ClaudeStreamJsonLaunch = {
   /** Orca's resolved user CLI; the SDK falls back to a bundled binary that is not installed. */
   pathToClaudeCodeExecutable: string
@@ -55,13 +51,14 @@ export type ClaudeStreamJsonLaunch = {
 }
 
 export type ClaudeStreamJsonConnectionHandlers = {
+  onStop?: ClaudeAgentSdk.HookCallback
   onMessage?: (message: Record<string, unknown>) => void
   /** Raw stdout before the SDK reads it, for state that must keep wire order with permission requests. */
   onStdout?: (chunk: Buffer | string) => void
   /** The SDK handles request IDs, aborts and deduplication; cannot combine with permissionPromptToolName. */
-  canUseTool?: CanUseTool
+  canUseTool?: ClaudeAgentSdk.CanUseTool
   /** `request_user_dialog` control; the CLI only emits kinds declared in `supportedDialogKinds`. */
-  onUserDialog?: OnUserDialog
+  onUserDialog?: ClaudeAgentSdk.OnUserDialog
   /** A transport/process fault; a physical root exit arrives marked observed and is followed by onExit. */
   onFault?: (error: Error) => void
   /** Report observed root exit once; expected stays true even after an unproven close attempt. */
@@ -114,6 +111,7 @@ export async function openClaudeStreamJsonConnection(
     prompt: inbox.messages,
     options: {
       ...launch.options,
+      hooks: handlers.onStop ? { Stop: [{ hooks: [handlers.onStop] }] } : undefined,
       cwd: launch.cwd,
       env: withOrcaClaudeChatEntrypoint(env, process.platform),
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
@@ -222,10 +220,11 @@ export async function openClaudeStreamJsonConnection(
             break
           }
           await waitUntilReadable()
-          if (!isRecord(next.value)) {
+          const message = claudeRecord(next.value)
+          if (!message) {
             throw new Error('claude stream-json yielded a non-object message')
           }
-          handlers.onMessage?.(next.value)
+          handlers.onMessage?.(message)
         }
       } finally {
         if (!completed) {
@@ -269,7 +268,7 @@ export async function openClaudeStreamJsonConnection(
     }
     startup.finish()
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: dispatch constructs the SDK user envelope after mapping every content block.
-    return inbox.push(message as unknown as SDKUserMessage, beforeDispatch)
+    return inbox.push(message as unknown as ClaudeAgentSdk.SDKUserMessage, beforeDispatch)
   }
 
   const close = (options?: ProviderProcessCloseOptions): Promise<boolean> => {

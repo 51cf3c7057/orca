@@ -1,3 +1,4 @@
+import { claudeGoalStopHook } from '../turns/claude-goal-stop-hook'
 import type { AgentSessionAcquisition } from '../../../native-chat/agent-session-wire/providers/structured-agent-session-adapter'
 import { openClaudeStreamJsonConnection } from '../../claude-stream-json-connection'
 import { claudeLaunchPermissions } from '../permissions/claude-structured-inbound-control'
@@ -6,7 +7,7 @@ import { claudeStartedUnechoedSend } from '../turns/claude-command-lifecycle'
 import { claudeSessionStateEndsTurn } from '../turns/claude-session-state-turn-over'
 import { settleClaudeTurnEndWaiters } from '../turns/claude-request-end-wait'
 import * as proof from '../startup/claude-structured-init-proof'
-import { claudeConfigDirEnvPatch } from '../launch/claude-config-dir-pin'
+import { claudeAcquisitionConnectionLaunch } from '../launch/claude-acquisition-connection-launch'
 import { claudeProcessIdentity } from './claude-structured-owner-identity'
 import { ClaudePromptRegistry } from '../permissions/claude-prompt-registry'
 import { adoptClaudeStructuredSpawnOptions } from '../launch/claude-structured-spawn-options'
@@ -193,20 +194,17 @@ export async function acquireClaudeSession({
     observedLeafUuid = launch.resumeLeafUuid
     const connection = await withAgentSessionCreatePhase('spawn', input.recordPhase, () =>
       (deps.openConnection ?? openClaudeStreamJsonConnection)(
-        {
-          pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
-          prefixArgs: launch.prefixArgs,
-          options: launch.options,
-          cwd: launch.cwd,
-          env: {
-            ...launch.env,
-            // The saved account directory must override a conflicting environment overlay.
-            ...claudeConfigDirEnvPatch(launch.claudeConfigDir, { env: launch.env })
-          },
-          ...(launch.envToDelete ? { envToDelete: launch.envToDelete } : {})
-        },
+        claudeAcquisitionConnectionLaunch(launch),
         {
           onMessage,
+          onStop: claudeGoalStopHook(
+            sessionId,
+            () =>
+              !attempt.cancelled && liveSession && sessions.get(sessionId) === liveSession
+                ? liveSession
+                : null,
+            deps.hasPendingOrchestrationWake
+          ),
           ...permissions.handlers,
           onFault: childFailed,
           onExit: permissions.closeThen((error, exit) => {

@@ -72,6 +72,10 @@
     }
   },
   "chat": {
+    "goal": {
+      "checks_one": "{{count}} check",
+      "checks_other": "{{count}} checks"
+    },
     "mcp": {
       "status": {
         "tools_one": "{{count}} tool",

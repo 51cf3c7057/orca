@@ -261,6 +261,8 @@ export type AgentJournalThreadGoalStatus = (typeof AGENT_JOURNAL_THREAD_GOAL_STA
 /** The provider's goal as last journaled. Timestamps are epoch ms on the
  *  provider's clock; counters are as of `updatedAt`. */
 export type AgentJournalThreadGoal = {
+  checks?: number
+  lastCheck?: string
   objective: string
   status: AgentJournalThreadGoalStatus
   tokenBudget: number | null

@@ -1,3 +1,4 @@
+import { structuredSessionHasPendingWake } from './orchestration/workers/reports/structured-session-pending-wake'
 import type { SessionOptionValue } from '../../shared/native-chat/input/native-chat-session-options'
 import { conversationRecordReader } from './orchestration/addressing/session-lineage/structured-session-lineage'
 import type { RuntimeLinearCommandSurface } from './integrations/linear/runtime-linear-command-surface'
@@ -75,6 +76,8 @@ const OrcaRuntimeSidebarBase: typeof OrcaRuntimeWithAgentTransitions = ORCA_SIDE
 
 // oxlint-disable-next-line typescript/no-unsafe-declaration-merging -- SAFETY: The existing Linear installer supplies the canonical prototype surface.
 class OrcaRuntimeService extends OrcaRuntimeSidebarBase {
+  structuredSessionHasPendingWake = structuredSessionHasPendingWake.bind(null, this)
+
   // Lazy: the database can open, and arm relays, while the runtime is still constructing.
   declare private peerMailRelay: PeerMailRelay | undefined
 

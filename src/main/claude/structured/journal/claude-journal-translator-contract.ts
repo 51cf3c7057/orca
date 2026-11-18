@@ -1,3 +1,4 @@
+import type { ClaudeThreadGoal } from './claude-thread-goal'
 import type { ClaudeTaskInvocations } from '../../background-tasks/claude-task-invocations'
 import type { ClaudeJournalBoundDelivery } from './claude-journal-bound-delivery'
 import type { AgentSessionContextReport } from '../../../../shared/agent-session/conversation-context/agent-session-context-usage'
@@ -38,6 +39,7 @@ export type ClaudeJournalTranslatorDeps = {
 }
 
 export type ClaudeJournalTranslator = {
+  readonly goal: Pick<ClaudeThreadGoal, 'current' | 'deferForWake'>
   readonly taskInvocations: ClaudeTaskInvocations
   handle: (event: ClaudeStructuredSessionEvent) => void
   journalPrompts: Pick<

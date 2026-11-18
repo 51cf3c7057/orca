@@ -4,6 +4,8 @@ import * as z from 'zod'
 import { openDiscriminatedUnion } from './agent-session-journal-open-union'
 
 const ThreadGoal = z.object({
+  checks: z.number().int().nonnegative().optional(),
+  lastCheck: z.string().optional(),
   objective: z.string(),
   status: z.string().min(1),
   tokenBudget: z.number().finite().nullable(),
