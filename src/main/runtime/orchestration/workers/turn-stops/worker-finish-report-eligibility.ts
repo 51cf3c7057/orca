@@ -1,3 +1,6 @@
+import { readCoordinatorMailCount } from '../../db/messages/dispatch-read-mail'
+import { stopReportId } from './worker-stop-report-id'
+import type { DispatchContextRow } from '../../db/orchestration-records'
 import type { OrchestrationDb } from '../../db/orchestration-db'
 import { rejectedReportInTurn } from '../../db/messages/rejected-worker-report'
 import type { WorkerTurnStopDispatch, WorkerTurnStopReportDeps } from './worker-turn-stop-report'
@@ -42,5 +45,25 @@ export function canPromiseWorkerFinishReport(
         (type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'))
     LIMIT 1`)
       .get(id) === undefined
+  )
+}
+
+/** A helper's next ordinary finish must still reach its creator after follow-up mail. */
+export function canPromiseHelperFinishReport(
+  db: OrchestrationDb,
+  dispatch: DispatchContextRow,
+  deps: Pick<WorkerTurnStopReportDeps, 'isWaitingForMail'>
+): boolean {
+  if (
+    deps.isWaitingForMail(`dispatch:${dispatch.id}`) ||
+    workerFinishReportMuted(db, { kind: 'local', dispatch }, undefined)
+  ) {
+    return false
+  }
+  if (canPromiseWorkerFinishReport(db, { kind: 'local', dispatch }, deps)) {
+    return true
+  }
+  return !db.getMessageById(
+    stopReportId(dispatch.id, `finished:${readCoordinatorMailCount(db, dispatch.id)}`)
   )
 }

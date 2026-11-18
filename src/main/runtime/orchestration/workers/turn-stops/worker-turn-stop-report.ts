@@ -1,9 +1,10 @@
-import { createHash } from 'node:crypto'
 import { redactString } from '../../../../observability/redactor'
 import type { OrchestrationDb } from '../../db/orchestration-db'
 import { dispatchReportMailbox } from '../reports/dispatch-report-mailbox'
 import { readCoordinatorMailCount } from '../../db/messages/dispatch-read-mail'
 import { workerFinishReportMuted } from './worker-finish-report-eligibility'
+import { stopReportId } from './worker-stop-report-id'
+export { stopReportId } from './worker-stop-report-id'
 import type {
   DispatchContextRow,
   RemoteDispatchAttachmentRow
@@ -285,14 +286,6 @@ export function reportWorkerTurnStop(
     console.warn('[orchestration] failed to relay a worker stop report', dispatchId, error)
     return false
   }
-}
-
-/** A stable message id: writing the same report twice is a no-op. */
-export function stopReportId(dispatchId: string, stopKey: string): string {
-  return `msg_stop_${createHash('sha256')
-    .update(JSON.stringify([dispatchId, stopKey]))
-    .digest('hex')
-    .slice(0, 24)}`
 }
 
 /** The one closing line for a reported approval; the same stable id makes a second closer a no-op. */

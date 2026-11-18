@@ -12,7 +12,7 @@ export async function workerHasPendingHelperWake(
     OrcaRuntimeService,
     | 'getExistingOrchestrationDb'
     | 'isOrchestrationWorkerWorking'
-    | 'canPromiseOrchestrationWorkerWake'
+    | 'canPromiseOrchestrationHelperReport'
     | 'resolveOrchestrationWorkerServer'
     | 'callOrchestrationWorkerServer'
   >,
@@ -57,7 +57,7 @@ export async function workerHasPendingHelperWake(
         helper.run_id === parent.run_id &&
         dispatchReportMailbox(db, helper) === `dispatch:${parentId}` &&
         (!state || state === 'ready') &&
-        runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch: helper })
+        runtime.canPromiseOrchestrationHelperReport(helper)
       )
     }
     const remoteIds: string[] = []

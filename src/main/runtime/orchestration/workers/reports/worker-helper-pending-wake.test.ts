@@ -54,6 +54,28 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   db.db.prepare('UPDATE messages SET read = 1 WHERE to_handle = ?').run(`dispatch:${worker.id}`)
   expect(db.getDispatchContextById(helper.id)?.status).toBe('dispatched')
   expect(await pending()).toBe(false)
+  // A new request from its creator permits a fresh report, even though the first was consumed.
+  const followUp = db.insertMessage({
+    from: 'term_w',
+    to: `dispatch:${helper.id}`,
+    subject: 'Second round',
+    runId
+  })
+  db.markAsRead([followUp.id])
+  active.add('tab:h')
+  expect(await pending()).toBe(true)
+  notify.mockClear()
+  reportWorkerTurnStop(db, target, { ...stop, pendingHelperWake: await pending() }, deps)
+  expect(notify).not.toHaveBeenCalled()
+  active.clear()
+  reportWorkerTurnStop(
+    db,
+    { kind: 'local', dispatch: db.getDispatchContextById(helper.id)! },
+    { from: 'term_h', reason: 'finished', lastOutput: 'Second helper marker' },
+    deps
+  )
+  db.db.prepare('UPDATE messages SET read = 1 WHERE to_handle = ?').run(`dispatch:${worker.id}`)
+  expect(await pending()).toBe(false)
   notify.mockClear()
   reportWorkerTurnStop(db, target, { ...stop, pendingHelperWake: await pending() }, deps)
   expect(notify).toHaveBeenCalledTimes(1)

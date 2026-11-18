@@ -1,8 +1,12 @@
-import { canPromiseWorkerFinishReport } from '../workers/turn-stops/worker-finish-report-eligibility'
+import {
+  canPromiseWorkerFinishReport,
+  canPromiseHelperFinishReport
+} from '../workers/turn-stops/worker-finish-report-eligibility'
 import type {
   WorkerTurnStopDispatch,
   WorkerTurnStopReportDeps
 } from '../workers/turn-stops/worker-turn-stop-report'
+import type { DispatchContextRow } from '../db/orchestration-records'
 import { selectFreshExplicitAgentStatus } from '../../workspaces/process-listing/runtime-hook-agent-row-selection'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/workspace-layout/layout-owner-switch'
 import { captureOrchestrationTerminalCandidates } from './orchestration-terminal-candidates'
@@ -21,6 +25,11 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
   canPromiseOrchestrationWorkerWake(target: WorkerTurnStopDispatch): boolean {
     const db = this.getOrchestrationDbIfAvailable()
     return !!db && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
+  }
+
+  canPromiseOrchestrationHelperReport(dispatch: DispatchContextRow): boolean {
+    const db = this.getOrchestrationDbIfAvailable()
+    return !!db && canPromiseHelperFinishReport(db, dispatch, this.workerTurnStopReportDeps)
   }
 
   abstract getAgentStatusTerminalHandleForPaneKey(paneKey: string): string | undefined
