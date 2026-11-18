@@ -116,7 +116,9 @@ export function pauseCoordinatorMailCountForReset(db: OrchestrationDb): boolean 
       .get() !== undefined
   if (installed) {
     db.db.exec(
-      'DROP TRIGGER temp.orca_mail_count_delete; DELETE FROM orca_coordinator_mail_counts; DELETE FROM orca_mail_lifetime_runs'
+      `DROP TRIGGER temp.orca_mail_count_delete;
+      UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1;
+      DELETE FROM orca_mail_lifetime_runs`
     )
   }
   return installed

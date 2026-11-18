@@ -30,8 +30,9 @@ function row(db: OrchestrationDb, dispatchId: string): CountRow | undefined {
 function refreshExternalWrites(db: OrchestrationDb, owner: Owner): void {
   const version = db.db.pragma('data_version', { simple: true })
   if (version !== owner.dataVersion) {
-    db.db
-      .exec(`UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1,
+    db.db.exec(`DELETE FROM orca_coordinator_mail_counts WHERE NOT EXISTS (
+          SELECT 1 FROM dispatch_contexts WHERE id = dispatch_id AND status IN ('pending', 'dispatched'));
+        UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1,
         run_id = coalesce((SELECT run_id FROM dispatch_contexts WHERE id = dispatch_id), run_id);
         DELETE FROM orca_mail_lifetime_runs`)
     owner.dataVersion = version

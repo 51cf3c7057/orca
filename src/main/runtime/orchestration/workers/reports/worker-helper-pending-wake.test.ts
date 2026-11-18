@@ -90,6 +90,9 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   notify.mockClear()
   reportWorkerTurnStop(db, target, { ...stop, pendingHelperWake: await pending() }, deps)
   expect(notify).not.toHaveBeenCalled()
+  const recoveringAcrossReset = pending()
+  db.resetMessages()
+  expect(await recoveringAcrossReset).toBe(true)
   active.clear()
   reportWorkerTurnStop(
     db,

@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import Database from '../../../../sqlite/sync-database'
+import { OrchestrationDb } from '../orchestration-db'
 import { expect, it, vi } from 'vitest'
 import {
   prepareCoordinatorMailCount,
@@ -249,3 +254,77 @@ it('keeps an in-flight cold count owner through external-write invalidation', as
   expect(preparedCoordinatorMailCount(db, worker.id)).toBeUndefined()
   expect(await count).toBe(1)
 })
+
+it.each([1_000, 10_000])(
+  'reconciles live and retired recovery owners after real external commits among %i assignments',
+  async (population) => {
+    const directory = mkdtempSync(join(tmpdir(), 'orca-mail-count-external-'))
+    const path = join(directory, 'orchestration.db')
+    const database = new OrchestrationDb(path)
+    const outside = new Database(path)
+    try {
+      const run = database.createRun({
+        objective: 'External recovery',
+        coordinatorHandle: 'term_parent',
+        coordinatorPaneKey: null
+      })
+      const task = database.createTask({ spec: 'Live helper', runId: run.id })
+      const helper = createRootDispatch(database, task.id, 'term_helper', 'tab:helper')
+      const columns = database.db
+        .prepare('PRAGMA table_info(dispatch_contexts)')
+        .all()
+        .map((row) => String(row.name))
+      database.db
+        .prepare(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < ?)
+      INSERT INTO dispatch_contexts (${columns.join(', ')}) SELECT ${columns.map((column) => (column === 'id' ? "'ctx_external_noise_' || n.i" : column === 'status' ? "'completed'" : `d.${column}`)).join(', ')}
+      FROM n CROSS JOIN dispatch_contexts d WHERE d.id = ?`)
+        .run(population, helper.id)
+      const mail = database.insertMessage({
+        runId: run.id,
+        from: 'term_parent',
+        to: `dispatch:${helper.id}`,
+        subject: 'Second round'
+      })
+      database.markAsRead([mail.id])
+      const liveRecovery = prepareCoordinatorMailCount(database, helper.id, () => true)
+      outside
+        .prepare('UPDATE messages SET body = ? WHERE id = ?')
+        .run('External unrelated edit', mail.id)
+      expect(await liveRecovery).toBe(1)
+      // A second active owner shares the indexed Run. Retiring it must not retain obsolete work.
+      const removedTask = database.createTask({ spec: 'Removed helper', runId: run.id })
+      const removed = createRootDispatch(database, removedTask.id, 'term_removed', 'tab:removed')
+      const removedRecovery = prepareCoordinatorMailCount(database, removed.id, () => true)
+      outside.prepare('DELETE FROM dispatch_contexts WHERE id = ?').run(removed.id)
+      expect(await removedRecovery).toBeUndefined()
+      expect(
+        database.db
+          .prepare('SELECT 1 FROM orca_coordinator_mail_counts WHERE dispatch_id = ?')
+          .get(removed.id)
+      ).toBeUndefined()
+      // Both a prepared owner and one recovering owner are reconciled against external settlement.
+      const retiringTask = database.createTask({ spec: 'Settling helper', runId: run.id })
+      const retiring = createRootDispatch(
+        database,
+        retiringTask.id,
+        'term_retiring',
+        'tab:retiring'
+      )
+      const retiringRecovery = prepareCoordinatorMailCount(database, retiring.id, () => true)
+      outside
+        .prepare("UPDATE dispatch_contexts SET status = 'completed' WHERE id IN (?, ?)")
+        .run(helper.id, retiring.id)
+      expect(await retiringRecovery).toBeUndefined()
+      expect(
+        database.db.prepare('SELECT 1 FROM orca_coordinator_mail_counts LIMIT 1').get()
+      ).toBeUndefined()
+      expect(
+        database.db.prepare('SELECT 1 FROM orca_mail_worker_lifetimes LIMIT 1').get()
+      ).toBeUndefined()
+    } finally {
+      outside.close()
+      database.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+)
