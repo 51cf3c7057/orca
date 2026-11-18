@@ -1,3 +1,4 @@
+import { advanceMailWorkerLifetimes } from './coordinator-mail-lifetime-index'
 import { setImmediate } from 'node:timers/promises'
 import type { OrchestrationDb } from '../orchestration-db'
 import {
@@ -6,7 +7,13 @@ import {
   installCoordinatorMailCountTriggers
 } from './coordinator-mail-count-triggers'
 
-type CountRow = { mail_count: number; cursor: number; ready: number; revision: number }
+type CountRow = {
+  run_id: string
+  mail_count: number
+  cursor: number
+  ready: number
+  revision: number
+}
 type Owner = { jobs: Map<string, Promise<void>>; dataVersion: unknown }
 const owners = new WeakMap<OrchestrationDb, Owner>()
 const PAGE_SIZE = 128
@@ -15,7 +22,7 @@ function row(db: OrchestrationDb, dispatchId: string): CountRow | undefined {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the connection-local table has this exact projection.
   return db.db
     .prepare(
-      'SELECT mail_count, cursor, ready, revision FROM orca_coordinator_mail_counts WHERE dispatch_id = ?'
+      'SELECT run_id, mail_count, cursor, ready, revision FROM orca_coordinator_mail_counts WHERE dispatch_id = ?'
     )
     .get(dispatchId) as CountRow | undefined
 }
@@ -23,9 +30,7 @@ function row(db: OrchestrationDb, dispatchId: string): CountRow | undefined {
 function refreshExternalWrites(db: OrchestrationDb, owner: Owner): void {
   const version = db.db.pragma('data_version', { simple: true })
   if (version !== owner.dataVersion) {
-    db.db.exec(
-      'UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1'
-    )
+    db.db.exec('DELETE FROM orca_coordinator_mail_counts; DELETE FROM orca_mail_lifetime_runs')
     owner.dataVersion = version
   }
 }
@@ -58,7 +63,9 @@ export async function prepareCoordinatorMailCount(
   const countOwner = owner
   refreshExternalWrites(db, countOwner)
   db.db
-    .prepare('INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id) VALUES (?)')
+    .prepare(
+      'INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ?'
+    )
     .run(dispatchId)
   while (current()) {
     const prepared = preparedCoordinatorMailCount(db, dispatchId)
@@ -85,9 +92,15 @@ async function recover(
 ): Promise<void> {
   while (current()) {
     await setImmediate()
+    if (!current()) {
+      return
+    }
     const before = row(db, dispatchId)
     if (!before || before.ready) {
       return
+    }
+    if (!advanceMailWorkerLifetimes(db, before.run_id)) {
+      continue
     }
     const page = db.db
       .prepare(`SELECT m.sequence,

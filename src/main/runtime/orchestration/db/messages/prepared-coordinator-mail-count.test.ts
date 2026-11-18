@@ -61,6 +61,7 @@ it('keeps exact finish identities through out-of-order reads, rollback, sender c
   expect(
     db.db.prepare('SELECT 1 FROM orca_coordinator_mail_counts WHERE dispatch_id = ?').get(worker.id)
   ).toBeUndefined()
+  expect(db.db.prepare('SELECT 1 FROM orca_mail_lifetime_runs LIMIT 1').get()).toBeUndefined()
 })
 
 it.each([
@@ -137,7 +138,7 @@ it.each([100, 1_000])(
         .prepare("UPDATE dispatch_contexts SET status = 'completed' WHERE id = ?")
         .run(assignment.id)
       const mail = db.insertMessage({
-        from: 'term_parent',
+        from: i % 2 === 0 ? 'term_parent' : `term_unique_${i}`,
         senderPaneKey: 'new:parent',
         to: `dispatch:${worker.id}`,
         subject: 'Follow-up',
@@ -158,6 +159,26 @@ it.each([100, 1_000])(
     })
     expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(history)
     expect(classifierCalls).toBe(0)
+    const triggerSql = String(
+      db.db
+        .prepare("SELECT sql FROM sqlite_temp_master WHERE name = 'orca_mail_count_delete'")
+        .get()!.sql
+    )
+    const decrementSql = triggerSql.match(
+      /UPDATE orca_coordinator_mail_senders SET refs = refs - 1[^;]+/
+    )![0]
+    const decrementPlan = db.db
+      .prepare(
+        `EXPLAIN QUERY PLAN ${decrementSql.replace('SET refs = refs - 1', 'SET refs = refs - 1 FROM messages OLD').replace('WHERE run_id =', 'WHERE orca_coordinator_mail_senders.run_id =')} AND OLD.id = ?`
+      )
+      .all('absent-message')
+      .map((row) => String(row.detail))
+    expect(
+      decrementPlan.some((detail) =>
+        detail.includes('run_id=? AND kind=? AND identity=? AND dispatch_id=?')
+      )
+    ).toBe(true)
+
     const plan = db.db
       .prepare(
         `EXPLAIN QUERY PLAN SELECT ${coordinatorMailContribution('m', '?')} FROM messages m WHERE m.to_handle = ? AND m.read = 1 AND m.sequence > ? ORDER BY m.sequence LIMIT 128`
@@ -167,14 +188,15 @@ it.each([100, 1_000])(
     expect(
       plan.some(
         (detail) =>
-          detail.includes('idx_dispatch_mail_run_handle') &&
-          detail.includes('run_id=? AND assignee_handle=?')
+          detail.includes('orca_mail_lifetime_start') &&
+          detail.includes('run_id=? AND kind=? AND identity=? AND node=? AND start_ms<?')
       )
     ).toBe(true)
     expect(
       plan.some(
         (detail) =>
-          detail.includes('idx_dispatch_mail_run_pane') && detail.includes('run_id=? AND <expr>=?')
+          detail.includes('orca_mail_lifetime_end') &&
+          detail.includes('run_id=? AND kind=? AND identity=? AND node=? AND end_ms>?')
       )
     ).toBe(true)
     const nextTask = db.createTask({ spec: 'New unrelated assignment', runId: other.id })

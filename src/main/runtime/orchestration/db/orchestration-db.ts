@@ -96,11 +96,8 @@ class OrchestrationDbCore {
       DROP INDEX IF EXISTS idx_dispatch_historical_mail_pane;
       DROP INDEX IF EXISTS idx_messages_mail_count_sender;
       DROP INDEX IF EXISTS idx_messages_mail_count_pane;
-      CREATE INDEX IF NOT EXISTS idx_dispatch_mail_run_handle
-        ON dispatch_contexts(run_id, assignee_handle);
-      CREATE INDEX IF NOT EXISTS idx_dispatch_mail_run_pane
-        ON dispatch_contexts(run_id, substr(assignee_pane_key, instr(assignee_pane_key, ':') + 1))
-        WHERE assignee_pane_key IS NOT NULL;
+      DROP INDEX IF EXISTS idx_dispatch_mail_run_handle;
+      DROP INDEX IF EXISTS idx_dispatch_mail_run_pane;
       CREATE INDEX IF NOT EXISTS idx_messages_goal_wake_blockers
         ON messages(json_extract(payload, '$.dispatchId')) WHERE json_valid(payload)
           AND (id GLOB 'msg_stop_*' OR
