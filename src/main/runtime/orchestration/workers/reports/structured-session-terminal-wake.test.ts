@@ -81,6 +81,7 @@ it.each([750, 7_500])(
         connectionId: null,
         agentType: 'claude',
         receivedAt: Date.now(),
+        stateStartedAt: Date.now(),
         restoredUnconfirmed: true
       }
     ]

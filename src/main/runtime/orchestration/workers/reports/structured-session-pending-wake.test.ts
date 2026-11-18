@@ -57,9 +57,15 @@ it('defers for the parent’s running work until it settles, never for another s
   })
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   await settleTurn(PEER_CHAT, 0)
+  // The answer is delivered as a second worker turn.
+  await vi.waitFor(() => expect(connectionFor(PEER_CHAT).turns).toHaveLength(2), WAIT)
+  await settleTurn(PEER_CHAT, 1)
   // A turn-stop report leaves the Dispatch ready; an idle worker owes no further wake.
   expect(db.getWorkerDispatch(started.dispatch.id)?.state).toBe('ready')
-  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+  await vi.waitFor(
+    async () => expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false),
+    WAIT
+  )
   db.completeDispatch(started.dispatch.id)
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
 })
