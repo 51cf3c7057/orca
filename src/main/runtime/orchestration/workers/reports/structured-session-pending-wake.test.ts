@@ -56,6 +56,19 @@ it('defers for the parent’s running work until it settles, never for another s
     consumerGeneration: db.getRun(runId)!.consumer_generation
   })
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
+  const helper = db.createStartingWorkerDispatch({
+    creator: { kind: 'system' },
+    maxDepth: 10,
+    taskSpec: 'Nested helper',
+    taskRunId: runId,
+    startOptions: {}
+  })
+  db.db
+    .prepare('UPDATE dispatch_contexts SET creator_dispatch_id = ? WHERE id = ?')
+    .run(started.dispatch.id, helper.dispatch.id)
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+  db.completeDispatch(helper.dispatch.id)
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   await settleTurn(PEER_CHAT, 0)
   // The answer is delivered as a second worker turn.
   await vi.waitFor(() => expect(connectionFor(PEER_CHAT).turns).toHaveLength(2), WAIT)

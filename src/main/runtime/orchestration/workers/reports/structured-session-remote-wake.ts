@@ -13,11 +13,16 @@ export async function readRemoteWorkingDispatches(
   runtime: OrcaRuntimeService,
   db: OrchestrationDb,
   dispatchIds: readonly string[],
-  isCurrent: () => boolean
+  isCurrent: () => boolean,
+  eligible: (dispatchId: string) => boolean = () => true
 ): Promise<Set<string>> {
   const deadline = Date.now() + 5_000
   const working = new Set<string>()
-  const current = () => isCurrent() && Date.now() < deadline
+  let found: (() => void) | undefined
+  const positive = new Promise<void>((resolve) => {
+    found = resolve
+  })
+  const current = () => working.size === 0 && isCurrent() && Date.now() < deadline
   const observations = mapWithConcurrency(
     groupFederatedDispatches({ runtime, db, dispatchIds }),
     4,
@@ -75,9 +80,12 @@ export async function readRemoteWorkingDispatches(
           if (
             expected.has(item.dispatchId) &&
             item.observation.exactWorker &&
-            item.observation.working
+            item.observation.working &&
+            eligible(item.dispatchId)
           ) {
             working.add(item.dispatchId)
+            found?.()
+            return
           }
         }
       } catch {
@@ -85,6 +93,10 @@ export async function readRemoteWorkingDispatches(
       }
     }
   )
-  await withTimeout(observations, Math.max(1, deadline - Date.now()), undefined)
+  await withTimeout(
+    Promise.race([observations, positive]),
+    Math.max(1, deadline - Date.now()),
+    undefined
+  )
   return isCurrent() ? working : new Set()
 }

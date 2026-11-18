@@ -54,12 +54,10 @@ it.each([
       expect(method).toBe('orchestration.federationFleetSnapshot')
       expect(params).toMatchObject({ workingOnly: true })
       return {
-        items: [{ dispatchId: 'remote-0', observation: { exactWorker: true, working: true } }]
+        items: []
       }
     })
-  expect(await readRemoteWorkingDispatches(runtime, db, ids, () => true)).toEqual(
-    new Set(['remote-0'])
-  )
+  expect(await readRemoteWorkingDispatches(runtime, db, ids, () => true)).toEqual(new Set())
   expect(call).toHaveBeenCalledTimes(calls)
 })
 
@@ -108,4 +106,47 @@ it('ends the observation at its total deadline without admitting the remaining p
   } finally {
     vi.useRealTimers()
   }
+})
+
+it.each([100, 1_000])(
+  'returns the first eligible wake among %i workers without waiting on peers',
+  async (count) => {
+    const ids = remoteWorkers(count)
+    const responses: ((value: unknown) => void)[] = []
+    const call = vi
+      .spyOn(runtime, 'callOrchestrationWorkerServer')
+      .mockImplementation(() => new Promise((resolve) => responses.push(resolve)))
+    const pending = readRemoteWorkingDispatches(runtime, db, ids, () => true)
+    await vi.waitFor(() => expect(responses.length).toBeGreaterThan(0))
+    responses[0]!({
+      items: [{ dispatchId: 'remote-0', observation: { exactWorker: true, working: true } }]
+    })
+    expect(await pending).toEqual(new Set(['remote-0']))
+    const admitted = call.mock.calls.length
+    for (const resolve of responses.slice(1)) {
+      resolve({ items: [] })
+    }
+    await vi.waitFor(() => expect(call).toHaveBeenCalledTimes(admitted))
+    expect(admitted).toBeLessThanOrEqual(4)
+  }
+)
+
+it('continues past a remote positive whose custody changed', async () => {
+  const ids = remoteWorkers(200)
+  vi.spyOn(runtime, 'callOrchestrationWorkerServer').mockImplementation(
+    async (_host, _method, params) => {
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this mock receives only federationFleetSnapshot parameters.
+      const dispatchId = (params as { dispatchIds: string[] }).dispatchIds[0]!
+      return { items: [{ dispatchId, observation: { exactWorker: true, working: true } }] }
+    }
+  )
+  expect(
+    await readRemoteWorkingDispatches(
+      runtime,
+      db,
+      ids,
+      () => true,
+      (id) => id === 'remote-100'
+    )
+  ).toEqual(new Set(['remote-100']))
 })

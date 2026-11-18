@@ -15,6 +15,7 @@ import '../../db/attempt-outcome-projection'
 import { createRootDispatch } from '../../db/root-dispatch-test-fixture'
 import { TerminalWorkerTurnStops } from './terminal-worker-turn-stops'
 import { reportWorkerTurnStop } from './worker-turn-stop-report'
+import { canPromiseWorkerFinishReport } from './worker-finish-report-eligibility'
 
 const PANE = makePaneKey('tab-worker', '11111111-1111-4111-8111-111111111111')
 const HANDLE = 'term_worker'
@@ -319,4 +320,39 @@ describe('chat worker turn stops', () => {
     expect(ctx.mail()).toMatchObject([{ subject: 'Worker stopped without reporting' }])
     live.stop()
   })
+})
+
+it('promises only a fresh unmuted finish report', () => {
+  const ctx = setup()
+  const target = { kind: 'local' as const, dispatch: ctx.dispatch }
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(true)
+  ctx.waiting.add(`dispatch:${ctx.dispatch.id}`)
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(false)
+  ctx.waiting.clear()
+  const helperTask = ctx.db.createTask({ spec: 'helper', runId: ctx.run.id })
+  const helper = createRootDispatch(ctx.db, helperTask.id, 'term_helper')
+  ctx.db.db
+    .prepare('UPDATE dispatch_contexts SET creator_dispatch_id = ? WHERE id = ?')
+    .run(ctx.dispatch.id, helper.id)
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(false)
+  ctx.db.completeDispatch(helper.id)
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(true)
+  reportWorkerTurnStop(
+    ctx.db,
+    target,
+    { from: HANDLE, reason: 'finished', lastOutput: 'Marker' },
+    ctx.deps
+  )
+  expect(ctx.mail()).toHaveLength(1)
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(false)
+  const plan = ctx.db.db
+    .prepare(`EXPLAIN QUERY PLAN SELECT 1 FROM messages
+    WHERE json_valid(payload) AND json_extract(payload, '$.dispatchId') = ?
+      AND (id GLOB 'msg_stop_*' OR
+        (type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'))
+    LIMIT 1`)
+    .all(ctx.dispatch.id)
+  expect(plan.map((row) => String(row.detail)).some((detail) => detail.startsWith('SCAN'))).toBe(
+    false
+  )
 })

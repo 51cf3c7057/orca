@@ -15,6 +15,8 @@ import {
 it.each([750, 7_500])(
   'uses exact hook evidence without a summary or inventory across %i worktrees',
   async (population) => {
+    const now = 1_800_000_000_000
+    vi.spyOn(Date, 'now').mockReturnValue(now)
     await openChat(COORDINATOR)
     const { taskId } = await coordinatorRunAndTask()
     const pane = 'tab_worker:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -26,8 +28,8 @@ it.each([750, 7_500])(
         connectionId: null,
         agentType: 'claude',
         terminalHandle: 'term_reminted',
-        receivedAt: Date.now(),
-        stateStartedAt: Date.now()
+        receivedAt: now,
+        stateStartedAt: now
       }
     ]
     let observed: ObservedAgentStatusPaneIdentity = {
@@ -80,12 +82,14 @@ it.each([750, 7_500])(
         prompt: '',
         connectionId: null,
         agentType: 'claude',
-        receivedAt: Date.now(),
-        stateStartedAt: Date.now(),
+        receivedAt: now,
+        stateStartedAt: now,
         restoredUnconfirmed: true
       }
     ]
     expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+    rows[0]!.restoredUnconfirmed = false
+    expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
     observed = {
       kind: 'observed',
       terminalHandle: 'term_reminted',

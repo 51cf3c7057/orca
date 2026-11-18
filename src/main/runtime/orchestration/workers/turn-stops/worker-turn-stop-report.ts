@@ -3,7 +3,7 @@ import { redactString } from '../../../../observability/redactor'
 import type { OrchestrationDb } from '../../db/orchestration-db'
 import { dispatchReportMailbox } from '../reports/dispatch-report-mailbox'
 import { readCoordinatorMailCount } from '../../db/messages/dispatch-read-mail'
-import { rejectedReportInTurn } from '../../db/messages/rejected-worker-report'
+import { workerFinishReportMuted } from './worker-finish-report-eligibility'
 import type {
   DispatchContextRow,
   RemoteDispatchAttachmentRow
@@ -199,10 +199,7 @@ export function reportWorkerTurnStop(
   if (
     !isWorkerGone(stop.reason) &&
     (deps.isWaitingForMail(`dispatch:${dispatchId}`) ||
-      (stop.reason === 'finished' &&
-        (db.awaitsAnswerToLatestQuestion(dispatchId) ||
-          rejectedReportInTurn(db, dispatchId, stop.turnStartedAt) ||
-          (target.kind === 'local' && db.hasOpenHelperDispatch(dispatchId)))))
+      (stop.reason === 'finished' && workerFinishReportMuted(db, target, stop.turnStartedAt)))
   ) {
     return false
   }

@@ -69,7 +69,8 @@ export async function structuredSessionHasPendingWake(
       if (
         getStructuredAgentSessionHost()?.readStatusSummary(custody.sessionId)?.status ===
           'working' &&
-        eligible(dispatch.id)
+        eligible(dispatch.id) &&
+        runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
       ) {
         return true
       }
@@ -81,7 +82,8 @@ export async function structuredSessionHasPendingWake(
         pane &&
         incarnation &&
         runtime.isOrchestrationWorkerWorking(pane, incarnation) &&
-        eligible(dispatch.id)
+        eligible(dispatch.id) &&
+        runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
       ) {
         return true
       }
@@ -90,6 +92,6 @@ export async function structuredSessionHasPendingWake(
   if (!isCurrent() || remoteIds.length === 0) {
     return false
   }
-  const working = await readRemoteWorkingDispatches(runtime, db, remoteIds, isCurrent)
+  const working = await readRemoteWorkingDispatches(runtime, db, remoteIds, isCurrent, eligible)
   return [...working].some(eligible)
 }

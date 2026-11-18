@@ -42,7 +42,7 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
             attachment.state === 'ready' &&
             !!attachment.pane_key &&
             !!attachment.process_incarnation &&
-            !runtime.getOrchestrationDb().awaitsAnswerToLatestQuestion(dispatchId) &&
+            runtime.canPromiseOrchestrationWorkerWake({ kind: 'remote', attachment }) &&
             runtime.isOrchestrationWorkerWorking(
               attachment.pane_key,
               attachment.process_incarnation
