@@ -2,6 +2,7 @@ import { setImmediate } from 'node:timers/promises'
 import type { OrchestrationDb } from '../orchestration-db'
 import {
   coordinatorMailContribution,
+  recordCoordinatorMailPageSenders,
   installCoordinatorMailCountTriggers
 } from './coordinator-mail-count-triggers'
 
@@ -95,15 +96,28 @@ async function recover(
       .all(dispatchId, `dispatch:${dispatchId}`, before.cursor, PAGE_SIZE)
     const last = page.at(-1)?.sequence
     const count = page.reduce((sum, item) => sum + Number(item.counted), 0)
-    db.db
-      .prepare(`UPDATE orca_coordinator_mail_counts SET mail_count = mail_count + ?, cursor = ?, ready = ?
-      WHERE dispatch_id = ? AND revision = ?`)
-      .run(
-        count,
-        typeof last === 'number' ? last : before.cursor,
-        page.length < PAGE_SIZE ? 1 : 0,
+    db.db.exec('SAVEPOINT coordinator_mail_page')
+    try {
+      recordCoordinatorMailPageSenders(
+        db,
         dispatchId,
-        before.revision
+        before.cursor,
+        typeof last === 'number' ? last : before.cursor
       )
+      db.db
+        .prepare(`UPDATE orca_coordinator_mail_counts SET mail_count = mail_count + ?, cursor = ?, ready = ?
+      WHERE dispatch_id = ? AND revision = ?`)
+        .run(
+          count,
+          typeof last === 'number' ? last : before.cursor,
+          page.length < PAGE_SIZE ? 1 : 0,
+          dispatchId,
+          before.revision
+        )
+      db.db.exec('RELEASE coordinator_mail_page')
+    } catch (error) {
+      db.db.exec('ROLLBACK TO coordinator_mail_page; RELEASE coordinator_mail_page')
+      throw error
+    }
   }
 }

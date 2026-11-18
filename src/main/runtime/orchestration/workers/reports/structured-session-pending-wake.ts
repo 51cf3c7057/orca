@@ -50,7 +50,14 @@ export async function structuredSessionHasPendingWake(
   )
   const eligible = (dispatchId: string) => {
     const state = db.getWorkerDispatch(dispatchId)?.state
-    return isCurrent() && reportsHere(dispatchId) && (!state || state === 'ready')
+    const dispatch = db.getDispatchContextById(dispatchId)
+    return (
+      isCurrent() &&
+      reportsHere(dispatchId) &&
+      (!state || state === 'ready') &&
+      (!remote.has(dispatchId) ||
+        (!!dispatch && runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })))
+    )
   }
   const remoteIds: string[] = []
   for (const dispatch of candidates) {

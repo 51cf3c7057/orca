@@ -5,42 +5,111 @@ import { exposeUtcTimestamp } from '../utc-timestamp'
 const text = (value: unknown) => (typeof value === 'string' ? value : null)
 const suffix = (column: string) => `substr(${column}, instr(${column}, ':') + 1)`
 
-/** Identity branches use historical indexes; the existing classifier decides exact membership. */
+/** Run-scoped identity seeks avoid enumerating a terminal's unrelated historical assignments. */
 export function coordinatorMailContribution(message: string, dispatch: string): string {
-  return `(${message}.read = 1 AND NOT EXISTS (
-    SELECT 1 FROM dispatch_contexts worker JOIN dispatch_contexts own ON own.id = ${dispatch}
+  const matches = (identity: string) => `SELECT 1 FROM dispatch_contexts worker
     WHERE worker.run_id = own.run_id AND worker.id IS NOT own.creator_dispatch_id
-      AND worker.assignee_handle IS NOT NULL
-      AND worker.rowid IN (
-        SELECT rowid FROM dispatch_contexts WHERE id = substr(${message}.from_handle, 10)
-        UNION SELECT rowid FROM dispatch_contexts WHERE assignee_handle = ${message}.from_handle
-        UNION SELECT rowid FROM dispatch_contexts
-          WHERE ${suffix('assignee_pane_key')} = ${suffix(`${message}.sender_pane_key`)}
-      ) AND orca_mail_worker_matches(worker.id, worker.assignee_handle, worker.assignee_pane_key,
+      AND worker.assignee_handle IS NOT NULL AND ${identity}
+      AND orca_mail_worker_matches(worker.id, worker.assignee_handle, worker.assignee_pane_key,
         worker.created_at, worker.completed_at, ${message}.from_handle,
-        ${message}.sender_pane_key, ${message}.created_at) = 1
+        ${message}.sender_pane_key, ${message}.created_at) = 1`
+  return `(${message}.read = 1 AND NOT EXISTS (
+    SELECT 1 FROM dispatch_contexts own WHERE own.id = ${dispatch} AND (
+      EXISTS (${matches(`worker.id = substr(${message}.from_handle, 10)`)}) OR
+      EXISTS (${matches(`worker.assignee_handle = ${message}.from_handle`)}) OR
+      EXISTS (${matches(`worker.assignee_pane_key IS NOT NULL AND ${suffix('worker.assignee_pane_key')} = ${suffix(`${message}.sender_pane_key`)}`)})
+    )
   ))`
+}
+
+const processed = (message: string) => `dispatch_id = substr(${message}.to_handle, 10)
+  AND ${message}.to_handle GLOB 'dispatch:*' AND ${message}.read = 1
+  AND (ready = 1 OR ${message}.sequence <= cursor)`
+
+const identities = (message: string) => [
+  ['handle', `${message}.from_handle`],
+  ['pane', suffix(`${message}.sender_pane_key`)]
+]
+
+function dependencies(message: string, add: boolean): string {
+  return identities(message)
+    .map(([kind, identity]) =>
+      add
+        ? `
+    INSERT INTO orca_coordinator_mail_senders(run_id, kind, identity, dispatch_id, refs, first_sent, last_sent)
+      SELECT own.run_id, '${kind}', ${identity}, own.id, 1,
+        orca_mail_timestamp(${message}.created_at), orca_mail_timestamp(${message}.created_at)
+      FROM dispatch_contexts own JOIN orca_coordinator_mail_counts c ON c.dispatch_id = own.id
+      WHERE ${processed(message)} AND ${identity} IS NOT NULL
+      ON CONFLICT(run_id, kind, identity, dispatch_id) DO UPDATE SET refs = refs + 1,
+        first_sent = min(first_sent, excluded.first_sent), last_sent = max(last_sent, excluded.last_sent);
+  `
+        : `
+    UPDATE orca_coordinator_mail_senders SET refs = refs - 1
+      WHERE kind = '${kind}' AND identity = ${identity} AND dispatch_id IN (
+        SELECT dispatch_id FROM orca_coordinator_mail_counts WHERE ${processed(message)});
+    DELETE FROM orca_coordinator_mail_senders
+      WHERE kind = '${kind}' AND identity = ${identity}
+        AND dispatch_id = substr(${message}.to_handle, 10) AND refs = 0;
+  `
+    )
+    .join('')
+}
+
+export function recordCoordinatorMailPageSenders(
+  db: OrchestrationDb,
+  id: string,
+  after: number,
+  through: number
+): void {
+  for (const [kind, identity] of identities('m')) {
+    db.db
+      .prepare(`INSERT INTO orca_coordinator_mail_senders(run_id, kind, identity, dispatch_id, refs, first_sent, last_sent)
+      SELECT own.run_id, '${kind}', ${identity}, own.id, count(*),
+        min(orca_mail_timestamp(m.created_at)), max(orca_mail_timestamp(m.created_at))
+      FROM messages m JOIN dispatch_contexts own ON own.id = ?
+      WHERE m.to_handle = ? AND m.read = 1 AND m.sequence > ? AND m.sequence <= ? AND ${identity} IS NOT NULL
+      GROUP BY ${identity}
+      ON CONFLICT(run_id, kind, identity, dispatch_id) DO UPDATE SET refs = refs + excluded.refs,
+        first_sent = min(first_sent, excluded.first_sent), last_sent = max(last_sent, excluded.last_sent)`)
+      .run(id, `dispatch:${id}`, after, through)
+  }
 }
 
 function adjust(message: 'OLD' | 'NEW', sign: '-' | '+'): string {
   return `UPDATE orca_coordinator_mail_counts
     SET mail_count = mail_count ${sign} ${coordinatorMailContribution(message, 'dispatch_id')}
-    WHERE dispatch_id = substr(${message}.to_handle, 10) AND ${message}.to_handle GLOB 'dispatch:*' AND ${message}.read = 1
-      AND (ready = 1 OR ${message}.sequence <= cursor);`
+    WHERE ${processed(message)};`
 }
 
-function invalidate(worker: 'OLD' | 'NEW'): string {
+function invalidate(worker: 'OLD' | 'NEW', changedAfter = ''): string {
+  const candidates = [
+    `kind = 'handle' AND identity = ${worker}.assignee_handle`,
+    `kind = 'handle' AND identity = 'dispatch:' || ${worker}.id`,
+    `kind = 'pane' AND identity = ${suffix(`${worker}.assignee_pane_key`)}`
+  ].map(
+    (identity) => `SELECT s.dispatch_id FROM orca_coordinator_mail_senders s
+    JOIN dispatch_contexts own ON own.id = s.dispatch_id
+    WHERE s.run_id = ${worker}.run_id AND ${identity}
+      AND ${worker}.id IS NOT own.creator_dispatch_id
+      AND s.last_sent >= orca_mail_timestamp(${worker}.created_at)
+      AND (orca_mail_completed_timestamp(${worker}.completed_at) IS NULL OR s.first_sent <= orca_mail_completed_timestamp(${worker}.completed_at))
+      ${changedAfter}`
+  )
   return `UPDATE orca_coordinator_mail_counts
     SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1
-    WHERE dispatch_id = ${worker}.id OR dispatch_id IN (
-      SELECT substr(to_handle, 10) FROM messages WHERE read = 1 AND from_handle IN (
-        ${worker}.assignee_handle, 'dispatch:' || ${worker}.id)
-      UNION SELECT substr(to_handle, 10) FROM messages WHERE read = 1
-        AND ${suffix('sender_pane_key')} = ${suffix(`${worker}.assignee_pane_key`)}
-    );`
+    WHERE dispatch_id IN (${candidates.join(' UNION ')});`
 }
 
 export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
+  db.db.function('orca_mail_timestamp', (value) => {
+    const parsed = Date.parse(exposeUtcTimestamp(text(value)) ?? '')
+    return Number.isNaN(parsed) ? null : parsed
+  })
+  db.db.function('orca_mail_completed_timestamp', (value) => {
+    const parsed = Date.parse(text(value) ?? '')
+    return Number.isNaN(parsed) ? null : parsed
+  })
   db.db.function(
     'orca_mail_worker_matches',
     (id, handle, pane, created, completed, from, senderPane, sent) => {
@@ -68,19 +137,40 @@ export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
       cursor INTEGER NOT NULL DEFAULT 0, ready INTEGER NOT NULL DEFAULT 0,
       revision INTEGER NOT NULL DEFAULT 0
     );
-    CREATE TEMP TRIGGER orca_mail_count_insert AFTER INSERT ON main.messages BEGIN ${adjust('NEW', '+')} END;
-    CREATE TEMP TRIGGER orca_mail_count_delete BEFORE DELETE ON main.messages BEGIN ${adjust('OLD', '-')} END;
+    CREATE TEMP TABLE orca_coordinator_mail_senders (
+      run_id TEXT NOT NULL, kind TEXT NOT NULL, identity TEXT NOT NULL, dispatch_id TEXT NOT NULL,
+      refs INTEGER NOT NULL, first_sent INTEGER NOT NULL, last_sent INTEGER NOT NULL,
+      PRIMARY KEY(run_id, kind, identity, dispatch_id)
+    ) WITHOUT ROWID;
+    CREATE INDEX orca_mail_senders_dispatch ON orca_coordinator_mail_senders(dispatch_id);
+    CREATE TEMP TRIGGER orca_mail_count_retired AFTER DELETE ON orca_coordinator_mail_counts
+      BEGIN DELETE FROM orca_coordinator_mail_senders WHERE dispatch_id = OLD.dispatch_id; END;
+    CREATE TEMP TRIGGER orca_mail_count_invalidated AFTER UPDATE OF revision ON orca_coordinator_mail_counts
+      BEGIN DELETE FROM orca_coordinator_mail_senders WHERE dispatch_id = NEW.dispatch_id; END;
+    CREATE TEMP TRIGGER orca_mail_count_insert AFTER INSERT ON main.messages
+      BEGIN ${adjust('NEW', '+')} ${dependencies('NEW', true)} END;
+    CREATE TEMP TRIGGER orca_mail_count_delete BEFORE DELETE ON main.messages
+      BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} END;
     CREATE TEMP TRIGGER orca_mail_count_update AFTER UPDATE OF read, to_handle, from_handle, sender_pane_key, created_at ON main.messages
-    BEGIN ${adjust('OLD', '-')} ${adjust('NEW', '+')} END;
+      BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} ${adjust('NEW', '+')} ${dependencies('NEW', true)} END;
     CREATE TEMP TRIGGER orca_mail_count_worker_insert AFTER INSERT ON main.dispatch_contexts BEGIN ${invalidate('NEW')} END;
     CREATE TEMP TRIGGER orca_mail_count_worker_delete BEFORE DELETE ON main.dispatch_contexts
-    BEGIN ${invalidate('OLD')} DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = OLD.id; END;
-    CREATE TEMP TRIGGER orca_mail_count_worker_update AFTER UPDATE OF
-      run_id, creator_dispatch_id, assignee_handle, assignee_pane_key, created_at, completed_at ON main.dispatch_contexts
-    BEGIN ${invalidate('OLD')} ${invalidate('NEW')}
-      DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.id AND NEW.status NOT IN ('pending', 'dispatched');
-    END;
+      BEGIN ${invalidate('OLD')} DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = OLD.id; END;
+    CREATE TEMP TRIGGER orca_mail_count_worker_identity AFTER UPDATE OF
+      run_id, creator_dispatch_id, assignee_handle, assignee_pane_key, created_at ON main.dispatch_contexts
+      WHEN OLD.run_id IS NOT NEW.run_id OR OLD.creator_dispatch_id IS NOT NEW.creator_dispatch_id
+        OR OLD.assignee_handle IS NOT NEW.assignee_handle OR OLD.assignee_pane_key IS NOT NEW.assignee_pane_key
+        OR OLD.created_at IS NOT NEW.created_at
+      BEGIN ${invalidate('OLD')} ${invalidate('NEW')}
+        UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1
+          WHERE dispatch_id = NEW.id AND (OLD.run_id IS NOT NEW.run_id OR OLD.creator_dispatch_id IS NOT NEW.creator_dispatch_id);
+      END;
+    CREATE TEMP TRIGGER orca_mail_count_worker_lifetime AFTER UPDATE OF completed_at ON main.dispatch_contexts
+      WHEN OLD.completed_at IS NOT NEW.completed_at
+      BEGIN ${invalidate('OLD', 'AND s.last_sent > min(coalesce(orca_mail_completed_timestamp(OLD.completed_at), 9223372036854775807), coalesce(orca_mail_completed_timestamp(NEW.completed_at), 9223372036854775807))')}
+        ${invalidate('NEW', 'AND s.last_sent > min(coalesce(orca_mail_completed_timestamp(OLD.completed_at), 9223372036854775807), coalesce(orca_mail_completed_timestamp(NEW.completed_at), 9223372036854775807))')}
+      END;
     CREATE TEMP TRIGGER orca_mail_count_worker_settled AFTER UPDATE OF status ON main.dispatch_contexts
-    BEGIN DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.id AND NEW.status NOT IN ('pending', 'dispatched'); END;
+      BEGIN DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.id AND NEW.status NOT IN ('pending', 'dispatched'); END;
   `)
 }

@@ -1,6 +1,9 @@
 import { expect, it, vi } from 'vitest'
 import { formatOrcaSessionAddress } from '../../../../../shared/agent-session/identity/orca-session-address'
 import { testOrcaSessionId } from '../../../../../shared/agent-session/identity/orca-session-address-test-fixture'
+import { getOrchestrationPeerCapabilityCache } from '../../federation/orchestration-peer-capability-cache'
+import { ORCHESTRATION_WORKER_WAKE_OBSERVATION_RUNTIME_CAPABILITY } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
+import { stopReportId } from '../turn-stops/worker-stop-report-id'
 import { structuredSessionHasPendingWake } from './structured-session-pending-wake'
 import {
   COORDINATOR,
@@ -148,3 +151,71 @@ it.each([1_000, 10_000])(
     expect(plan.filter((detail) => detail.startsWith('SCAN'))).toEqual([])
   }
 )
+
+it('does not defer for a consumed remote finish whose execution-host relay has expired', async () => {
+  await openChat(COORDINATOR)
+  const { taskId, runId } = await coordinatorRunAndTask()
+  const started = db.createStartingWorkerDispatch({
+    creator: { kind: 'session', orcaSessionId: testOrcaSessionId(COORDINATOR) },
+    maxDepth: 10,
+    taskId,
+    startOptions: {}
+  })
+  db.prepareStartingWorkerAuthority({
+    dispatchId: started.dispatch.id,
+    handle: 'term_remote',
+    paneKey: null,
+    processIncarnation: 'remote:1',
+    worktreeId: 'remote-workspace',
+    effects: [],
+    setupState: 'not_applicable'
+  })
+  db.markWorkerDispatchReady(started.dispatch.id)
+  vi.spyOn(db, 'listFederatedDispatchesByIds').mockReturnValue([
+    {
+      dispatch_id: started.dispatch.id,
+      environment_id: 'host',
+      environment_name: 'Host',
+      peer_fingerprint: 'peer',
+      remote_runtime_epoch: 'epoch',
+      protocol_version: 1,
+      remote_worktree_id: null,
+      remote_terminal_handle: null,
+      to_home_imported_sequence: 0,
+      to_home_acknowledged_sequence: 0,
+      home_auto_release_at: null,
+      home_auto_release_state: null,
+      created_at: '2026-11-17',
+      updated_at: '2026-11-17'
+    }
+  ])
+  vi.spyOn(runtime, 'resolveOrchestrationWorkerServer').mockResolvedValue({
+    environmentId: 'host',
+    name: 'Host',
+    peerFingerprint: 'peer',
+    pairingRevision: 1
+  })
+  getOrchestrationPeerCapabilityCache(runtime).remember(
+    'peer',
+    'epoch',
+    ORCHESTRATION_WORKER_WAKE_OBSERVATION_RUNTIME_CAPABILITY,
+    true
+  )
+  const observe = vi.spyOn(runtime, 'callOrchestrationWorkerServer').mockResolvedValue({
+    items: [{ dispatchId: started.dispatch.id, observation: { exactWorker: true, working: true } }]
+  })
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
+  const report = db.insertMessage({
+    id: stopReportId(started.dispatch.id, 'finished:1'),
+    from: 'term_remote',
+    to: formatOrcaSessionAddress(testOrcaSessionId(COORDINATOR)),
+    subject: 'Worker stopped without reporting',
+    type: 'escalation',
+    payload: JSON.stringify({ dispatchId: started.dispatch.id }),
+    runId
+  })
+  db.markAsRead([report.id])
+  observe.mockClear()
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+  expect(observe).not.toHaveBeenCalled()
+})

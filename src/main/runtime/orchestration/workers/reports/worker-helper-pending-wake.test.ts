@@ -63,7 +63,21 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   })
   db.markAsRead([followUp.id])
   active.add('tab:h')
+  const queries = vi.spyOn(db.db, 'prepare')
   expect(await pending()).toBe(true)
+  const rejectionSql = queries.mock.calls.find(([sql]) =>
+    sql.includes("AND type = 'worker_done' AND json_type")
+  )?.[0]
+  queries.mockRestore()
+  expect(rejectionSql).toBeDefined()
+  const rejectionPlan = db.db
+    .prepare(`EXPLAIN QUERY PLAN ${rejectionSql!}`)
+    .all(helper.id)
+    .map((row) => String(row.detail))
+  expect(rejectionPlan.some((detail) => detail.includes('idx_messages_goal_wake_blockers'))).toBe(
+    true
+  )
+  expect(rejectionPlan.some((detail) => detail === 'SCAN messages')).toBe(false)
   notify.mockClear()
   reportWorkerTurnStop(db, target, { ...stop, pendingHelperWake: await pending() }, deps)
   expect(notify).not.toHaveBeenCalled()

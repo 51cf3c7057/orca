@@ -1,5 +1,9 @@
 import { expect, it, vi } from 'vitest'
-import { prepareCoordinatorMailCount } from './prepared-coordinator-mail-count'
+import {
+  prepareCoordinatorMailCount,
+  preparedCoordinatorMailCount
+} from './prepared-coordinator-mail-count'
+import { coordinatorMailContribution } from './coordinator-mail-count-triggers'
 import { readCoordinatorMailCount } from './dispatch-read-mail'
 import { createRootDispatch } from '../root-dispatch-test-fixture'
 import {
@@ -112,5 +116,92 @@ it.each([
     db.markAsRead([mail.id])
     expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(afterNewMail)
     expect(historyRows).toBe(0)
+  }
+)
+
+it.each([100, 1_000])(
+  'bounds sender work with %i reused identities in another Run',
+  async (history) => {
+    await openChat(COORDINATOR)
+    const { taskId, runId } = await coordinatorRunAndTask()
+    const worker = createRootDispatch(db, taskId, 'term_target', 'tab:target')
+    const other = db.createRun({
+      objective: 'Unrelated',
+      coordinatorHandle: 'term_else',
+      coordinatorPaneKey: null
+    })
+    for (let i = 0; i < history; i++) {
+      const task = db.createTask({ spec: 'Historical assignment', runId: other.id })
+      const assignment = createRootDispatch(db, task.id, 'term_parent', 'old:parent')
+      db.db
+        .prepare("UPDATE dispatch_contexts SET status = 'completed' WHERE id = ?")
+        .run(assignment.id)
+      const mail = db.insertMessage({
+        from: 'term_parent',
+        senderPaneKey: 'new:parent',
+        to: `dispatch:${worker.id}`,
+        subject: 'Follow-up',
+        runId
+      })
+      db.markAsRead([mail.id])
+    }
+    let classifierCalls = 0
+    const register = db.db.function.bind(db.db)
+    vi.spyOn(db.db, 'function').mockImplementation((name, callback) => {
+      if (name !== 'orca_mail_worker_matches') {
+        return register(name, callback)
+      }
+      register(name, (id, handle, pane, created, completed, from, senderPane, sent) => {
+        classifierCalls++
+        return callback(id, handle, pane, created, completed, from, senderPane, sent)
+      })
+    })
+    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(history)
+    expect(classifierCalls).toBe(0)
+    const plan = db.db
+      .prepare(
+        `EXPLAIN QUERY PLAN SELECT ${coordinatorMailContribution('m', '?')} FROM messages m WHERE m.to_handle = ? AND m.read = 1 AND m.sequence > ? ORDER BY m.sequence LIMIT 128`
+      )
+      .all(worker.id, `dispatch:${worker.id}`, 0)
+      .map((row) => String(row.detail))
+    expect(
+      plan.some(
+        (detail) =>
+          detail.includes('idx_dispatch_mail_run_handle') &&
+          detail.includes('run_id=? AND assignee_handle=?')
+      )
+    ).toBe(true)
+    expect(
+      plan.some(
+        (detail) =>
+          detail.includes('idx_dispatch_mail_run_pane') && detail.includes('run_id=? AND <expr>=?')
+      )
+    ).toBe(true)
+    const nextTask = db.createTask({ spec: 'New unrelated assignment', runId: other.id })
+    const inbox = vi.spyOn(db.db, 'prepare')
+    const next = createRootDispatch(db, nextTask.id, 'term_parent', 'new:parent')
+    db.completeDispatch(next.id)
+    expect(preparedCoordinatorMailCount(db, worker.id)).toBe(history)
+    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(history)
+    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(history)
+    expect(
+      inbox.mock.calls.filter(([sql]) => sql.includes('AS counted FROM messages'))
+    ).toHaveLength(0)
+    // Include trigger programs: they must never open the historical messages B-tree on a Dispatch write.
+    const messageRoot = db.db
+      .prepare("SELECT rootpage FROM sqlite_master WHERE name = 'messages'")
+      .get()!.rootpage
+    const instructions = db.db
+      .prepare('EXPLAIN UPDATE dispatch_contexts SET assignee_handle = ? WHERE id = ?')
+      .all('term_changed', next.id)
+    let countTrigger = false
+    const messageReads = instructions.filter((op) => {
+      if (op.opcode === 'Init') {
+        countTrigger = String(op.p4).includes('TRIGGER orca_mail_count_')
+      }
+      return countTrigger && op.opcode === 'OpenRead' && op.p2 === messageRoot && op.p3 === 0
+    })
+    expect(instructions.some((op) => String(op.p4).includes('TRIGGER orca_mail_count_'))).toBe(true)
+    expect(messageReads).toHaveLength(0)
   }
 )

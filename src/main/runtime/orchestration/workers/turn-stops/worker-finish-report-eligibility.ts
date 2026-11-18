@@ -69,6 +69,8 @@ export async function canPromiseHelperFinishReport(
     db.db
       .prepare(`SELECT 1 FROM messages
     WHERE json_valid(payload) AND json_extract(payload, '$.dispatchId') = ?
+      AND (id GLOB 'msg_stop_*' OR
+        (type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'))
       AND type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'
     LIMIT 1`)
       .get(dispatch.id)
@@ -79,6 +81,8 @@ export async function canPromiseHelperFinishReport(
   return (
     current() &&
     count !== undefined &&
+    !deps.isWaitingForMail(`dispatch:${dispatch.id}`) &&
+    !workerFinishReportMuted(db, { kind: 'local', dispatch }, undefined) &&
     !db.getMessageById(stopReportId(dispatch.id, `finished:${count}`))
   )
 }
