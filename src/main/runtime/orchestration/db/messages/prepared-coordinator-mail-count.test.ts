@@ -75,51 +75,60 @@ it.each([
 ])(
   'does not re-enumerate %i historical rows on repeated stops or new mail',
   async (history, expected, afterNewMail) => {
-    await openChat(COORDINATOR)
-    const { taskId, runId } = await coordinatorRunAndTask()
-    const worker = createRootDispatch(db, taskId, 'term_target', 'tab:t')
-    for (let i = 0; i < history; i++) {
-      const task = db.createTask({ spec: `Noise ${i}`, runId })
-      createRootDispatch(db, task.id, `term_noise_${i}`, `tab:n${i}`)
+    const db = new OrchestrationDb(':memory:')
+    try {
+      const runId = db.createRun({
+        objective: 'Prepared count',
+        coordinatorHandle: 'term_parent',
+        coordinatorPaneKey: null
+      }).id
+      const taskId = db.createTask({ spec: 'Worker', runId }).id
+      const worker = createRootDispatch(db, taskId, 'term_target', 'tab:t')
+      for (let i = 0; i < history; i++) {
+        const task = db.createTask({ spec: `Noise ${i}`, runId })
+        createRootDispatch(db, task.id, `term_noise_${i}`, `tab:n${i}`)
+        const mail = db.insertMessage({
+          from: 'term_parent',
+          to: `dispatch:${worker.id}`,
+          subject: 'Old',
+          runId
+        })
+        db.markAsRead([mail.id])
+      }
+      expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
+      let historyRows = 0
+      const prepare = db.db.prepare.bind(db.db)
+      vi.spyOn(db.db, 'prepare').mockImplementation((sql) => {
+        const statement = prepare(sql)
+        return {
+          all(...args) {
+            const rows = statement.all(...args)
+            historyRows += rows.length
+            return rows
+          },
+          get: statement.get.bind(statement),
+          run: statement.run.bind(statement),
+          iterate: statement.iterate.bind(statement),
+          setReadBigInts: statement.setReadBigInts.bind(statement)
+        }
+      })
+      expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
+      expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
+      const task = db.createTask({ spec: 'Unrelated new worker', runId })
+      createRootDispatch(db, task.id, 'term_unrelated_new', 'tab:new')
+      expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
       const mail = db.insertMessage({
         from: 'term_parent',
         to: `dispatch:${worker.id}`,
-        subject: 'Old',
+        subject: 'New',
         runId
       })
       db.markAsRead([mail.id])
+      expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(afterNewMail)
+      expect(historyRows).toBe(0)
+    } finally {
+      db.close()
     }
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
-    let historyRows = 0
-    const prepare = db.db.prepare.bind(db.db)
-    vi.spyOn(db.db, 'prepare').mockImplementation((sql) => {
-      const statement = prepare(sql)
-      return {
-        all(...args) {
-          const rows = statement.all(...args)
-          historyRows += rows.length
-          return rows
-        },
-        get: statement.get.bind(statement),
-        run: statement.run.bind(statement),
-        iterate: statement.iterate.bind(statement),
-        setReadBigInts: statement.setReadBigInts.bind(statement)
-      }
-    })
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
-    const task = db.createTask({ spec: 'Unrelated new worker', runId })
-    createRootDispatch(db, task.id, 'term_unrelated_new', 'tab:new')
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(expected)
-    const mail = db.insertMessage({
-      from: 'term_parent',
-      to: `dispatch:${worker.id}`,
-      subject: 'New',
-      runId
-    })
-    db.markAsRead([mail.id])
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(afterNewMail)
-    expect(historyRows).toBe(0)
   }
 )
 
