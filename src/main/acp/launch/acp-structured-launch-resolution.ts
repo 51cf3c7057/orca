@@ -1,4 +1,4 @@
-import { readAntigravityChatApiKey } from '../../antigravity/antigravity-chat-api-key-store'
+import { antigravityChatAuthEnvironment } from '../../antigravity/antigravity-chat-auth-environment'
 import { checkAcpLaunchVersion } from './acp-launch-version'
 import { overlayEnvironmentVariables } from '../../../shared/shell/launch/environment-overlay'
 
@@ -151,12 +151,9 @@ async function readAcpLaunchInvocation(
     await prepareAntigravityAcpProxyEnvironment(env, deps.inheritedEnv ?? process.env)
     assertStructuredAgentResolutionCurrent(deps.operation)
   }
-  // A key pasted in Settings wins over the launch environment's GEMINI_API_KEY.
-  const savedApiKey =
-    antigravityChatAuth?.method === 'gemini-api-key' ? await readAntigravityChatApiKey() : null
-  if (savedApiKey) {
+  if (antigravityChatAuth) {
+    Object.assign(env, await antigravityChatAuthEnvironment(antigravityChatAuth, env))
     assertStructuredAgentResolutionCurrent(deps.operation)
-    env.GEMINI_API_KEY = savedApiKey
   }
   Object.assign(env, spec.env)
   const invocation = resolveAcpLaunchCommand(spec, env, { ...deps, commandSettings })

@@ -32,6 +32,12 @@ import {
 } from '../../../../antigravity/antigravity-chat-api-key'
 import { resolveHostStructuredAgentLaunchEnvironment } from '../../../agent-session/launch/structured-agent-launch-support'
 
+// Running chats hold the old key until they start again.
+const restartLiveChats = (runtime: OrcaRuntimeService): Promise<void> =>
+  chatSignInHost(runtime)
+    .stopLiveChats()
+    .catch((error: unknown) => console.warn('[antigravity] chats kept the previous key:', error))
+
 const apiKeyStatus = (runtime: OrcaRuntimeService) =>
   readAntigravityChatApiKeyStatus(() =>
     resolveHostStructuredAgentLaunchEnvironment('antigravity', runtime.requireStore().getSettings())
@@ -145,6 +151,7 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     params: AntigravityChatApiKeySaveParams,
     handler: async ({ apiKey }, ctx) => {
       await storeAntigravityChatApiKey(apiKey)
+      await restartLiveChats(ctx.runtime)
       return apiKeyStatus(ctx.runtime)
     }
   }),
@@ -154,6 +161,7 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     params: null,
     handler: async (_, ctx) => {
       await clearAntigravityChatApiKey()
+      await restartLiveChats(ctx.runtime)
       return apiKeyStatus(ctx.runtime)
     }
   })
