@@ -29,9 +29,6 @@ function announceRebaseStep(result: ContinueRebaseResult): void {
   switch (result.outcome) {
     case 'completed':
     case 'inspected':
-    case 'aborted': // Abort outcomes never come back from Continue.
-    case 'abort_changed':
-    case 'abort_blocked':
       return
     case 'completed_autostash_conflict':
       toast.warning(

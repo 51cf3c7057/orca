@@ -258,7 +258,7 @@ export const GitForkSync = WorktreeSelector.extend({
 })
 
 export const GitContinueRebase = WorktreeSelector.extend({
-  action: z.enum(['continue', 'inspect', 'abort']).optional(),
+  action: z.enum(['continue', 'inspect']).optional(),
   // Continue refuses unless the rebase is still at the stop the user was shown.
   expected: z
     .object({

@@ -13996,11 +13996,7 @@
             "continueRebaseUnconfirmed": "Das Ergebnis ließ sich nicht bestätigen. Die Quellcodeverwaltung wurde aktualisiert und zeigt den aktuellen Stand.",
             "noRebaseInProgress": "Kein Rebase in Arbeit",
             "rebaseStopMovedOn": "Der Rebase ist bereits weitergegangen. Prüfe das Panel und versuche es erneut.",
-            "rebaseEmptyStep": "In diesem Schritt gibt es nichts zu committen. Brich den Rebase ab oder schließe ihn im Terminal ab.",
-            "abortRebaseDiscardFilesMore": "{{files}} und {{count}} weitere",
-            "abortRebaseWouldDiscardEdits_one": "Abbrechen würde deine Änderungen an {{count}} Datei verwerfen. Mach sie rückgängig oder schließe mit Fortsetzen ab.",
-            "abortRebaseWouldDiscardEdits_other": "Abbrechen würde deine Änderungen an {{count}} Dateien verwerfen. Mach sie rückgängig oder schließe mit Fortsetzen ab.",
-            "abortRebaseCantVerify": "Es lässt sich nicht bestätigen, dass Abbrechen hier sicher ist. Schließe mit Fortsetzen ab oder brich im Terminal ab."
+            "rebaseEmptyStep": "In diesem Schritt gibt es nichts zu committen. Brich den Rebase ab oder schließe ihn im Terminal ab."
           },
           "SourceControlAgentActionDialog": {
             "8e856842d1": "Der ausgewählte Agent konnte nicht gestartet werden.",

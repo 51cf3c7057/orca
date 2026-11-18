@@ -13804,10 +13804,7 @@
             "continueRebaseUnconfirmed": "無法確認結果。原始碼控制已重新整理以顯示目前狀態。",
             "noRebaseInProgress": "沒有進行中的重定基底",
             "rebaseStopMovedOn": "重定基底已經繼續進行。請查看面板後再試一次。",
-            "rebaseEmptyStep": "此步驟沒有可提交的內容。請中止重定基底，或在終端機中完成它。",
-            "abortRebaseDiscardFilesMore": "{{files}} 及另外 {{count}} 個",
-            "abortRebaseWouldDiscardEdits_other": "中止會捨棄你對 {{count}} 個檔案的編輯。請復原這些編輯，或用「繼續」完成。",
-            "abortRebaseCantVerify": "無法確認此處中止是否安全。請用「繼續」完成，或在終端機中中止。"
+            "rebaseEmptyStep": "此步驟沒有可提交的內容。請中止重定基底，或在終端機中完成它。"
           },
           "SourceControlAgentActionDialog": {
             "8e856842d1": "無法啟動選定的代理程式。",

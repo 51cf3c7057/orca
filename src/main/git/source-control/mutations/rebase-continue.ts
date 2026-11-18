@@ -18,7 +18,6 @@ import { resolveGitDir } from '../resolve-git-dir'
 import { AUTOSTASH_REAPPLY_CONFLICT, detectConflictOperation } from './git-conflict-operation'
 import { takeOrcaRebaseProvenance } from './orca-rebase-provenance'
 import { joinGitOutput, readGitErrorOutput } from './git-command-output'
-import { abortRebaseIfSafeUnlocked, checkRebaseAbortSafety } from './rebase-abort-safety'
 
 // Git's own words for a pick the resolution left empty (apply backend; merge backend in older Git).
 const EMPTY_PICK_OUTPUT = /No changes - did you forget to use 'git add'|nothing to commit/i
@@ -38,9 +37,7 @@ export async function continueRebase(
     runWithGitReadCacheInvalidation(() =>
       action === 'inspect'
         ? inspectRebaseStop(worktreePath, gitOptions)
-        : action === 'abort'
-          ? abortConfirmedRebase(worktreePath, expected, gitOptions)
-          : continueRebaseUnlocked(worktreePath, expected, gitOptions)
+        : continueRebaseUnlocked(worktreePath, expected, gitOptions)
     )
   )
 }
@@ -55,35 +52,8 @@ async function inspectRebaseStop(
   return {
     outcome: 'inspected',
     stop: await readRebaseStopToken(worktreePath, options),
-    branch: await readRebasingBranch(worktreePath, options),
-    abortSafety: await checkRebaseAbortSafety(worktreePath, options)
+    branch: await readRebasingBranch(worktreePath, options)
   }
-}
-
-/**
- * Abort only undoes the rebase: under the lock that runs it, it proceeds only at the stop the user
- * confirmed and only when every changed tracked file is exactly what Git produced at that stop.
- */
-async function abortConfirmedRebase(
-  worktreePath: string,
-  expected: RebaseStopToken | undefined,
-  options: GitRuntimeOptions
-): Promise<ContinueRebaseResult> {
-  if ((await detectConflictOperation(worktreePath, options)) !== 'rebase') {
-    return { outcome: 'not_rebasing' }
-  }
-  const stop = await readRebaseStopToken(worktreePath, options)
-  if (!expected || !sameStop(expected, stop)) {
-    return {
-      outcome: 'abort_changed',
-      stop,
-      abortSafety: await checkRebaseAbortSafety(worktreePath, options)
-    }
-  }
-  const abortSafety = await abortRebaseIfSafeUnlocked(worktreePath, options)
-  return abortSafety.kind === 'pristine'
-    ? { outcome: 'aborted' }
-    : { outcome: 'abort_blocked', stop, abortSafety }
 }
 
 async function continueRebaseUnlocked(

@@ -9,8 +9,6 @@ import {
 import { gitExecFileAsync } from '../../command-runner/git-exec-file'
 import { runWithGitReadCacheInvalidation } from '../git-read-cache-invalidation'
 import { resolveGitDir } from '../resolve-git-dir'
-import { abortRebaseIfSafeUnlocked, rebaseAbortRefusalMessage } from './rebase-abort-safety'
-import { runWithGitWorktreeOperationLock } from '../../../../shared/git/worktrees/git-worktree-operation-lock'
 
 // HEAD detection races may yield unknown for one poll; rebase directories persist more reliably than REBASE_HEAD.
 export async function detectConflictOperation(
@@ -65,18 +63,12 @@ export async function abortMerge(
   )
 }
 
-// Mobile and older clients abort here: the same check as the desktop Abort, under Continue's lock.
 export async function abortRebase(
   worktreePath: string,
   options: GitRuntimeOptions = {}
 ): Promise<void> {
-  await runWithGitWorktreeOperationLock(worktreePath, options.signal, () =>
-    runWithGitReadCacheInvalidation(async () => {
-      const safety = await abortRebaseIfSafeUnlocked(worktreePath, options)
-      if (safety.kind !== 'pristine') {
-        throw new Error(rebaseAbortRefusalMessage(safety))
-      }
-    })
+  await runWithGitReadCacheInvalidation(() =>
+    gitExecFileAsync(['rebase', '--abort'], gitOptionsForWorktree(worktreePath, options))
   )
 }
 

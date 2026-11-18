@@ -19,10 +19,6 @@ export function recordOrcaRebaseProvenance(
   provenanceByWorktree.set(worktreePath, provenance)
 }
 
-export function forgetOrcaRebaseProvenance(worktreePath: string): void {
-  provenanceByWorktree.delete(worktreePath)
-}
-
 /** Hands back the proof only for the same paused run on the same branch, then forgets it. */
 export function takeOrcaRebaseProvenance(
   worktreePath: string,
