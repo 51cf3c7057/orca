@@ -5,10 +5,12 @@ import { createClaudeJournalTranslator } from './claude-structured-journal-trans
 it.each([
   { continued: false, otherHook: false, expectedStatus: 'active' },
   { continued: true, otherHook: false, expectedStatus: 'complete' },
-  { continued: true, otherHook: true, expectedStatus: 'complete' }
+  { continued: true, otherHook: true, expectedStatus: 'complete' },
+  { continued: false, otherHook: false, expectedStatus: 'active', long: true }
 ])(
   'settles rejected goals after model continuation: $continued, other hook rejection: $otherHook',
-  ({ continued, otherHook, expectedStatus }) => {
+  ({ continued, otherHook, expectedStatus, long }) => {
+    const objective = long ? 'a'.repeat(510) : 'Finish the worker task'
     const rows: AgentJournalItemBody[] = []
     const translator = createClaudeJournalTranslator({
       goalBackgroundWork: () => 'exited',
@@ -37,7 +39,7 @@ it.each([
         message: { role: 'assistant', model, content: [{ type: 'text', text }] }
       })
     try {
-      answer('Goal set: Finish the worker task', '<synthetic>')
+      answer(`Goal set: ${objective}`, '<synthetic>')
       answer('Still waiting for the worker report.')
       frame({
         type: 'user',
@@ -47,7 +49,9 @@ it.each([
           content: [
             {
               type: 'text',
-              text: 'Stop hook feedback:\n[Finish the worker task]: The worker has not reported.'
+              text: long
+                ? `Stop hook feedback:\n[${'a'.repeat(500)}… [+10 chars]]: The worker has not reported.`
+                : 'Stop hook feedback:\n[Finish the worker task]: The worker has not reported.'
             }
           ]
         }
@@ -77,7 +81,7 @@ it.each([
         threadGoal: {
           state: 'set',
           goal: {
-            objective: 'Finish the worker task',
+            objective,
             status: expectedStatus,
             checks: 1,
             lastCheck: 'The worker has not reported.'

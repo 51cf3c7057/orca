@@ -1,3 +1,4 @@
+import { sliceAtCodeUnitLimit } from '../../../../shared/text/surrogate-safe-text-slice'
 // Stream-json exposes /goal through synthetic replies; completion must be inferred.
 
 import type {
@@ -132,7 +133,18 @@ export class ClaudeThreadGoal {
     const goal = this.current
     const envelope = message.type === 'user' ? readClaudeMessageEnvelope(message) : null
     const text = envelope ? claudeText(claudeRecord(envelope.content[0])?.text) : null
-    const prefix = goal ? `Stop hook feedback:\n[${goal.objective}]: ` : null
+    const shortened = sliceAtCodeUnitLimit(goal?.objective ?? '', 500)
+    const labels = goal
+      ? [
+          goal.objective,
+          ...(goal.objective.length > 500
+            ? [`${shortened}… [+${goal.objective.length - shortened.length} chars]`]
+            : [])
+        ]
+      : []
+    const prefix = labels
+      .map((label) => `Stop hook feedback:\n[${label}]: `)
+      .find((candidate) => text?.startsWith(candidate))
     if (
       !goal ||
       !this.row ||

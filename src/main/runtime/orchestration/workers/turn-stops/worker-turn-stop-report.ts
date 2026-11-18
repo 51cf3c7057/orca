@@ -32,6 +32,7 @@ export type WorkerTurnStop = {
   approval?: WorkerApprovalPayload
   /** When the stopping turn began, on this host's clock; absent when unknown, which mutes nothing. */
   turnStartedAt?: number
+  pendingHelperWake?: boolean
   /** Why the worker went away, for an `exited` or `lost` stop. */
   cause?: string
   /** What the worker left behind, such as the workspace of a start that failed. */
@@ -51,6 +52,7 @@ export type WorkerTurnStopReportDeps = {
   /** `check --wait` holds a `dispatch:<id>` waiter: a deliberate wait. */
   isWaitingForMail: (mailbox: string) => boolean
   notify: (handle: string, messageType: string) => void
+  hasPendingHelperWake?: (dispatchId: string, isCurrent: () => boolean) => Promise<boolean>
   /** Whether a mailbox reaches a chat coordinator, whose user sees the approval card; unknown reads as no. */
   isChatMailbox?: (mailbox: string) => boolean
   /** Whether the user lets coordinator agents allow this machine's workers' prompts; unknown reads as no. */
@@ -199,7 +201,8 @@ export function reportWorkerTurnStop(
   if (
     !isWorkerGone(stop.reason) &&
     (deps.isWaitingForMail(`dispatch:${dispatchId}`) ||
-      (stop.reason === 'finished' && workerFinishReportMuted(db, target, stop.turnStartedAt)))
+      (stop.reason === 'finished' &&
+        workerFinishReportMuted(db, target, stop.turnStartedAt, stop.pendingHelperWake)))
   ) {
     return false
   }

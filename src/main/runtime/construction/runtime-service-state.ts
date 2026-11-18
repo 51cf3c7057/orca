@@ -307,8 +307,11 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
 
   protected readonly messageWaiters = new RuntimeMessageWaiters()
 
+  abstract hasPendingOrchestrationHelperWake(...args: [string, () => boolean]): Promise<boolean>
+
   protected readonly workerTurnStopReportDeps: WorkerTurnStopReportDeps = {
     getDb: () => this._orchestrationDb,
+    hasPendingHelperWake: (id, current) => this.hasPendingOrchestrationHelperWake(id, current),
     isWaitingForMail: (mailbox) => (this.messageWaiters.get(mailbox)?.size ?? 0) > 0,
     notify: (handle, messageType) => this.notifyMessageArrived(handle, messageType),
     isChatMailbox: (mailbox) =>

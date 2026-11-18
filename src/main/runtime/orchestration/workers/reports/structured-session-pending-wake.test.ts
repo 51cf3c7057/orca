@@ -66,7 +66,7 @@ it('defers for the parent’s running work until it settles, never for another s
   db.db
     .prepare('UPDATE dispatch_contexts SET creator_dispatch_id = ? WHERE id = ?')
     .run(started.dispatch.id, helper.dispatch.id)
-  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   db.completeDispatch(helper.dispatch.id)
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
   await settleTurn(PEER_CHAT, 0)

@@ -334,7 +334,7 @@ it('promises only a fresh unmuted finish report', () => {
   ctx.db.db
     .prepare('UPDATE dispatch_contexts SET creator_dispatch_id = ? WHERE id = ?')
     .run(ctx.dispatch.id, helper.id)
-  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(false)
+  expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(true)
   ctx.db.completeDispatch(helper.id)
   expect(canPromiseWorkerFinishReport(ctx.db, target, ctx.deps)).toBe(true)
   reportWorkerTurnStop(

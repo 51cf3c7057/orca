@@ -93,8 +93,6 @@ class OrchestrationDbCore {
         ON worker_dispatches(agent_terminal_handle) WHERE agent_terminal_handle IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_attempt_observation_facts_liveness
         ON attempt_observation_facts(dispatch_id) WHERE facet = 'liveness';
-      CREATE INDEX IF NOT EXISTS idx_dispatch_creator_open_helpers
-        ON dispatch_contexts(creator_dispatch_id, status);
       CREATE INDEX IF NOT EXISTS idx_messages_goal_wake_blockers
         ON messages(json_extract(payload, '$.dispatchId')) WHERE json_valid(payload)
           AND (id GLOB 'msg_stop_*' OR

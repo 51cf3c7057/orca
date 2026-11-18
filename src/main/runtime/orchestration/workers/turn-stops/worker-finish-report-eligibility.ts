@@ -5,13 +5,14 @@ import type { WorkerTurnStopDispatch, WorkerTurnStopReportDeps } from './worker-
 export function workerFinishReportMuted(
   db: OrchestrationDb,
   target: WorkerTurnStopDispatch,
-  turnStartedAt: number | undefined
+  turnStartedAt: number | undefined,
+  pendingHelperWake = false
 ): boolean {
   const id = target.kind === 'local' ? target.dispatch.id : target.attachment.dispatch_id
   return (
     db.awaitsAnswerToLatestQuestion(id) ||
     rejectedReportInTurn(db, id, turnStartedAt) ||
-    (target.kind === 'local' && db.hasOpenHelperDispatch(id))
+    (target.kind === 'local' && pendingHelperWake)
   )
 }
 

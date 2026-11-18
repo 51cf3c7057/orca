@@ -1,5 +1,8 @@
 import { canPromiseWorkerFinishReport } from '../workers/turn-stops/worker-finish-report-eligibility'
-import type { WorkerTurnStopDispatch } from '../workers/turn-stops/worker-turn-stop-report'
+import type {
+  WorkerTurnStopDispatch,
+  WorkerTurnStopReportDeps
+} from '../workers/turn-stops/worker-turn-stop-report'
 import { selectFreshExplicitAgentStatus } from '../../workspaces/process-listing/runtime-hook-agent-row-selection'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/workspace-layout/layout-owner-switch'
 import { captureOrchestrationTerminalCandidates } from './orchestration-terminal-candidates'
@@ -13,6 +16,13 @@ import { OrcaRuntimeWithRuntimeId } from '../../construction/runtime-identity-st
 import type { AgentStatusOrchestrationContext } from '../../../../shared/agent-status/contracts/agent-status-types'
 
 export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends OrcaRuntimeWithRuntimeId {
+  protected abstract readonly workerTurnStopReportDeps: WorkerTurnStopReportDeps
+
+  canPromiseOrchestrationWorkerWake(target: WorkerTurnStopDispatch): boolean {
+    const db = this.getOrchestrationDbIfAvailable()
+    return !!db && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
+  }
+
   abstract getAgentStatusTerminalHandleForPaneKey(paneKey: string): string | undefined
   abstract getAgentStatusOrchestrationContextForPaneKey(
     paneKey: string
@@ -20,11 +30,6 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
   abstract readonly readObservedAgentStatusPaneIdentityFn: (
     paneKey: string
   ) => ObservedAgentStatusPaneIdentity
-
-  canPromiseOrchestrationWorkerWake(target: WorkerTurnStopDispatch): boolean {
-    const db = this.getOrchestrationDbIfAvailable()
-    return !!db && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
-  }
 
   isOrchestrationWorkerWorking(paneKey: string, processIncarnation: string): boolean {
     const handle = this.getAgentStatusTerminalHandleForPaneKey(paneKey)

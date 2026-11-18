@@ -10,7 +10,10 @@ import { getOrchestrationPeerCapabilityCache } from '../../federation/orchestrat
 
 /** One bounded observation per host/page, with no terminal previews or worktree inventory. */
 export async function readRemoteWorkingDispatches(
-  runtime: OrcaRuntimeService,
+  runtime: Pick<
+    OrcaRuntimeService,
+    'resolveOrchestrationWorkerServer' | 'callOrchestrationWorkerServer'
+  >,
   db: OrchestrationDb,
   dispatchIds: readonly string[],
   isCurrent: () => boolean,
@@ -24,7 +27,7 @@ export async function readRemoteWorkingDispatches(
   })
   const current = () => working.size === 0 && isCurrent() && Date.now() < deadline
   const observations = mapWithConcurrency(
-    groupFederatedDispatches({ runtime, db, dispatchIds }),
+    groupFederatedDispatches({ db, dispatchIds }),
     4,
     async (group) => {
       if (!current()) {

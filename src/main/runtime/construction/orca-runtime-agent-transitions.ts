@@ -1,3 +1,4 @@
+import { workerHasPendingHelperWake } from '../orchestration/workers/reports/worker-helper-pending-wake'
 import { watchMovedWorkerResumeSessions } from '../rpc/methods/orchestration/worker/follow-up/worker-resume-session-capture'
 import { AgentTransitionDetector } from '../../agent-hooks/observations/agent-transition-detector'
 import type { ConnectorCloud } from '../../connector-cloud/connector-cloud'
@@ -39,6 +40,8 @@ function unrefTimer(run: () => void, delayMs: number): { cancel: () => void } {
 
 /** All hosts/builds own transition detection and windowless phone pushes. */
 export abstract class OrcaRuntimeWithAgentTransitions extends OrcaRuntimeWithWindowlessTerminalActivity {
+  hasPendingOrchestrationHelperWake = workerHasPendingHelperWake.bind(null, this)
+
   readonly agentTransitions = new AgentTransitionDetector({
     resolveTabWorktreeId: (tabId) => this.tabs.get(tabId)?.worktreeId,
     subscribeToPtyExit: (ptyId, listener) => this.subscribeToPtyExit(ptyId, listener),

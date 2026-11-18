@@ -84,6 +84,25 @@ export class TerminalWorkerTurnStops {
     if (!resolved) {
       return
     }
+    const pendingHelperWake =
+      reason === 'finished' &&
+      resolved.target.kind === 'local' &&
+      resolved.db.hasOpenHelperDispatch(resolved.target.dispatch.id)
+        ? ((await this.deps.hasPendingHelperWake?.(resolved.target.dispatch.id, () => {
+            const latest = this.stillStopped(stop)
+            return (
+              !!latest &&
+              workerTurnStopDispatchId(latest.target) === workerTurnStopDispatchId(resolved.target)
+            )
+          })) ?? false)
+        : false
+    const latest = this.stillStopped(stop)
+    if (
+      !latest ||
+      workerTurnStopDispatchId(latest.target) !== workerTurnStopDispatchId(resolved.target)
+    ) {
+      return
+    }
     const sent = reportWorkerTurnStop(
       resolved.db,
       resolved.target,
@@ -91,6 +110,7 @@ export class TerminalWorkerTurnStops {
         from: resolved.handle,
         stopKey: `${stop.paneKey}:${stop.row.stateStartedAt}`,
         turnStartedAt: stop.row.turnStartedAt,
+        pendingHelperWake,
         reason,
         lastOutput,
         ...(approval ? { approval } : {})

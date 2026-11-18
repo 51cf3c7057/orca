@@ -1,6 +1,6 @@
 import { isOrcaSessionId } from '../../../../../shared/agent-session/identity/orca-session-address'
 import type { OrcaRuntimeService } from '../../../orca-runtime'
-import { getStructuredAgentSessionHost } from '../../../../native-chat/agent-session-wire/host/structured-agent-session-registry'
+import { localDispatchExecuting } from './worker-dispatch-execution'
 import { readCreatorRunningDispatches } from '../../db/dispatch-context/dispatch-creator-work'
 import { addressableSessionParty } from '../../mailbox/routing/structured-session-mail-address'
 import { structuredMailboxCustody } from '../../mailbox/routing/structured-session-mail-target'
@@ -64,29 +64,12 @@ export async function structuredSessionHasPendingWake(
       remoteIds.push(dispatch.id)
       continue
     }
-    const custody = structuredMailboxCustody(`dispatch:${dispatch.id}`, db)
-    if (typeof custody === 'object') {
-      if (
-        getStructuredAgentSessionHost()?.readStatusSummary(custody.sessionId)?.status ===
-          'working' &&
-        eligible(dispatch.id) &&
-        runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
-      ) {
-        return true
-      }
-    } else {
-      const resource = db.getWorkerTerminalResourceByOwner(dispatch.id)
-      const pane = resource?.pane_key ?? dispatch.assignee_pane_key
-      const incarnation = resource?.process_incarnation ?? dispatch.process_incarnation
-      if (
-        pane &&
-        incarnation &&
-        runtime.isOrchestrationWorkerWorking(pane, incarnation) &&
-        eligible(dispatch.id) &&
-        runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
-      ) {
-        return true
-      }
+    if (
+      localDispatchExecuting(runtime, db, dispatch) &&
+      eligible(dispatch.id) &&
+      runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
+    ) {
+      return true
     }
   }
   if (!isCurrent() || remoteIds.length === 0) {

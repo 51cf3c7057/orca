@@ -126,7 +126,7 @@ export function chatWorkerTurnStopReporter(
         chatWorkerDispatches(stop.sessionId, db).map(({ dispatch }) => dispatch.id)
       )
       let approval: AgentJournalApprovalItem | null = null
-      const deliver = (): void => {
+      const deliver = async (): Promise<void> => {
         try {
           if (lifetime.signal.aborted) {
             return
@@ -167,6 +167,21 @@ export function chatWorkerTurnStopReporter(
                 : undefined
             // A prompt Orca can't answer either way is a plain prompt: only the worker's chat can.
             const payload = candidate?.allowedActions.length ? candidate : undefined
+            const currentStop = () =>
+              !lifetime.signal.aborted &&
+              generations.get(stop.sessionId) === generation &&
+              deps.getDb() === current &&
+              readStatus(stop.sessionId)?.status !== 'working' &&
+              chatWorkerDispatches(stop.sessionId, current).some(
+                (row) => row.dispatch.id === dispatch.id
+              )
+            const pendingHelperWake =
+              stop.reason === 'finished' && current.hasOpenHelperDispatch(dispatch.id)
+                ? ((await deps.hasPendingHelperWake?.(dispatch.id, currentStop)) ?? false)
+                : false
+            if (!currentStop()) {
+              return
+            }
             reportWorkerTurnStop(
               current,
               { kind: 'local', dispatch },
@@ -178,6 +193,7 @@ export function chatWorkerTurnStopReporter(
                 lastOutput: payload ? undefined : status?.lastAssistantMessage,
                 // Unknown for a session's first turn seen here: a duplicate alert beats hiding a stall.
                 turnStartedAt,
+                pendingHelperWake,
                 ...(stop.awaitsReply ? { awaitsReply: true } : {}),
                 ...(payload ? { approval: payload } : {})
               },
