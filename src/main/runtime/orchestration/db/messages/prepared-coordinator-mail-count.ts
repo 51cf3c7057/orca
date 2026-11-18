@@ -30,7 +30,10 @@ function row(db: OrchestrationDb, dispatchId: string): CountRow | undefined {
 function refreshExternalWrites(db: OrchestrationDb, owner: Owner): void {
   const version = db.db.pragma('data_version', { simple: true })
   if (version !== owner.dataVersion) {
-    db.db.exec('DELETE FROM orca_coordinator_mail_counts; DELETE FROM orca_mail_lifetime_runs')
+    db.db
+      .exec(`UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1,
+        run_id = coalesce((SELECT run_id FROM dispatch_contexts WHERE id = dispatch_id), run_id);
+        DELETE FROM orca_mail_lifetime_runs`)
     owner.dataVersion = version
   }
 }
@@ -74,7 +77,9 @@ export async function prepareCoordinatorMailCount(
     }
     let job = countOwner.jobs.get(dispatchId)
     if (!job) {
-      job = recover(db, dispatchId, current).finally(() => countOwner.jobs.delete(dispatchId))
+      job = recover(db, dispatchId, current, countOwner).finally(() =>
+        countOwner.jobs.delete(dispatchId)
+      )
       countOwner.jobs.set(dispatchId, job)
     }
     await job
@@ -88,13 +93,15 @@ export async function prepareCoordinatorMailCount(
 async function recover(
   db: OrchestrationDb,
   dispatchId: string,
-  current: () => boolean
+  current: () => boolean,
+  owner: Owner
 ): Promise<void> {
   while (current()) {
     await setImmediate()
     if (!current()) {
       return
     }
+    refreshExternalWrites(db, owner)
     const before = row(db, dispatchId)
     if (!before || before.ready) {
       return

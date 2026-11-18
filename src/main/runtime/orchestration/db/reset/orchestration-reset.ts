@@ -1,3 +1,7 @@
+import {
+  pauseCoordinatorMailCountForReset,
+  resumeCoordinatorMailCountAfterReset
+} from '../messages/coordinator-mail-count-triggers'
 import { ORCHESTRATION_LEGACY_RUN_ID as LEGACY_RUN_ID } from '../../../../../shared/orchestration/orchestration-rpc-contract'
 import type { OrchestrationDb } from '../orchestration-db'
 import { notifyPeerMailQueued } from '../../federation/peer-mail/peer-mail-waiters'
@@ -12,7 +16,10 @@ import { OWE_REMOTE_RUN_CANCELS_SQL } from '../remote-owned/remote-run-links'
 export function runResetTransaction(
   this: OrchestrationDb,
   statements: string,
-  { removesDispatches = false }: { removesDispatches?: boolean } = {}
+  {
+    removesDispatches = false,
+    removesMessages = false
+  }: { removesDispatches?: boolean; removesMessages?: boolean } = {}
 ): number {
   this.db.exec('BEGIN IMMEDIATE')
   try {
@@ -22,7 +29,11 @@ export function runResetTransaction(
       // Their paired coordinator learns of it from its queue, which the reset keeps.
       this.queueRemovedPeerRunDispatches('reset on the server running it')
     }
+    const resumeMailCount = removesMessages && pauseCoordinatorMailCountForReset(this)
     this.db.exec(statements)
+    if (resumeMailCount) {
+      resumeCoordinatorMailCountAfterReset(this)
+    }
     this.db.exec('COMMIT')
     notifyPeerMailQueued(this.db)
     return watermark
@@ -68,7 +79,7 @@ export function resetAll(this: OrchestrationDb): void {
     INSERT INTO runs (id, objective, home_database, consumer_generation, legacy)
       VALUES ('${LEGACY_RUN_ID}', 'Legacy orchestration state (inspect only)', 'this_database', 0, 1);
   `,
-    { removesDispatches: true }
+    { removesDispatches: true, removesMessages: true }
   )
   this.hasAnyDispatchContextsCache = undefined
 }
@@ -107,14 +118,17 @@ export function resetTasks(this: OrchestrationDb): ResetRemovedWork | undefined 
 
 export function resetMessages(this: OrchestrationDb): void {
   // Keep relay rows for contiguous cross-server cursors; drop pointer operations whose deleted message batch no longer exists.
-  this.runResetTransaction(`
+  this.runResetTransaction(
+    `
     DELETE FROM legacy_mail_receipts;
     DELETE FROM question_threads;
     DELETE FROM deliveries;
     DELETE FROM messages;
     DELETE FROM message_dispatch_provenance;
     DELETE FROM structured_pointer_operations;
-  `)
+  `,
+    { removesMessages: true }
+  )
 }
 
 export type OrchestrationResetMethods = {

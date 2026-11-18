@@ -63,12 +63,21 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   })
   db.markAsRead([followUp.id])
   active.add('tab:h')
+  const pragma = db.db.pragma.bind(db.db)
+  let observations = 0
+  const externalCommit = vi.spyOn(db.db, 'pragma').mockImplementation((sql, options) => {
+    if (sql === 'data_version') {
+      return observations++ === 0 ? 1 : 2
+    }
+    return pragma(sql, options)
+  })
   const queries = vi.spyOn(db.db, 'prepare')
   expect(await pending()).toBe(true)
   const rejectionSql = queries.mock.calls.find(([sql]) =>
     sql.includes("AND type = 'worker_done' AND json_type")
   )?.[0]
   queries.mockRestore()
+  externalCommit.mockRestore()
   expect(rejectionSql).toBeDefined()
   const rejectionPlan = db.db
     .prepare(`EXPLAIN QUERY PLAN ${rejectionSql!}`)

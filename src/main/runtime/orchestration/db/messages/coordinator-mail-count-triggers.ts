@@ -104,6 +104,28 @@ function invalidate(worker: 'OLD' | 'NEW', changedAfter = ''): string {
     WHERE dispatch_id IN (${candidates.join(' UNION ')});`
 }
 
+const DELETE_TRIGGER = `CREATE TEMP TRIGGER orca_mail_count_delete BEFORE DELETE ON main.messages
+  BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} END;`
+
+export function pauseCoordinatorMailCountForReset(db: OrchestrationDb): boolean {
+  const installed =
+    db.db
+      .prepare(
+        "SELECT 1 FROM sqlite_temp_master WHERE type = 'trigger' AND name = 'orca_mail_count_delete'"
+      )
+      .get() !== undefined
+  if (installed) {
+    db.db.exec(
+      'DROP TRIGGER temp.orca_mail_count_delete; DELETE FROM orca_coordinator_mail_counts; DELETE FROM orca_mail_lifetime_runs'
+    )
+  }
+  return installed
+}
+
+export function resumeCoordinatorMailCountAfterReset(db: OrchestrationDb): void {
+  db.db.exec(DELETE_TRIGGER)
+}
+
 export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
   db.db.function('orca_mail_timestamp', (value) => {
     const parsed = Date.parse(exposeUtcTimestamp(text(value)) ?? '')
@@ -156,8 +178,7 @@ export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
       BEGIN DELETE FROM orca_coordinator_mail_senders WHERE dispatch_id = NEW.dispatch_id; END;
     CREATE TEMP TRIGGER orca_mail_count_insert AFTER INSERT ON main.messages
       BEGIN ${adjust('NEW', '+')} ${dependencies('NEW', true)} END;
-    CREATE TEMP TRIGGER orca_mail_count_delete BEFORE DELETE ON main.messages
-      BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} END;
+    ${DELETE_TRIGGER}
     CREATE TEMP TRIGGER orca_mail_count_update AFTER UPDATE OF read, to_handle, from_handle, sender_pane_key, created_at ON main.messages
       BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} ${adjust('NEW', '+')} ${dependencies('NEW', true)} END;
     CREATE TEMP TRIGGER orca_mail_count_worker_insert AFTER INSERT ON main.dispatch_contexts BEGIN ${invalidate('NEW')} END;

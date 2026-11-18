@@ -160,3 +160,46 @@ it('preserves exact pane classes, handle fallback, canonical senders and inclusi
     .run(unequal.id)
   expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(5)
 })
+
+it.each([1_000, 10_000])(
+  'retains only indexed Run lifetimes for %i assignments and retires them',
+  async (population) => {
+    await openChat(COORDINATOR)
+    const { taskId, runId } = await coordinatorRunAndTask()
+    const worker = createRootDispatch(db, taskId, 'term_target', 'tab:target')
+    const columns = db.db
+      .prepare('PRAGMA table_info(dispatch_contexts)')
+      .all()
+      .map((row) => String(row.name))
+    db.db
+      .prepare(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < ?)
+    INSERT INTO dispatch_contexts (${columns.join(', ')}) SELECT ${columns.map((column) => (column === 'id' ? "'ctx_lifetime_scale_' || n.i" : column === 'status' ? "'completed'" : `d.${column}`)).join(', ')}
+    FROM n CROSS JOIN dispatch_contexts d WHERE d.id = ?`)
+      .run(population, worker.id)
+    const pagesBefore = Number(db.db.pragma('temp.page_count', { simple: true }))
+    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(0)
+    const pages = Number(db.db.pragma('temp.page_count', { simple: true }))
+    const pageSize = Number(db.db.pragma('temp.page_size', { simple: true }))
+    const projected = db.db
+      .prepare('SELECT count(*) AS rows FROM orca_mail_worker_lifetimes')
+      .get()!.rows
+    expect(projected).toBeLessThanOrEqual(2 * (population + 1))
+    const pagePlan = db.db
+      .prepare(
+        'EXPLAIN QUERY PLAN SELECT rowid AS cursor FROM dispatch_contexts WHERE run_id = ? AND rowid > ? ORDER BY rowid LIMIT 128'
+      )
+      .all(runId, 0)
+      .map((row) => String(row.detail))
+    expect(pagePlan.some((detail) => detail.includes('run_id=? AND rowid>?'))).toBe(true)
+    console.info(
+      JSON.stringify({
+        workload: 'temporary-mail-lifetimes',
+        population,
+        projected,
+        allocatedBytes: (pages - pagesBefore) * pageSize
+      })
+    )
+    db.db.prepare("UPDATE dispatch_contexts SET status = 'completed' WHERE id = ?").run(worker.id)
+    expect(db.db.prepare('SELECT 1 FROM orca_mail_worker_lifetimes LIMIT 1').get()).toBeUndefined()
+  }
+)

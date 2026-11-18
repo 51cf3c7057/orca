@@ -227,3 +227,25 @@ it.each([100, 1_000])(
     expect(messageReads).toHaveLength(0)
   }
 )
+
+it('keeps an in-flight cold count owner through external-write invalidation', async () => {
+  await openChat(COORDINATOR)
+  const { taskId, runId } = await coordinatorRunAndTask()
+  const worker = createRootDispatch(db, taskId, 'term_target', 'tab:target')
+  const mail = db.insertMessage({
+    from: 'term_parent',
+    to: `dispatch:${worker.id}`,
+    subject: 'Second round',
+    runId
+  })
+  db.markAsRead([mail.id])
+  let version = 1
+  const pragma = db.db.pragma.bind(db.db)
+  vi.spyOn(db.db, 'pragma').mockImplementation((sql, options) =>
+    sql === 'data_version' ? version : pragma(sql, options)
+  )
+  const count = prepareCoordinatorMailCount(db, worker.id, () => true)
+  version = 2
+  expect(preparedCoordinatorMailCount(db, worker.id)).toBeUndefined()
+  expect(await count).toBe(1)
+})

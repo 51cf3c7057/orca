@@ -1,3 +1,8 @@
+import {
+  pauseCoordinatorMailCountForReset,
+  resumeCoordinatorMailCountAfterReset
+} from '../messages/coordinator-mail-count-triggers'
+import { prepareCoordinatorMailCount } from '../messages/prepared-coordinator-mail-count'
 import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestrationDb } from '../orchestration-db'
 import '../contract-constants'
@@ -114,4 +119,45 @@ describe('OrchestrationDb reset scopes', () => {
     // A chat send record outlives its message until the card it names is deleted from the chat.
     expect(db!.getStructuredMailSends(`dispatch:${state.started.dispatch.id}`)).toHaveLength(1)
   })
+  it.each([100, 1_000])(
+    'bulk reset keeps the table-clear plan with %i messages after count preparation',
+    async (messages) => {
+      const state = createState()
+      const database = db!
+      for (let i = 0; i < messages; i++) {
+        const mail = database.insertMessage({
+          runId: state.run.id,
+          from: 'term_parent',
+          to: `dispatch:${state.started.dispatch.id}`,
+          subject: 'Counted'
+        })
+        database.markAsRead([mail.id])
+      }
+      expect(
+        await prepareCoordinatorMailCount(database, state.started.dispatch.id, () => true)
+      ).toBe(messages)
+      database.db.exec('SAVEPOINT reset_plan')
+      expect(pauseCoordinatorMailCountForReset(database)).toBe(true)
+      const plan = database.db.prepare('EXPLAIN DELETE FROM messages').all()
+      expect(plan.some((op) => op.opcode === 'Clear')).toBe(true)
+      expect(plan.some((op) => op.opcode === 'Program')).toBe(false)
+      resumeCoordinatorMailCountAfterReset(database)
+      database.db.exec('ROLLBACK TO reset_plan; RELEASE reset_plan')
+      database.resetMessages()
+      expect(database.getInbox()).toEqual([])
+      expect(
+        await prepareCoordinatorMailCount(database, state.started.dispatch.id, () => true)
+      ).toBe(0)
+      const next = database.insertMessage({
+        runId: state.run.id,
+        from: 'term_parent',
+        to: `dispatch:${state.started.dispatch.id}`,
+        subject: 'After reset'
+      })
+      database.markAsRead([next.id])
+      expect(
+        await prepareCoordinatorMailCount(database, state.started.dispatch.id, () => true)
+      ).toBe(1)
+    }
+  )
 })
