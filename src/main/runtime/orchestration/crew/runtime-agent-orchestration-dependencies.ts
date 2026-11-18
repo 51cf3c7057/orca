@@ -27,9 +27,14 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
     return !!db && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
   }
 
-  canPromiseOrchestrationHelperReport(dispatch: DispatchContextRow): boolean {
+  async canPromiseOrchestrationHelperReport(
+    dispatch: DispatchContextRow,
+    current: () => boolean
+  ): Promise<boolean> {
     const db = this.getOrchestrationDbIfAvailable()
-    return !!db && canPromiseHelperFinishReport(db, dispatch, this.workerTurnStopReportDeps)
+    return (
+      !!db && canPromiseHelperFinishReport(db, dispatch, this.workerTurnStopReportDeps, current)
+    )
   }
 
   abstract getAgentStatusTerminalHandleForPaneKey(paneKey: string): string | undefined

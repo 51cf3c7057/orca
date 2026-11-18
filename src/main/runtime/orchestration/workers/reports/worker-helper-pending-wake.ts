@@ -1,4 +1,3 @@
-import { withTimeout } from '../../../../../shared/concurrency/promise-timeout-fallback'
 import type { OrcaRuntimeService } from '../../../orca-runtime'
 import type { DispatchContextRow } from '../../db/orchestration-records'
 import { DISPATCH_CONTEXT_COLUMN_LIST } from '../../db/row-column-lists'
@@ -13,6 +12,7 @@ export async function workerHasPendingHelperWake(
     | 'getExistingOrchestrationDb'
     | 'isOrchestrationWorkerWorking'
     | 'canPromiseOrchestrationHelperReport'
+    | 'canPromiseOrchestrationWorkerWake'
     | 'resolveOrchestrationWorkerServer'
     | 'callOrchestrationWorkerServer'
   >,
@@ -23,11 +23,11 @@ export async function workerHasPendingHelperWake(
   if (!db) {
     return false
   }
-  const deadline = Date.now() + 5_000
+  let remoteDeadline: number | undefined
   const seen = new Set<string>()
   let remaining = 256
   let finished = false
-  const current = () => !finished && isCurrent() && Date.now() < deadline
+  const current = () => !finished && isCurrent()
   const visit = async (parentId: string): Promise<boolean> => {
     if (!current() || seen.has(parentId) || remaining <= 0) {
       return false
@@ -37,15 +37,15 @@ export async function workerHasPendingHelperWake(
     if (!parent || parent.status !== 'dispatched') {
       return false
     }
-    // Overflow fails open to a stop report; it never silently drops worker output.
+    // Unknown wake evidence leaves the ordinary stop reporter responsible for informing the parent.
     const rows = db.db
       .prepare(`SELECT ${DISPATCH_CONTEXT_COLUMN_LIST} FROM dispatch_contexts
       WHERE creator_dispatch_id = ? AND status IN ('pending', 'dispatched') LIMIT ?`)
       .all(parentId, Math.min(remaining, 100) + 1)
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the query uses the complete schema-owned Dispatch projection.
     const helpers = rows as DispatchContextRow[]
-    const remote = new Set(
-      db.listFederatedDispatchesByIds(helpers.map((h) => h.id)).map((h) => h.dispatch_id)
+    const remote = new Map(
+      db.listFederatedDispatchesByIds(helpers.map((h) => h.id)).map((h) => [h.dispatch_id, h])
     )
     const eligible = (id: string) => {
       const helper = db.getDispatchContextById(id)
@@ -56,8 +56,7 @@ export async function workerHasPendingHelperWake(
         helper.status === 'dispatched' &&
         helper.run_id === parent.run_id &&
         dispatchReportMailbox(db, helper) === `dispatch:${parentId}` &&
-        (!state || state === 'ready') &&
-        runtime.canPromiseOrchestrationHelperReport(helper)
+        (!state || state === 'ready')
       )
     }
     const remoteIds: string[] = []
@@ -73,11 +72,17 @@ export async function workerHasPendingHelperWake(
         continue
       }
       if (remote.has(helper.id)) {
-        remoteIds.push(helper.id)
+        if (runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch: helper })) {
+          remoteIds.push(helper.id)
+        }
         continue
       }
       if (localDispatchExecuting(runtime, db, helper) || (await visit(helper.id))) {
-        if (eligible(helper.id)) {
+        if (
+          eligible(helper.id) &&
+          (await runtime.canPromiseOrchestrationHelperReport(helper, current)) &&
+          eligible(helper.id)
+        ) {
           return true
         }
       }
@@ -85,11 +90,19 @@ export async function workerHasPendingHelperWake(
     if (!current() || remoteIds.length === 0) {
       return false
     }
-    const working = await readRemoteWorkingDispatches(runtime, db, remoteIds, current, eligible)
+    remoteDeadline ??= Date.now() + 5_000
+    const deadline = remoteDeadline
+    const remoteCurrent = () => current() && Date.now() < deadline
+    const working = await readRemoteWorkingDispatches(
+      runtime,
+      remoteIds.flatMap((id) => remote.get(id) ?? []),
+      remoteCurrent,
+      eligible
+    )
     return [...working].some(eligible)
   }
   try {
-    return await withTimeout(visit(dispatchId), 5_000, false)
+    return await visit(dispatchId)
   } finally {
     finished = true
   }

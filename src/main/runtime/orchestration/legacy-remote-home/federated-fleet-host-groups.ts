@@ -12,17 +12,15 @@ export function groupFederatedDispatches(args: {
   db: OrchestrationDb
   dispatchIds: readonly string[]
 }): HostGroup[] {
-  const groups = new Map<string, HostGroup>()
-  const federatedByDispatchId = new Map(
-    args.db
-      .listFederatedDispatchesByIds(args.dispatchIds)
-      .map((dispatch) => [dispatch.dispatch_id, dispatch])
+  const rows = new Map(
+    args.db.listFederatedDispatchesByIds(args.dispatchIds).map((row) => [row.dispatch_id, row])
   )
-  for (const dispatchId of args.dispatchIds) {
-    const dispatch = federatedByDispatchId.get(dispatchId)
-    if (!dispatch) {
-      continue
-    }
+  return groupFederatedDispatchRows(args.dispatchIds.flatMap((id) => rows.get(id) ?? []))
+}
+
+export function groupFederatedDispatchRows(rows: readonly FederatedDispatchRow[]): HostGroup[] {
+  const groups = new Map<string, HostGroup>()
+  for (const dispatch of rows) {
     const groupKey = `${dispatch.environment_id}\u0000${dispatch.peer_fingerprint}`
     const group = groups.get(groupKey) ?? {
       environmentId: dispatch.environment_id,

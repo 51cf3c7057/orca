@@ -75,6 +75,11 @@ export async function structuredSessionHasPendingWake(
   if (!isCurrent() || remoteIds.length === 0) {
     return false
   }
-  const working = await readRemoteWorkingDispatches(runtime, db, remoteIds, isCurrent, eligible)
+  const working = await readRemoteWorkingDispatches(
+    runtime,
+    remoteIds.flatMap((id) => remote.get(id) ?? []),
+    isCurrent,
+    eligible
+  )
   return [...working].some(eligible)
 }

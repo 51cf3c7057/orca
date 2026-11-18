@@ -44,8 +44,8 @@ function remoteWorkers(count: number) {
 }
 
 it.each([
-  [20, 1],
-  [200, 2]
+  [100, 1],
+  [1_000, 10]
 ])('batches %i remote workers into %i observations', async (count, calls) => {
   const ids = remoteWorkers(count)
   const call = vi
@@ -57,8 +57,11 @@ it.each([
         items: []
       }
     })
-  expect(await readRemoteWorkingDispatches(runtime, db, ids, () => true)).toEqual(new Set())
+  expect(
+    await readRemoteWorkingDispatches(runtime, db.listFederatedDispatchesByIds(ids), () => true)
+  ).toEqual(new Set())
   expect(call).toHaveBeenCalledTimes(calls)
+  expect(db.listFederatedDispatchesByIds).toHaveBeenCalledTimes(1)
 })
 
 it('admits no more host work after cancellation and lets a successor progress', async () => {
@@ -69,7 +72,11 @@ it('admits no more host work after cancellation and lets a successor progress', 
     await new Promise<void>((resolve) => releases.push(resolve))
     return { items: [] }
   })
-  const pending = readRemoteWorkingDispatches(runtime, db, ids, () => current)
+  const pending = readRemoteWorkingDispatches(
+    runtime,
+    db.listFederatedDispatchesByIds(ids),
+    () => current
+  )
   await vi.waitFor(() => expect(releases).toHaveLength(4))
   current = false
   for (const release of releases) {
@@ -80,9 +87,13 @@ it('admits no more host work after cancellation and lets a successor progress', 
   call.mockResolvedValue({
     items: [{ dispatchId: 'remote-0', observation: { exactWorker: true, working: true } }]
   })
-  expect(await readRemoteWorkingDispatches(runtime, db, ids.slice(0, 1), () => true)).toEqual(
-    new Set(['remote-0'])
-  )
+  expect(
+    await readRemoteWorkingDispatches(
+      runtime,
+      db.listFederatedDispatchesByIds(ids.slice(0, 1)),
+      () => true
+    )
+  ).toEqual(new Set(['remote-0']))
 })
 
 it('ends the observation at its total deadline without admitting the remaining pages', async () => {
@@ -94,7 +105,11 @@ it('ends the observation at its total deadline without admitting the remaining p
       await new Promise<void>((resolve) => releases.push(resolve))
       return { items: [] }
     })
-    const pending = readRemoteWorkingDispatches(runtime, db, ids, () => true)
+    const pending = readRemoteWorkingDispatches(
+      runtime,
+      db.listFederatedDispatchesByIds(ids),
+      () => true
+    )
     await vi.advanceTimersByTimeAsync(5_000)
     expect(await pending).toEqual(new Set())
     expect(call).toHaveBeenCalledTimes(4)
@@ -116,7 +131,11 @@ it.each([100, 1_000])(
     const call = vi
       .spyOn(runtime, 'callOrchestrationWorkerServer')
       .mockImplementation(() => new Promise((resolve) => responses.push(resolve)))
-    const pending = readRemoteWorkingDispatches(runtime, db, ids, () => true)
+    const pending = readRemoteWorkingDispatches(
+      runtime,
+      db.listFederatedDispatchesByIds(ids),
+      () => true
+    )
     await vi.waitFor(() => expect(responses.length).toBeGreaterThan(0))
     responses[0]!({
       items: [{ dispatchId: 'remote-0', observation: { exactWorker: true, working: true } }]
@@ -143,8 +162,7 @@ it('continues past a remote positive whose custody changed', async () => {
   expect(
     await readRemoteWorkingDispatches(
       runtime,
-      db,
-      ids,
+      db.listFederatedDispatchesByIds(ids),
       () => true,
       (id) => id === 'remote-100'
     )

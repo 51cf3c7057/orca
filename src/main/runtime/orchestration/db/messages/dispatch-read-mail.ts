@@ -1,5 +1,6 @@
 import type { OrchestrationDb } from '../orchestration-db'
-import { isDispatchAssignee } from '../dispatch-context/dispatch-lookup'
+import { workerSentMail } from './dispatch-mail-sender'
+import { preparedCoordinatorMailCount } from './prepared-coordinator-mail-count'
 import { exposeUtcTimestamp } from '../utc-timestamp'
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null)
@@ -8,6 +9,10 @@ const text = (value: unknown): string | null => (typeof value === 'string' ? val
  *  Mail a worker of the Run sent while its Dispatch was open (this worker's own heartbeats, its helpers'
  *  reports, a sibling's broadcast) does not count, nor does mail it has not taken yet. */
 export function readCoordinatorMailCount(db: OrchestrationDb, dispatchId: string): number {
+  const prepared = preparedCoordinatorMailCount(db, dispatchId)
+  if (prepared !== undefined) {
+    return prepared
+  }
   // The Dispatch that started this one is its coordinator, so its worker's mail is from above.
   const workers = db.db
     .prepare(
@@ -36,16 +41,5 @@ export function readCoordinatorMailCount(db: OrchestrationDb, dispatchId: string
       'SELECT from_handle, sender_pane_key, created_at FROM messages WHERE to_handle = ? AND read = 1'
     )
     .all(`dispatch:${dispatchId}`)
-  return read.filter((message) => {
-    const from = text(message.from_handle) ?? ''
-    const sentAt = Date.parse(exposeUtcTimestamp(text(message.created_at)) ?? '')
-    // The same agent can coordinate before or after it works; only what it sent while working is a worker's.
-    return !workers.some(
-      (worker) =>
-        sentAt >= worker.createdAt &&
-        (Number.isNaN(worker.completedAt) || sentAt <= worker.completedAt) &&
-        (from === `dispatch:${worker.id}` ||
-          isDispatchAssignee(worker, from, text(message.sender_pane_key)))
-    )
-  }).length
+  return read.filter((message) => !workers.some((worker) => workerSentMail(worker, message))).length
 }

@@ -1,10 +1,10 @@
 import { withTimeout } from '../../../../../shared/concurrency/promise-timeout-fallback'
 import type { OrcaRuntimeService } from '../../../orca-runtime'
-import type { OrchestrationDb } from '../../db/orchestration-db'
+import type { FederatedDispatchRow } from '../../db/orchestration-records'
 import type { RuntimeStatus } from '../../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import { ORCHESTRATION_WORKER_WAKE_OBSERVATION_RUNTIME_CAPABILITY } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
 import { mapWithConcurrency } from '../../../../../shared/concurrency/map-with-concurrency'
-import { groupFederatedDispatches } from '../../legacy-remote-home/federated-fleet-host-groups'
+import { groupFederatedDispatchRows } from '../../legacy-remote-home/federated-fleet-host-groups'
 import { resolvePinnedFederatedServer } from '../../legacy-remote-home/pinned-federated-server'
 import { getOrchestrationPeerCapabilityCache } from '../../federation/orchestration-peer-capability-cache'
 
@@ -14,8 +14,7 @@ export async function readRemoteWorkingDispatches(
     OrcaRuntimeService,
     'resolveOrchestrationWorkerServer' | 'callOrchestrationWorkerServer'
   >,
-  db: OrchestrationDb,
-  dispatchIds: readonly string[],
+  dispatches: readonly FederatedDispatchRow[],
   isCurrent: () => boolean,
   eligible: (dispatchId: string) => boolean = () => true
 ): Promise<Set<string>> {
@@ -27,7 +26,7 @@ export async function readRemoteWorkingDispatches(
   })
   const current = () => working.size === 0 && isCurrent() && Date.now() < deadline
   const observations = mapWithConcurrency(
-    groupFederatedDispatches({ db, dispatchIds }),
+    groupFederatedDispatchRows(dispatches),
     4,
     async (group) => {
       if (!current()) {

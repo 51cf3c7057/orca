@@ -1,4 +1,4 @@
-import { readCoordinatorMailCount } from '../../db/messages/dispatch-read-mail'
+import { prepareCoordinatorMailCount } from '../../db/messages/prepared-coordinator-mail-count'
 import { stopReportId } from './worker-stop-report-id'
 import type { DispatchContextRow } from '../../db/orchestration-records'
 import type { OrchestrationDb } from '../../db/orchestration-db'
@@ -49,11 +49,12 @@ export function canPromiseWorkerFinishReport(
 }
 
 /** A helper's next ordinary finish must still reach its creator after follow-up mail. */
-export function canPromiseHelperFinishReport(
+export async function canPromiseHelperFinishReport(
   db: OrchestrationDb,
   dispatch: DispatchContextRow,
-  deps: Pick<WorkerTurnStopReportDeps, 'isWaitingForMail'>
-): boolean {
+  deps: Pick<WorkerTurnStopReportDeps, 'isWaitingForMail'>,
+  current: () => boolean
+): Promise<boolean> {
   if (
     deps.isWaitingForMail(`dispatch:${dispatch.id}`) ||
     workerFinishReportMuted(db, { kind: 'local', dispatch }, undefined)
@@ -63,7 +64,21 @@ export function canPromiseHelperFinishReport(
   if (canPromiseWorkerFinishReport(db, { kind: 'local', dispatch }, deps)) {
     return true
   }
-  return !db.getMessageById(
-    stopReportId(dispatch.id, `finished:${readCoordinatorMailCount(db, dispatch.id)}`)
+  if (
+    db.getFederatedDispatch(dispatch.id) ||
+    db.db
+      .prepare(`SELECT 1 FROM messages
+    WHERE json_valid(payload) AND json_extract(payload, '$.dispatchId') = ?
+      AND type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'
+    LIMIT 1`)
+      .get(dispatch.id)
+  ) {
+    return false
+  }
+  const count = await prepareCoordinatorMailCount(db, dispatch.id, current)
+  return (
+    current() &&
+    count !== undefined &&
+    !db.getMessageById(stopReportId(dispatch.id, `finished:${count}`))
   )
 }

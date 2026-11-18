@@ -83,3 +83,36 @@ it('reports a stopped worker after its later-created helper reports idle, preser
     { subject: 'Worker stopped without reporting' }
   ])
 })
+
+it('does not promise a new helper finish after a rejected worker_done in its working turn', async () => {
+  await openChat(COORDINATOR)
+  const { taskId, runId } = await coordinatorRunAndTask()
+  const worker = createRootDispatch(db, taskId, 'term_w', 'tab:w')
+  const task = db.createTask({ spec: 'Helper', runId })
+  const helper = createRootDispatch(db, task.id, 'term_h', 'tab:h')
+  db.db
+    .prepare(
+      'UPDATE dispatch_contexts SET creator_dispatch_id = ?, process_incarnation = ? WHERE id = ?'
+    )
+    .run(worker.id, 'h:1', helper.id)
+  vi.spyOn(runtime, 'isOrchestrationWorkerWorking').mockReturnValue(true)
+  const rejection = db.insertMessage({
+    from: 'term_h',
+    to: `dispatch:${worker.id}`,
+    subject: 'Done',
+    type: 'worker_done',
+    payload: JSON.stringify({ dispatchId: helper.id, taskId }),
+    runId
+  })
+  db.convertLifecycleMessageToRejection(rejection.id, 'task_mismatch', 'Wrong task')
+  db.markAsRead([rejection.id])
+  expect(await workerHasPendingHelperWake(runtime, worker.id, () => true)).toBe(false)
+  const notify = vi.fn()
+  reportWorkerTurnStop(
+    db,
+    { kind: 'local', dispatch: worker },
+    { from: 'term_w', reason: 'finished', lastOutput: 'Helper report rejected' },
+    { getDb: () => db, notify, isWaitingForMail: () => false }
+  )
+  expect(notify).toHaveBeenCalledTimes(1)
+})

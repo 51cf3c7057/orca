@@ -93,6 +93,10 @@ class OrchestrationDbCore {
         ON worker_dispatches(agent_terminal_handle) WHERE agent_terminal_handle IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_attempt_observation_facts_liveness
         ON attempt_observation_facts(dispatch_id) WHERE facet = 'liveness';
+    CREATE INDEX IF NOT EXISTS idx_dispatch_historical_mail_pane
+      ON dispatch_contexts(substr(assignee_pane_key, instr(assignee_pane_key, ':') + 1));
+    CREATE INDEX IF NOT EXISTS idx_messages_mail_count_sender ON messages(from_handle, read);
+    CREATE INDEX IF NOT EXISTS idx_messages_mail_count_pane ON messages(substr(sender_pane_key, instr(sender_pane_key, ':') + 1), read);
       CREATE INDEX IF NOT EXISTS idx_messages_goal_wake_blockers
         ON messages(json_extract(payload, '$.dispatchId')) WHERE json_valid(payload)
           AND (id GLOB 'msg_stop_*' OR
