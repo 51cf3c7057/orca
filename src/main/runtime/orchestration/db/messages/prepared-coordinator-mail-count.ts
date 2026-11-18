@@ -68,7 +68,7 @@ export async function prepareCoordinatorMailCount(
   refreshExternalWrites(db, countOwner)
   db.db
     .prepare(
-      'INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ?'
+      `INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ? AND status IN ('pending', 'dispatched')`
     )
     .run(dispatchId)
   while (current()) {

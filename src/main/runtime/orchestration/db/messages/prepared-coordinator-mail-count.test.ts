@@ -328,3 +328,19 @@ it.each([1_000, 10_000])(
     }
   }
 )
+
+it('restarts a cold recovery after message reset without losing a surviving owner', async () => {
+  await openChat(COORDINATOR)
+  const { taskId, runId } = await coordinatorRunAndTask()
+  const helper = createRootDispatch(db, taskId, 'term_helper', 'tab:helper')
+  const mail = db.insertMessage({
+    runId,
+    from: 'term_parent',
+    to: `dispatch:${helper.id}`,
+    subject: 'Follow-up'
+  })
+  db.markAsRead([mail.id])
+  const cold = prepareCoordinatorMailCount(db, helper.id, () => true)
+  db.resetMessages()
+  expect(await cold).toBe(0)
+})
