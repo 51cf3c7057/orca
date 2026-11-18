@@ -93,6 +93,10 @@ class OrchestrationDbCore {
         ON worker_dispatches(agent_terminal_handle) WHERE agent_terminal_handle IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_attempt_observation_facts_liveness
         ON attempt_observation_facts(dispatch_id) WHERE facet = 'liveness';
+      CREATE INDEX IF NOT EXISTS idx_dispatch_creator_session_work
+        ON dispatch_contexts(creator_orca_session_id, status);
+      CREATE INDEX IF NOT EXISTS idx_dispatch_creator_handle_work
+        ON dispatch_contexts(creator_handle, status) WHERE creator_orca_session_id IS NULL;
       CREATE INDEX IF NOT EXISTS idx_dispatch_creator_mailbox_work
         ON dispatch_contexts(creator_dispatch_id, status);
       CREATE INDEX IF NOT EXISTS idx_runs_current_coordinator_handle ON runs(coordinator_handle);

@@ -2,12 +2,11 @@ import { isOrcaSessionId } from '../../../../../shared/agent-session/identity/or
 import { ORCHESTRATION_WORKER_TURN_STOP_REPORTS_RUNTIME_CAPABILITY } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
 import type { RuntimeStatus } from '../../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import type { OrcaRuntimeService } from '../../../orca-runtime'
-import { projectWorkerListFleet } from '../../../rpc/methods/orchestration/worker/fleet/worker-list-projection'
+import { inspectWorkerTerminal } from '../../../rpc/methods/orchestration/worker/observation/worker-observation'
+import { getStructuredAgentSessionHost } from '../../../../native-chat/agent-session-wire/host/structured-agent-session-registry'
+import { readCreatorRunningDispatches } from '../../db/dispatch-context/dispatch-creator-work'
 import { addressableSessionParty } from '../../mailbox/routing/structured-session-mail-address'
-import {
-  structuredMailboxCustody,
-  structuredSessionOwnedMailboxes
-} from '../../mailbox/routing/structured-session-mail-target'
+import { structuredMailboxCustody } from '../../mailbox/routing/structured-session-mail-target'
 import { dispatchReportMailbox } from './dispatch-report-mailbox'
 import { getOrchestrationPeerCapabilityCache } from '../../federation/orchestration-peer-capability-cache'
 import { resolvePinnedFederatedServer } from '../../legacy-remote-home/pinned-federated-server'
@@ -25,19 +24,6 @@ export async function structuredSessionHasPendingWake(
   if (!party) {
     return false
   }
-  const mailboxes = structuredSessionOwnedMailboxes(sessionId, db)
-  const runIds = new Set(
-    mailboxes.flatMap((mailbox) => {
-      if (mailbox.startsWith('run:')) {
-        return [mailbox.slice(4)]
-      }
-      if (!mailbox.startsWith('dispatch:')) {
-        return []
-      }
-      const dispatch = db.getDispatchContextById(mailbox.slice(9))
-      return dispatch ? [dispatch.run_id] : []
-    })
-  )
   const reportsHere = (dispatchId: string): boolean => {
     const dispatch = db.getDispatchContextById(dispatchId)
     if (
@@ -57,63 +43,90 @@ export async function structuredSessionHasPendingWake(
     const custody = structuredMailboxCustody(dispatchReportMailbox(db, dispatch), db)
     return typeof custody === 'object' && custody.sessionId === sessionId
   }
-  for (const runId of runIds) {
-    for (const dispatchIds of db.listWorkerReportWaitCandidates(runId)) {
-      if (!dispatchIds.some(reportsHere)) {
-        continue
-      }
-      const rows = db.listWorkerTerminalResources({ runId, dispatchIds })
-      const fleet = await projectWorkerListFleet(runtime, rows, {
-        limit: rows.length,
-        completeProjection: true,
-        includeRemote: true
-      })
-      for (const worker of fleet.workers) {
-        if (
-          worker.outcome !== 'in_progress' ||
-          worker.nextAction.kind !== 'none' ||
-          worker.liveness.verdict !== 'live' ||
-          !reportsHere(worker.dispatchId)
-        ) {
+  const candidates = readCreatorRunningDispatches(db, party)
+  // Local work can prove a wake without waiting for an unrelated execution host.
+  const remote = new Map(
+    db
+      .listFederatedDispatchesByIds(candidates.map((row) => row.id))
+      .map((row) => [row.dispatch_id, row])
+  )
+  for (const dispatch of [
+    ...candidates.filter((row) => !remote.has(row.id)),
+    ...candidates.filter((row) => remote.has(row.id))
+  ]) {
+    if (!reportsHere(dispatch.id)) {
+      continue
+    }
+    const supervised = db.getWorkerDispatch(dispatch.id)
+    if (supervised && supervised.state !== 'ready') {
+      continue
+    }
+    try {
+      const federated = remote.get(dispatch.id)
+      let working = false
+      if (federated) {
+        const server = await resolvePinnedFederatedServer(runtime, federated)
+        const support = await getOrchestrationPeerCapabilityCache(runtime).resolve({
+          peerFingerprint: federated.peer_fingerprint,
+          expectedRuntimeEpoch: federated.remote_runtime_epoch,
+          capability: ORCHESTRATION_WORKER_TURN_STOP_REPORTS_RUNTIME_CAPABILITY,
+          probe: async () => {
+            const status = await runtime.callOrchestrationWorkerServer(
+              server.environmentId,
+              'status.get',
+              undefined,
+              3_000,
+              undefined,
+              { expectedEnvironmentPairingRevision: server.pairingRevision }
+            )
+            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: status.get returns the paired host's RuntimeStatus protocol.
+            return status as RuntimeStatus
+          }
+        })
+        if (!support.supported) {
           continue
         }
-        const supervised = db.getWorkerDispatch(worker.dispatchId)
-        if (supervised && supervised.state !== 'ready') {
-          continue
+        const observed = await runtime.callOrchestrationWorkerServer(
+          server.environmentId,
+          'orchestration.federationShow',
+          { dispatchId: dispatch.id },
+          3_000,
+          undefined,
+          { expectedEnvironmentPairingRevision: server.pairingRevision }
+        )
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the paired host owns the federationShow observation; older hosts omit working.
+        const result = observed as {
+          observation?: { status?: string; exactWorker?: boolean; working?: boolean }
         }
-        const remote = db.listFederatedDispatchesByIds([worker.dispatchId])[0]
-        if (remote) {
-          const server = await resolvePinnedFederatedServer(runtime, remote)
-          const support = await getOrchestrationPeerCapabilityCache(runtime).resolve({
-            peerFingerprint: remote.peer_fingerprint,
-            expectedRuntimeEpoch: remote.remote_runtime_epoch,
-            capability: ORCHESTRATION_WORKER_TURN_STOP_REPORTS_RUNTIME_CAPABILITY,
-            probe: async () => {
-              const status = await runtime.callOrchestrationWorkerServer(
-                server.environmentId,
-                'status.get',
-                undefined,
-                3_000,
-                undefined,
-                { expectedEnvironmentPairingRevision: server.pairingRevision }
-              )
-              // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: status.get returns the paired host's RuntimeStatus protocol.
-              return status as RuntimeStatus
-            }
-          })
-          if (!support.supported) {
-            continue
+        working =
+          result.observation?.status === 'live' &&
+          result.observation.exactWorker === true &&
+          result.observation.working === true
+      } else {
+        const custody = structuredMailboxCustody(`dispatch:${dispatch.id}`, db)
+        if (typeof custody === 'object') {
+          working =
+            getStructuredAgentSessionHost()?.readStatusSummary(custody.sessionId)?.status ===
+            'working'
+        } else if (dispatch.assignee_handle) {
+          const observation = await inspectWorkerTerminal(runtime, db, dispatch.id)
+          if (observation.exact && observation.status === 'live' && observation.terminalHandle) {
+            const activity = await runtime.getTerminalAgentStatus(observation.terminalHandle)
+            working = activity.isRunningAgent && activity.status === 'working'
           }
         }
-        // Projection can await another host; a report or coordinator handoff may have arrived.
-        if (
-          reportsHere(worker.dispatchId) &&
-          (!db.getWorkerDispatch(worker.dispatchId) ||
-            db.getWorkerDispatch(worker.dispatchId)?.state === 'ready')
-        ) {
-          return true
-        }
       }
+      // A report or coordinator handoff can arrive during a host observation.
+      if (
+        working &&
+        reportsHere(dispatch.id) &&
+        (!supervised || db.getWorkerDispatch(dispatch.id)?.state === 'ready')
+      ) {
+        return true
+      }
+    } catch {
+      // One unavailable worker cannot hide another worker's promised report.
+      continue
     }
   }
   return false

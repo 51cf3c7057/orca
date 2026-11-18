@@ -99,6 +99,10 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         authenticatedCallerFingerprint
       )
       const observation = await observeRemoteAttachmentLiveness(runtime, params.dispatchId)
+      const activity =
+        observation.exact && observation.status === 'live' && attachment.terminal_handle
+          ? await runtime.getTerminalAgentStatus(attachment.terminal_handle).catch(() => null)
+          : null
       return {
         dispatchId: params.dispatchId,
         runtimeEpoch: runtime.getRuntimeId(),
@@ -111,6 +115,7 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         observation: {
           status: observation.status,
           exactWorker: observation.exact,
+          working: activity?.isRunningAgent === true && activity.status === 'working',
           ...(observation.reason ? { reason: observation.reason } : {}),
           ...(observation.agentWait !== undefined ? { agentWait: observation.agentWait } : {})
         }
