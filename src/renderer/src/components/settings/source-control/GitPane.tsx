@@ -10,6 +10,7 @@ import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsGroup } from '../section-layout/SettingsGroup'
 import { BranchPrefixSetting } from './BranchPrefixSetting'
 import type { SettingsHostScope } from '../host-scope/settings-host-scope'
+import { runtimeTargetEnvironmentId } from '@/runtime/rpc/targets/runtime-client-target'
 import { matchesSettingsSearch } from '../search/settings-search'
 import { AutoRenameBranchFromWorkSetting } from './AutoRenameBranchFromWorkSetting'
 import {
@@ -163,7 +164,8 @@ export function GitPane({
       ]
     }) ? (
       <BranchPrefixSetting
-        key="branch-prefix"
+        // A fresh row per host, so one host's unsaved draft never shows on another.
+        key={`branch-prefix:${runtimeTargetEnvironmentId(hostScope.target) ?? 'local'}`}
         hostScope={hostScope}
         settings={settings}
         updateSettings={updateSettings}
