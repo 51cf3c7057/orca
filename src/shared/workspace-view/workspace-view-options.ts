@@ -65,7 +65,8 @@ export const WORKSPACE_CARD_PROPERTY_CHOICES = [
   { id: 'comment', label: 'Notes' },
   { id: 'ports', label: 'Ports' },
   { id: 'inline-agents', label: 'Agent activity' },
-  { id: 'host', label: 'Host' }
+  { id: 'host', label: 'Host' },
+  { id: 'status-tint', label: 'Activity color' }
 ] as const satisfies readonly WorkspaceViewChoice<WorktreeCardProperty>[]
 
 /** "Card display" (the experimental card style). */
@@ -79,6 +80,7 @@ export const WORKSPACE_CARD_DISPLAY_CHOICES = [
   { id: 'ports', label: 'Ports' },
   { id: 'inline-agents', label: 'Agent statuses' },
   { id: 'host', label: 'Host' },
+  { id: 'status-tint', label: 'Activity color' },
   { id: 'branch', label: 'Branch name' }
 ] as const satisfies readonly WorkspaceViewChoice<WorktreeCardProperty>[]
 

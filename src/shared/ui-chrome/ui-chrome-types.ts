@@ -51,6 +51,8 @@ export type WorktreeCardProperty =
   | 'inline-agents'
   // Execution-host pill, shown only when the visible workspaces span more than one host; on by default.
   | 'host'
+  // Card tint by agent activity (needs you, working, idle); desktop only, on by default.
+  | 'status-tint'
 
 export type WorktreeCardMode = 'Default' | 'Compact'
 

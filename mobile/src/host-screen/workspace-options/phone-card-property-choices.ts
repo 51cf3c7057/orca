@@ -1,8 +1,11 @@
 import type { WorkspaceViewChoice } from '../../../../src/shared/workspace-view/workspace-view-options'
 import type { WorktreeCardProperty } from '../../../../src/shared/ui-chrome/ui-chrome-types'
 
-// Omit Ports: the phone has no port scan; desktop retains it.
-const PHONE_HIDDEN_CARD_PROPERTIES: ReadonlySet<WorktreeCardProperty> = new Set(['ports'])
+// Omit Ports (the phone has no port scan) and the activity tint (desktop cards only); desktop retains them.
+const PHONE_HIDDEN_CARD_PROPERTIES: ReadonlySet<WorktreeCardProperty> = new Set([
+  'ports',
+  'status-tint'
+])
 
 export function phoneCardPropertyChoices<Choice extends WorkspaceViewChoice<WorktreeCardProperty>>(
   choices: readonly Choice[]
