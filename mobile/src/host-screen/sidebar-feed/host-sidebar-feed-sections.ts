@@ -266,6 +266,7 @@ export function buildHostFeedSections(sources: HostFeedListSources): Section[] {
       // The desktop-only cards draw nothing on the phone.
       case 'imported-worktrees-card':
       case 'new-external-worktrees-inbox':
+      case 'archived-section':
         break
     }
   }

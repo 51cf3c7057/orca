@@ -41,6 +41,10 @@ import {
 } from '../controls/sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
 import { selectEphemeralVmHostLifecycles } from '@/store/slices/ephemeral-vm/ephemeral-vm-lifecycle'
+import { withArchivedSectionRows } from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
+import type { Worktree } from '../../../../../../shared/worktree/types'
+
+const NO_ARCHIVED_WORKTREES: ReadonlyMap<string, readonly Worktree[]> = new Map()
 
 function createSidebarHostOptionsSelector() {
   let inputs: readonly unknown[] = []
@@ -223,9 +227,15 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         : effectiveCollapsedGroups,
     [effectiveCollapsedGroups, hostScopedGroups]
   )
+  const archivedWorktreesByRepo = args.archivedWorktreesByRepo ?? NO_ARCHIVED_WORKTREES
   const rows: Row[] = useMemo(
-    () => rowPlan.render(rowCollapsedGroups),
-    [rowPlan, rowCollapsedGroups]
+    () =>
+      withArchivedSectionRows(rowPlan.render(rowCollapsedGroups), {
+        archivedWorktreesByRepo,
+        collapsedGroups: rowCollapsedGroups,
+        repoOf: repoOfWorktree
+      }),
+    [rowPlan, rowCollapsedGroups, archivedWorktreesByRepo, repoOfWorktree]
   )
   const orderedHostOptions = useMemo(
     () => orderHostSectionOptions(hostOptions, workspaceHostOrder),

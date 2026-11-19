@@ -8548,6 +8548,10 @@
           "browseFolder": "Browse folder…",
           "cloneFromUrl": "Clone from URL…",
           "createNewProject": "Create new project…"
+        },
+        "ArchivedSectionLine": {
+          "label": "Archived",
+          "ariaLabel": "Archived workspaces in {{repo}}: {{count}}"
         }
       },
       "shared": {

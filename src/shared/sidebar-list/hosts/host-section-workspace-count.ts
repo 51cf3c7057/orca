@@ -1,4 +1,5 @@
 import type { Row } from '../row-types'
+import { isArchivedSectionKey } from '../sections/archived-section-rows'
 
 /** A host section's workspace badge count. */
 export function countWorkspaceRows(rows: readonly Row[]): number {
@@ -36,7 +37,8 @@ export function countWorkspaceRows(rows: readonly Row[]): number {
       pendingHeader = row
       continue
     }
-    if (row.type === 'item') {
+    // Archived cards are not active work, so the badge leaves them out.
+    if (row.type === 'item' && !isArchivedSectionKey(row.sectionKey)) {
       if (!seenWorktreeIds.has(row.worktree.id)) {
         count += 1
         seenWorktreeIds.add(row.worktree.id)

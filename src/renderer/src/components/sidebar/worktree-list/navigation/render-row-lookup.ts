@@ -33,7 +33,7 @@ export function getRenderRowSidebarKey(row: RenderRow): string | null {
   if (row.type === 'imported-worktrees-card') {
     return row.key
   }
-  if (row.type === 'new-external-worktrees-inbox') {
+  if (row.type === 'new-external-worktrees-inbox' || row.type === 'archived-section') {
     return row.key
   }
   return null

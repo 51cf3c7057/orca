@@ -65,6 +65,8 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
     case 'pending-creation':
     case 'new-external-worktrees-inbox':
       return getRepoExecutionHostIdOrDefault(row.repo, defaultHostId)
+    case 'archived-section':
+      return row.repo ? getRepoExecutionHostIdOrDefault(row.repo, defaultHostId) : null
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
     case 'header':

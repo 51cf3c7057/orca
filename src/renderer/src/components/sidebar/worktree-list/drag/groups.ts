@@ -7,6 +7,7 @@ import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-
 import type { HostSectionRow } from '../../../../../../shared/sidebar-list/hosts/host-section-rows'
 import type { WorktreeDragGroup } from './worktree-manual-order'
 import { isFolderLaneSectionKey } from '../../../../../../shared/sidebar-list/folders/folder-workspace-occurrences'
+import { isArchivedSectionKey } from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
 
 /** Group members are host identities: same-id copies on two machines are separate cards to reorder.
  * Rows nested under a folder workspace group by their folder's lane, as getWorktreeDragIndexes keys
@@ -28,7 +29,10 @@ export function getWorktreeDragGroups(rows: HostSectionRow[]): WorktreeDragGroup
       row.type === 'imported-worktrees-card' ||
       row.type === 'new-external-worktrees-inbox' ||
       row.type === 'pending-creation' ||
-      row.type === 'folder-workspace'
+      row.type === 'folder-workspace' ||
+      row.type === 'archived-section' ||
+      // Archived cards keep no manual order.
+      isArchivedSectionKey(row.sectionKey)
     ) {
       continue
     }
@@ -69,7 +73,7 @@ export function getWorktreeDragIndexes(rows: readonly HostSectionRow[]): {
       groupIndexes.set(row.key, 0)
       continue
     }
-    if (row.type !== 'item') {
+    if (row.type !== 'item' || isArchivedSectionKey(row.sectionKey)) {
       continue
     }
     if (

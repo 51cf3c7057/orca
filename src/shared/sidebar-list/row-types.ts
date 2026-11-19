@@ -134,6 +134,17 @@ export type FolderWorkspaceRow = {
 /** Stable create/repo identity only: subscribing to full progress records would rebuild the list on phase/loader churn. */
 export type PendingCreationRef = { creationId: string; repoId: string }
 
+/** A project's archived workspaces, folded by default, after its active rows. */
+export type ArchivedSectionRow = {
+  type: 'archived-section'
+  /** Also the collapse-set key; its presence means open. */
+  key: string
+  repo: Repo | undefined
+  count: number
+  open: boolean
+  groupDepth: number
+}
+
 export type Row =
   | GroupHeaderRow
   | WorktreeRow
@@ -141,6 +152,7 @@ export type Row =
   | NewExternalWorktreesInboxRow
   | PendingCreationRow
   | FolderWorkspaceRow
+  | ArchivedSectionRow
 
 /** The registration a project header reorders by, or none for a repeated copy. */
 export function getHeaderDragRepo(row: GroupHeaderRow): Repo | undefined {

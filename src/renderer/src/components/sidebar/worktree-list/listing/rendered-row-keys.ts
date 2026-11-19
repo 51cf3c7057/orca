@@ -16,7 +16,7 @@ export function collectRenderedSidebarRowKeys(sectionRows: readonly HostSectionR
       keys.add(`pending:${row.creationId}`)
     } else if (row.type === 'imported-worktrees-card') {
       keys.add(row.key)
-    } else if (row.type === 'new-external-worktrees-inbox') {
+    } else if (row.type === 'new-external-worktrees-inbox' || row.type === 'archived-section') {
       keys.add(row.key)
     }
   }
