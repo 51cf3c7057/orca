@@ -13,6 +13,7 @@ import {
 } from '../../../../../../shared/sidebar-list/sorting/smart-sort'
 import './visible-worktree-activity-inputs'
 import { buildVisibleWorktreeOptionsFromState } from './visible-worktree-options-from-state'
+import { createMergedArchiveIdentitiesSelector } from './sidebar-archived-worktrees'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import { useAppStore } from '@/store'
 import { getIndexedAllWorktrees } from '@/store/slices/worktrees/listing/worktree-catalog-index'
@@ -22,6 +23,8 @@ import {
   computeRenderedSidebarWorktreeOrder,
   computeRenderedSidebarWorktrees
 } from './rendered-sidebar-worktree-order'
+
+const selectMergedArchiveIdentities = createMergedArchiveIdentitiesSelector()
 
 /** Publish rendered order for shortcut parity; [] means no visible rows, null means the list is unmounted. */
 let _publishedVisibleIds: string[] | null = null
@@ -82,7 +85,9 @@ function computeUnmountedVisibleWorktrees(): Worktree[] {
   const defaultHostId = getSettingsFocusedExecutionHostId(state.settings)
   return computeVisibleWorktrees(selectWorktreesByRepo(state), sortedKeys, {
     ...buildVisibleWorktreeOptionsFromState(state, repoMap),
-    sortedByHostIdentity: true
+    sortedByHostIdentity: true,
+    // Shortcuts number only what the sidebar lists, so rows filed under Archived are skipped.
+    archivedWorktreeIdentities: selectMergedArchiveIdentities(state)
   }).filter(
     (worktree) =>
       !worktree.isArchived &&
