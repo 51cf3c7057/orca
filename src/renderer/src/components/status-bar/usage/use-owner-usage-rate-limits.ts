@@ -1,7 +1,4 @@
-import {
-  visibleAccountHostId,
-  visibleAccountSurfaceKey
-} from '@/lib/workspace/ownership/visible-account-surface'
+import { visibleAccountHostId } from '@/lib/workspace/ownership/visible-account-surface'
 import { selectExecutionHostDisplayLabel } from '@/runtime/hosts/display/execution-host-display-label'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
@@ -30,10 +27,10 @@ const REMOTE_USAGE_STALE_REOPEN_MS = 5 * 60_000
 const REMOTE_USAGE_RECONNECT_DELAY_MS = 5_000
 const LOCAL_TARGET: RuntimeClientTarget = { kind: 'local' }
 
+// Why: only an owner change retires the stream; focus moves within one owner keep its live snapshot.
 type UsageActivation = {
   ownerId: string | null
   wslDistro: string | null
-  surfaceKey: string
 }
 
 /** A snapshot only counts under the owner it came from, so A's numbers never render as B's. */
@@ -80,15 +77,11 @@ export function useOwnerUsageRateLimits(local: RateLimitState): OwnerUsageRateLi
   // Why: route by the focused workspace's owner, never by the Active Server setting.
   const accountOwner = useActiveAccountOwner(LOCAL_TARGET)
   const wslDistro = accountOwner?.wslHostDistro ?? null
-  const surfaceKey = useAppStore(visibleAccountSurfaceKey)
   const [streamGeneration, setStreamGeneration] = useState(0)
   const unavailable = accountOwner === null || wslDistro !== null
   const ownerId =
     accountOwner && !wslDistro ? runtimeTargetEnvironmentId(accountOwner.target) : null
-  const ownerActivation = useMemo(
-    () => ({ ownerId, wslDistro, surfaceKey }),
-    [ownerId, wslDistro, surfaceKey]
-  )
+  const ownerActivation = useMemo(() => ({ ownerId, wslDistro }), [ownerId, wslDistro])
   const unavailableLabel = useAppStore((s) => {
     const host = visibleAccountHostId(s)
     return host ? selectExecutionHostDisplayLabel(s, host) : null
