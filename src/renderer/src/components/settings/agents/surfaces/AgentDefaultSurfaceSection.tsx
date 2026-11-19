@@ -60,7 +60,8 @@ function SurfaceTile({
   title,
   description,
   preview,
-  onSelect
+  onSelect,
+  selectOnClick = false
 }: {
   name: string
   checked: boolean
@@ -69,6 +70,8 @@ function SurfaceTile({
   description: string
   preview: ReactNode
   onSelect: () => void
+  /** Saves even the checked tile, so a server's untouched default can be confirmed as a choice. */
+  selectOnClick?: boolean
 }): JSX.Element {
   return (
     <label
@@ -85,7 +88,8 @@ function SurfaceTile({
         name={name}
         checked={checked}
         disabled={pending}
-        onChange={onSelect}
+        onChange={selectOnClick ? () => {} : onSelect}
+        onClick={selectOnClick ? onSelect : undefined}
         className="sr-only"
       />
       <div aria-hidden className="h-[292px] rounded-lg bg-muted/70 p-3">
@@ -254,6 +258,7 @@ export function AgentDefaultSurfaceSection({
             )}
             preview={<ChatSurfacePreview />}
             onSelect={() => choose('chat')}
+            selectOnClick={onServer}
           />
           <SurfaceTile
             name={name}
@@ -266,6 +271,7 @@ export function AgentDefaultSurfaceSection({
             )}
             preview={<TerminalSurfacePreview settings={settings} />}
             onSelect={() => choose('terminal')}
+            selectOnClick={onServer}
           />
         </div>
         {onServer ? null : (
