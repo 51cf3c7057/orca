@@ -121,6 +121,8 @@ export function useHostSetting<K extends HostOwnedSettingKey>(args: {
     setting: remote?.environmentId === environmentId ? remote.setting : { state: 'loading' },
     update: async (value) => {
       const generation = ++writeGeneration.current
+      // Show the choice at once, so a second edit builds on it (list rows derive the next value).
+      setRemote({ environmentId, setting: { state: 'ready', value } })
       try {
         const result = await callRuntimeRpc<HostSettings>(
           { kind: 'environment', environmentId },
@@ -137,6 +139,15 @@ export function useHostSetting<K extends HostOwnedSettingKey>(args: {
           id: `host-setting:${environmentId}:${settingKey}`,
           description: errorMessage(error)
         })
+        // Put back what the host really has, unless a later edit took over.
+        void readHostSettings(environmentId).then(
+          (result) => {
+            if (generation === writeGeneration.current) {
+              setRemote({ environmentId, setting: toHostSetting(result.settings, settingKey) })
+            }
+          },
+          () => {}
+        )
       }
     }
   }
