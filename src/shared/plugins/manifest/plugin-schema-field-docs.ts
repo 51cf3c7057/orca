@@ -23,6 +23,8 @@ export const PLUGIN_HOOKS_SINCE = '1.4.248'
 export const PLUGIN_HOST_ACTIONS_SINCE = '1.4.248'
 /** First release that plays an app theme's `background.videoPath`. */
 export const PLUGIN_THEME_VIDEO_BACKGROUND_SINCE = '1.4.254'
+/** First release whose icon set has the git hosting icons: `github`, `git-pull-request`, `git-merge`. */
+export const PLUGIN_GIT_ICONS_SINCE = '1.4.265'
 
 type PluginFieldDoc = {
   description: string

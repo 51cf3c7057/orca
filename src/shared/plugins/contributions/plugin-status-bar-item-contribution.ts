@@ -2,8 +2,9 @@ import { z, type RefinementCtx } from 'zod'
 import { safePluginDisplayText } from '../manifest/plugin-display-text'
 import { pluginCommandIdSchema, pluginIdSchema } from '../manifest/plugin-manifest-fields'
 import { pluginFieldDoc } from '../manifest/plugin-schema-field-docs'
+import { PLUGIN_ENUM_SINCE_KEY } from '../manifest/plugin-engine-floor-keys'
 import { PLUGIN_DECLARATIVE_TONES } from '../declarative/plugin-declarative-prop-schemas'
-import { PLUGIN_PANEL_ICONS } from './plugin-panel-contribution'
+import { PLUGIN_PANEL_ICON_SINCE, PLUGIN_PANEL_ICONS } from './plugin-panel-contribution'
 
 /** First release that reads `contributes.statusBarItems` and `statusBar.update`. */
 export const PLUGIN_STATUS_BAR_SINCE = '1.4.248'
@@ -21,7 +22,10 @@ export const pluginStatusBarItemDisplayFields = {
   icon: z
     .enum(PLUGIN_PANEL_ICONS)
     .optional()
-    .meta(pluginFieldDoc('Icon shown before the text, from the panel icon set.', SINCE, ['bell'])),
+    .meta({
+      ...pluginFieldDoc('Icon shown before the text, from the panel icon set.', SINCE, ['bell']),
+      [PLUGIN_ENUM_SINCE_KEY]: PLUGIN_PANEL_ICON_SINCE
+    }),
   tone: z
     .enum(PLUGIN_DECLARATIVE_TONES)
     .optional()

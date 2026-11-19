@@ -5,6 +5,7 @@ import { PLUGIN_ENUM_SINCE_KEY } from '../manifest/plugin-engine-floor-keys'
 import {
   pluginPathFieldDoc,
   pluginFieldDoc,
+  PLUGIN_GIT_ICONS_SINCE,
   PLUGIN_PANEL_UI_SINCE,
   PLUGIN_SCHEMA_SINCE_V1,
   PLUGIN_SOURCE_MODULES_SINCE
@@ -69,16 +70,20 @@ export const PLUGIN_PANEL_ICONS = [
   'branch',
   'file',
   'agent',
-  'link'
+  'link',
+  'github',
+  'git-pull-request',
+  'git-merge'
 ] as const
 
+const iconsSince = (first: (typeof PLUGIN_PANEL_ICONS)[number], since: string) =>
+  PLUGIN_PANEL_ICONS.slice(PLUGIN_PANEL_ICONS.indexOf(first)).map((name) => [name, since])
+
 /** Icons added after the first set; older Orcas refuse them, so they raise the engine floor. */
-const PLUGIN_PANEL_ICON_SINCE: Record<string, string> = Object.fromEntries(
-  PLUGIN_PANEL_ICONS.slice(PLUGIN_PANEL_ICONS.indexOf('add')).map((name) => [
-    name,
-    PLUGIN_PANEL_UI_SINCE
-  ])
-)
+export const PLUGIN_PANEL_ICON_SINCE: Record<string, string> = Object.fromEntries([
+  ...iconsSince('add', PLUGIN_PANEL_UI_SINCE),
+  ...iconsSince('github', PLUGIN_GIT_ICONS_SINCE)
+])
 
 export type PluginPanelIconName = (typeof PLUGIN_PANEL_ICONS)[number]
 

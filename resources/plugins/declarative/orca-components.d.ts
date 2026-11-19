@@ -69,6 +69,9 @@ declare module 'orca' {
     | 'file'
     | 'agent'
     | 'link'
+    | 'github'
+    | 'git-pull-request'
+    | 'git-merge'
 
   export type WithChildren = { children?: OrcaNode }
   export type Leaf = { children?: never }
