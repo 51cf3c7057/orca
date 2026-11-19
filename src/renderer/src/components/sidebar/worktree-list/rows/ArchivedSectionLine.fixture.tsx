@@ -36,9 +36,26 @@ const ARCHIVED: WorkspaceSeed[] = [
   }
 ]
 
+// A merged workspace whose agent still waits: archived cards keep their "Activity color".
+const ARCHIVED_WAITING: WorkspaceSeed = {
+  id: 'ar-waiting',
+  name: 'merged-but-asking',
+  agents: [{ agentType: 'claude', state: 'waiting', minutesAgo: 2, prompt: 'Approve' }],
+  pr: { number: 405, state: 'merged' },
+  lastActivityMinutesAgo: 2
+}
+
 function setup(): void {
   seedWorkspaces([ACTIVE, ...ARCHIVED], now)
   useAppStore.setState({ worktreeCardProperties: ['status', 'pr', 'inline-agents'] })
+}
+
+function setupWithActivityColor(): void {
+  seedWorkspaces([ACTIVE, ARCHIVED_WAITING, ...ARCHIVED], now)
+  useAppStore.setState((state) => ({
+    settings: state.settings ? { ...state.settings, experimentalNewWorktreeCardStyle: true } : null,
+    worktreeCardProperties: ['status', 'pr', 'inline-agents', 'status-tint']
+  }))
 }
 
 function Card({ seed }: { seed: WorkspaceSeed }): React.JSX.Element {
@@ -55,18 +72,24 @@ function Card({ seed }: { seed: WorkspaceSeed }): React.JSX.Element {
   )
 }
 
-function Preview({ initiallyOpen }: { initiallyOpen: boolean }): React.JSX.Element {
+function Preview({
+  initiallyOpen,
+  archived = ARCHIVED
+}: {
+  initiallyOpen: boolean
+  archived?: WorkspaceSeed[]
+}): React.JSX.Element {
   const [open, setOpen] = useState(initiallyOpen)
   return (
     <div className="flex flex-col gap-0.5 bg-worktree-sidebar py-1.5 text-worktree-sidebar-foreground">
       <Card seed={ACTIVE} />
       <ArchivedSectionLine
-        count={ARCHIVED.length}
+        count={archived.length}
         open={open}
         repoDisplayName={FIXTURE_REPO.displayName}
         onToggle={() => setOpen(!open)}
       />
-      {open ? ARCHIVED.map((seed) => <Card key={seed.id} seed={seed} />) : null}
+      {open ? archived.map((seed) => <Card key={seed.id} seed={seed} />) : null}
     </div>
   )
 }
@@ -82,3 +105,8 @@ export const open = defineFixture({
   render: () => <Preview initiallyOpen />
 })
 export const narrowSidebar = defineFixture({ ...folded, width: 200 })
+export const openWithActivityColor = defineFixture({
+  width: 300,
+  setup: setupWithActivityColor,
+  render: () => <Preview initiallyOpen archived={[ARCHIVED_WAITING, ...ARCHIVED]} />
+})
