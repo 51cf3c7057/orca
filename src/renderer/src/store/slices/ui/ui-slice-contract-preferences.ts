@@ -109,6 +109,9 @@ export type UISlicePreferences = {
   collapsedGroups: Set<string>
   toggleCollapsedGroup: (key: string) => void
   setCollapsedGroups: (keys: Set<string>) => void
+  /** See PersistedUIState.archiveRestoredWorkspaceKeys. */
+  archiveRestoredWorkspaceKeys: ReadonlySet<string>
+  setArchiveRestoredWorkspace: (key: string, restored: boolean) => void
   worktreeCardProperties: WorktreeCardProperty[]
   _worktreeCardModeDefaulted: boolean
   setWorktreeCardMode: (mode: WorktreeCardMode) => void

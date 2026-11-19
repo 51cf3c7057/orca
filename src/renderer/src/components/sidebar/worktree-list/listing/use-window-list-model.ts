@@ -12,16 +12,20 @@ export function useWindowSidebarListModel(args: SidebarListModelArgs): SidebarLi
     useSidebarWorktreeSortOrder({ repoMap, sortBy }),
     sortBy
   )
-  const { visibleWorktrees, pairedDeviceIdsByEnvironment, botListedWorktreeIdentities } =
-    useVisibleSidebarWorktrees({
-      filterState,
-      sortBy,
-      sortedIds,
-      repoMap,
-      worktreeLineageById: args.worktreeLineageById,
-      defaultHostId,
-      agentSendTargetWorktreeId: args.agentSendTargetWorktreeId
-    })
+  const {
+    visibleWorktrees,
+    archivedWorktreesByRepo,
+    pairedDeviceIdsByEnvironment,
+    botListedWorktreeIdentities
+  } = useVisibleSidebarWorktrees({
+    filterState,
+    sortBy,
+    sortedIds,
+    repoMap,
+    worktreeLineageById: args.worktreeLineageById,
+    defaultHostId,
+    agentSendTargetWorktreeId: args.agentSendTargetWorktreeId
+  })
   const visibleScope = useSidebarHostVisibleScope({
     filterState,
     defaultHostId,
@@ -61,7 +65,8 @@ export function useWindowSidebarListModel(args: SidebarListModelArgs): SidebarLi
     newExternalWorktreesInboxByRepo: externalWorktreeCards.newExternalWorktreesInboxByRepo,
     filterRepoIds: filterState.filterRepoIds,
     visibleWorkspaceHostIds: filterState.visibleWorkspaceHostIds,
-    workspaceHostScope: filterState.workspaceHostScope
+    workspaceHostScope: filterState.workspaceHostScope,
+    archivedWorktreesByRepo
   })
   return { visibleWorktrees, visibleScope, externalWorktreeCards, rowModel }
 }

@@ -35,6 +35,10 @@ export const UI_STATE_DISPOSITIONS = {
     40,
     'Kept by repoId, which the move keeps; wsl-moved-repo-ui-retention.ts stops the trust prune dropping it.'
   ),
+  archiveRestoredWorkspaceKeys: notApplicableDisposition(
+    38,
+    'Host-keyed restore marks; a moved merged workspace returns to Archived until restored again.'
+  ),
   collapsedGroups: {
     disposition: 'rewrite-desktop',
     item: 38,
