@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { Trans } from 'react-i18next'
 import type { AppState } from '@/store/types'
+import type { RuntimeClientTarget } from '../../../../../../shared/remote-runtime/host-catalog/runtime-client-target'
 import type { LocalBaseRefUpdateSuggestion } from '../../../../../../shared/worktree/base-refs/base-ref-drift-types'
 import { Button } from '../../../ui/button'
 import {
@@ -15,6 +16,8 @@ type SuggestionToastDeps = {
   getSettings: () => AppState['settings']
   openSettingsPage: AppState['openSettingsPage']
   openSettingsTarget: AppState['openSettingsTarget']
+  /** The host whose Settings own the switch; absent means this app. */
+  settingsHostScope?: RuntimeClientTarget
 }
 
 function toastId(suggestion: LocalBaseRefUpdateSuggestion): string {
@@ -32,7 +35,8 @@ function SuggestionToastBody({
   deps: SuggestionToastDeps
 }): React.JSX.Element {
   const t = useTranslate()
-  const { updateSettings, getSettings, openSettingsPage, openSettingsTarget } = deps
+  const { updateSettings, getSettings, openSettingsPage, openSettingsTarget, settingsHostScope } =
+    deps
   const keepLocalMainUpToDateTitle = getKeepLocalMainUpToDateTitle(t)
 
   const turnOn = (): void => {
@@ -73,7 +77,8 @@ function SuggestionToastBody({
     openSettingsTarget({
       pane: 'git',
       repoId: null,
-      sectionId: KEEP_LOCAL_MAIN_UP_TO_DATE_SECTION_ID
+      sectionId: KEEP_LOCAL_MAIN_UP_TO_DATE_SECTION_ID,
+      ...(settingsHostScope ? { hostScope: settingsHostScope } : {})
     })
     // Opening Settings is informational; suppress Sonner’s decline recording for this dismissal.
     inspectSettingsDismissals.add(id)
