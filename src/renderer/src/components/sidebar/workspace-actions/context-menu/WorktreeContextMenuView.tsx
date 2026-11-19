@@ -6,7 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Bell, BellOff, Pencil, Pin, PinOff, Unlink } from 'lucide-react'
+import { Archive, ArchiveRestore, Bell, BellOff, Pencil, Pin, PinOff, Unlink } from 'lucide-react'
 import { cn } from '@/lib/class-names'
 import { WorktreeRowOpenInSubMenu } from '../open/WorktreeRowOpenInSubMenu'
 import { WorktreeDeveloperMenu } from '../open/WorktreeDeveloperMenu'
@@ -38,6 +38,7 @@ import { WorktreeHandToBotMenuItem } from '@/components/bots/hand-to-bot/Worktre
 
 export default function WorktreeContextMenuView({ model }: { model: WorktreeContextMenuModel }) {
   const {
+    canMoveToArchived,
     children,
     contentClassName,
     contextMenuOpenedAtRef,
@@ -54,6 +55,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     handleRename,
     handleSleepSubtree,
     handleSleepSubtreeWithVm,
+    handleToggleArchived,
     handleTogglePin,
     handleToggleRead,
     showsUnread,
@@ -70,6 +72,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     setDeveloperMenuRevealed,
     setMenuOpenState,
     setMenuPoint,
+    sidebarArchived,
     sleepLabel,
     sleepableWorktrees,
     subtreeSleepableWorktrees,
@@ -193,6 +196,20 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
                   ? t('auto.components.sidebar.WorktreeContextMenu.697d0f6e1b', 'Unpin')
                   : t('auto.components.sidebar.WorktreeContextMenu.3baa7d6507', 'Pin')}
               </DropdownMenuItem>
+              {sidebarArchived ? (
+                <DropdownMenuItem onSelect={handleToggleArchived} disabled={isDeleting}>
+                  <ArchiveRestore className="size-3.5" />
+                  {t('auto.components.sidebar.WorktreeContextMenu.restoreFromArchived', 'Restore')}
+                </DropdownMenuItem>
+              ) : canMoveToArchived ? (
+                <DropdownMenuItem onSelect={handleToggleArchived} disabled={isDeleting}>
+                  <Archive className="size-3.5" />
+                  {t(
+                    'auto.components.sidebar.WorktreeContextMenu.moveToArchived',
+                    'Move to Archived'
+                  )}
+                </DropdownMenuItem>
+              ) : null}
             </>
           )}
           <WorktreeStatusMenuItems

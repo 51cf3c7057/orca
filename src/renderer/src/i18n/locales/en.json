@@ -7741,7 +7741,9 @@
           "lineageSubmenu": "Parent & Children",
           "projectGroupSubmenu": "Project Group",
           "muteNotifications": "Mute Notifications",
-          "unmuteNotifications": "Unmute Notifications"
+          "unmuteNotifications": "Unmute Notifications",
+          "restoreFromArchived": "Restore",
+          "moveToArchived": "Move to Archived"
         },
         "WorktreeList": {
           "7a8b9c0d1e": "Update required",

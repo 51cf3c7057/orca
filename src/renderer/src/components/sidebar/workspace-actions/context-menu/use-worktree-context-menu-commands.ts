@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { setWorkspaceSidebarArchived } from '../archive/workspace-sidebar-archive'
 import {
   getRepoExecutionHostId,
   LOCAL_EXECUTION_HOST_ID
@@ -42,6 +43,7 @@ export function useWorktreeContextMenuCommands(args: {
   folderWorkspaceId: string | null
   getState: () => ReturnType<typeof useAppStore.getState>
   isMultiContext: boolean
+  isSidebarArchived?: boolean
   moveProjectToGroup: ReturnType<typeof useAppStore.getState>['moveProjectToGroup']
   onAssignWorkspaceStatus?: (worktreeIds: readonly string[], status: string) => void
   openModal: ReturnType<typeof useAppStore.getState>['openModal']
@@ -81,6 +83,9 @@ export function useWorktreeContextMenuCommands(args: {
   }, [args])
   const handleTogglePin = useCallback(() => {
     args.setWorktreesPinnedAndReveal([args.worktree], !args.worktree.isPinned)
+  }, [args])
+  const handleToggleArchived = useCallback(() => {
+    setWorkspaceSidebarArchived(args.getState(), args.worktree, !args.isSidebarArchived)
   }, [args])
   const handleCreateGroupFromRepo = useCallback(() => {
     if (!args.repo) {
@@ -244,6 +249,7 @@ export function useWorktreeContextMenuCommands(args: {
     handleSleepSubtree,
     handleSleepSubtreeWithVm,
     handleSubmitNewProjectGroup,
+    handleToggleArchived,
     handleTogglePin,
     handleToggleRead
   }
