@@ -15,28 +15,27 @@ type SettingsWriter = {
   getSettings: () => GlobalSettings | null
 }
 
-/** Where a toast about a create saves its choice: the host that made the workspace, when it owns its create settings. */
-function creationHostSettingsWriter(
-  target: RuntimeClientTarget,
-  local: SettingsWriter
-): SettingsWriter {
+/** The host whose own settings decided this create: a capable server, else this app (older hosts take ours). */
+async function createSettingsOwner(target: RuntimeClientTarget): Promise<RuntimeClientTarget> {
   if (target.kind !== 'environment') {
+    return target
+  }
+  const owns = await runtimeEnvironmentSupportsCapability(
+    target.environmentId,
+    WORKTREE_CREATE_HOST_OWNED_SETTINGS_RUNTIME_CAPABILITY
+  ).catch(() => false)
+  return owns ? target : { kind: 'local' }
+}
+
+function ownerSettingsWriter(owner: RuntimeClientTarget, local: SettingsWriter): SettingsWriter {
+  if (owner.kind !== 'environment') {
     return local
   }
-  let saved: Partial<GlobalSettings> = {}
+  // A host suggests keeping local main up to date only while its own switch is off.
+  let saved: Partial<GlobalSettings> = { refreshLocalBaseRefOnWorktreeCreate: false }
   return {
     updateSettings: async (updates) => {
-      // Older hosts take this app's values with each create, so the choice belongs here.
-      if (
-        !(await runtimeEnvironmentSupportsCapability(
-          target.environmentId,
-          WORKTREE_CREATE_HOST_OWNED_SETTINGS_RUNTIME_CAPABILITY
-        ))
-      ) {
-        await local.updateSettings(updates)
-        return
-      }
-      await callRuntimeRpc(target, 'settings.update', updates, { timeoutMs: 15_000 })
+      await callRuntimeRpc(owner, 'settings.update', updates, { timeoutMs: 15_000 })
       saved = { ...saved, ...updates }
     },
     getSettings: () => {
@@ -47,7 +46,7 @@ function creationHostSettingsWriter(
 }
 
 /** The base-ref notices after a create; their buttons save where the create's settings live. */
-export function showCreatedWorktreeBaseRefNotices(
+export async function showCreatedWorktreeBaseRefNotices(
   result: CreateWorktreeResult,
   target: RuntimeClientTarget,
   creationHostId: ExecutionHostId,
@@ -55,9 +54,10 @@ export function showCreatedWorktreeBaseRefNotices(
     AppState,
     'updateSettings' | 'settings' | 'openSettingsPage' | 'openSettingsTarget'
   >
-): void {
+): Promise<void> {
+  const owner = await createSettingsOwner(target)
   const state = get()
-  const writer = creationHostSettingsWriter(target, {
+  const writer = ownerSettingsWriter(owner, {
     updateSettings: state.updateSettings,
     getSettings: () => get().settings
   })
@@ -70,7 +70,7 @@ export function showCreatedWorktreeBaseRefNotices(
   }
   showLocalBaseRefUpdateSuggestionToast(result.localBaseRefUpdateSuggestion, {
     ...writer,
-    settingsHostScope: target,
+    ...(owner.kind === 'environment' ? { settingsHostScope: owner } : {}),
     openSettingsPage: state.openSettingsPage,
     openSettingsTarget: state.openSettingsTarget
   })

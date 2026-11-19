@@ -272,7 +272,7 @@ export function createCreateWorktree(
             target,
             options?.hookTrustContext
           )
-          showCreatedWorktreeBaseRefNotices(result, target, creationHostId, get)
+          void showCreatedWorktreeBaseRefNotices(result, target, creationHostId, get)
           return result
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
