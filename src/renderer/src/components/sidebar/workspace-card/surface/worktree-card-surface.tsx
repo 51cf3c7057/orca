@@ -10,6 +10,7 @@ import type { WorktreeCardController } from '../controller/use-worktree-card-con
 import { DEFAULT_WORKSPACE_CARD_TEMPLATE } from '../template/default-workspace-card'
 import { renderWorkspaceCardTemplate } from '../template/render-workspace-card-template'
 import { WorktreeCardTitleStatusProvider } from './worktree-card-title-status'
+import { WorktreeCardActivityTint } from './worktree-card-activity-tint'
 
 /** Shape, inset and transitions every sidebar card row shares; inactive rows add `worktree-sidebar-card-hover`. */
 export const WORKTREE_CARD_SURFACE_CLASS_NAME =
@@ -62,11 +63,22 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         : undefined
     }
   )
+  // Picker lists reuse the card; the tint is for the sidebar's own rows.
+  const showActivityTint = !affiliateListMode && card.cardProps.includes('status-tint')
+  const activityTint = showActivityTint ? (
+    <WorktreeCardActivityTint worktreeId={worktree.id} />
+  ) : null
   const parentCardContent = newCardStyle ? (
     // One roll-up per card feeds the status lane, the title and the title's right-hand slot.
-    <WorktreeCardTitleStatusProvider card={card}>{templateContent}</WorktreeCardTitleStatusProvider>
+    <WorktreeCardTitleStatusProvider card={card}>
+      {activityTint}
+      {templateContent}
+    </WorktreeCardTitleStatusProvider>
   ) : (
-    templateContent
+    <>
+      {activityTint}
+      {templateContent}
+    </>
   )
   const { cardStyle } = geometryFor(frame.statusLane)
   const titleOnlyCard = frame.singleLine
@@ -79,6 +91,8 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         // A bot's line is as tall as its chat's row.
         titleOnlyCard ? (card.compactLine ? 'py-px' : 'py-2') : 'pt-1.25 pb-1.5',
         flushSurface && 'w-[calc(100%-0.25rem)]',
+        // The activity tint sits at -z-10: above this surface's own fill, under its content.
+        showActivityTint && 'isolate',
         // Navigation updates the live attribute before React; it must own the complete active style.
         isLineageDropTarget
           ? 'border-worktree-sidebar-foreground/40 bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground ring-1 ring-inset ring-worktree-sidebar-ring/60'
