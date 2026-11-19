@@ -8,8 +8,8 @@ import type { RuntimeClientTarget } from '../../../../../shared/remote-runtime/h
 import { getLocalExecutionHostLabel } from '../../../../../shared/execution-host/execution-host'
 import { errorMessage } from '../../../../../shared/errors/error-message'
 import {
-  HOST_OWNED_SETTINGS,
   readHostOwnedSetting,
+  resolveHostOwnedSetting,
   type HostOwnedSettingKey,
   type HostOwnedSettings
 } from '../../../../../shared/settings/host-owned-settings'
@@ -106,9 +106,7 @@ export function useHostSetting<K extends HostOwnedSettingKey>(args: {
     return {
       setting: {
         state: 'ready',
-        value:
-          readHostOwnedSetting(localSettings, settingKey) ??
-          HOST_OWNED_SETTINGS[settingKey].fallback
+        value: resolveHostOwnedSetting(localSettings, settingKey)
       },
       update: async (value) => {
         try {
