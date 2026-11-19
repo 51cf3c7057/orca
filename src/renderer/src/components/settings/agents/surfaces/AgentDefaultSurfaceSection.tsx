@@ -158,7 +158,7 @@ export function AgentDefaultSurfaceSection({
       mutate: () => saveAgentDefaultSurface({ surface: next, ...writer }),
       onSuccess: () => {
         trackAgentDefaultSurfaceChanged({
-          from_mode: surface,
+          from_mode: normalizeAgentDefaultSurface(settings.agentDefaultSurface),
           to_mode: next,
           source: 'settings'
         })

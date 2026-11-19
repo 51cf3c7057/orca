@@ -170,7 +170,8 @@ export class RuntimeClientSettingsController {
               process.platform
             )
           : {}),
-        ...(updates.defaultTuiAgent !== undefined ? { newWorkspaceSetupOnly: false } : {})
+        ...(updates.defaultTuiAgent !== undefined ? { newWorkspaceSetupOnly: false } : {}),
+        ...(updates.agentDefaultSurface !== undefined ? { agentDefaultSurfaceChosen: true } : {})
       },
       { notifyListeners: true }
     )
