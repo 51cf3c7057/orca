@@ -278,13 +278,15 @@ function deferredSelectorRule(sourceCode, inspect) {
     'Program:exit'() {
       for (const node of state.deferredCalls) {
         const { selector: argument, shallow } = unwrapShallowSelector(node.arguments[0], state)
-        const report = inspect({
+        const reports = inspect({
           selector: resolveSelector(argument, state),
           shallow,
           state
         })
-        if (report) {
-          this.report(report)
+        for (const report of [reports].flat()) {
+          if (report) {
+            this.report(report)
+          }
         }
       }
     }
@@ -321,8 +323,30 @@ function noFreshSelectorResultRule(sourceCode) {
   })
 }
 
-// Host observations replace this map on every meaningful change (runtime-status.ts).
-const HOT_STORE_FIELDS = new Set(['runtimeStatusByEnvironmentId'])
+// Fleet-keyed maps that get a new reference whenever any one host, pane, tab or worktree changes,
+// so a whole-map selector re-renders its owner for every other entry's update.
+const HOT_STORE_FIELDS = new Set([
+  'runtimeStatusByEnvironmentId',
+  'agentStatusByPaneKey',
+  'acknowledgedAgentsByPaneKey',
+  'paneForegroundAgentByPaneKey',
+  'runtimeAgentOrchestrationByPaneKey',
+  'runtimePaneTitlesByTabId',
+  'ptyIdsByTabId',
+  'gitStatusByWorktree',
+  'tabsByWorktree',
+  'unifiedTabsByWorktree',
+  'groupsByWorktree',
+  'layoutByWorktree',
+  'activeTabIdByWorktree',
+  'activeGroupIdByWorktree',
+  'browserTabsByWorktree',
+  'browserPagesByWorkspace',
+  'terminalLayoutsByTabId',
+  'lastTerminalInputAtByPaneKey',
+  'lastVisitedAtByWorktreeId',
+  'agentSenderPublicationsByHost'
+])
 
 function selectorLocalConstant(variable, selector) {
   const definition = variable?.defs[0]
@@ -375,21 +399,106 @@ function selectorValue(expression, selector, state, seen = new Set()) {
     : null
 }
 
+/** Fallbacks, branches, local const aliases and one level under useShallow: values reaching the subscriber unchanged. */
+function wholeValueCandidates(expression, shallow, localInit, seen = [new Set(), new Set()]) {
+  const expand = (node, nested = shallow) => wholeValueCandidates(node, nested, localInit, seen)
+  if (expression?.type === 'LogicalExpression') {
+    // A truthy map on the left of `&&` never reaches the subscriber.
+    const sides =
+      expression.operator === '&&' ? [expression.right] : [expression.left, expression.right]
+    return sides.flatMap((side) => expand(side))
+  }
+  if (expression?.type === 'ConditionalExpression') {
+    return [expression.consequent, expression.alternate].flatMap((branch) => expand(branch))
+  }
+  // One visited set per shallow depth: an alias can be reached both inside and outside a useShallow value.
+  const visited = seen[shallow ? 1 : 0]
+  const init =
+    expression?.type === 'Identifier' && !visited.has(expression) ? localInit(expression) : null
+  if (init) {
+    visited.add(expression)
+    return [expression, ...expand(init)]
+  }
+  return shallow
+    ? [expression, ...shallowValues(expression, localInit).flatMap((value) => expand(value, false))]
+    : [expression]
+}
+
+/** A property's static name, or the property itself when its key is only known at runtime. */
+function propertyKey(property) {
+  if (!property.computed) {
+    return String(property.key.name ?? property.key.value)
+  }
+  return property.key.type === 'Literal' ? String(property.key.value) : property
+}
+
+/** A useShallow result's top-level values after local spreads, where a later key overrides an earlier one. */
+function shallowValues(literal, localInit) {
+  const byKey = new Map()
+  const active = new Set()
+  const resolve = (node) => {
+    for (const chain = new Set(); node?.type === 'Identifier' && !chain.has(node);) {
+      chain.add(node)
+      node = localInit(node)
+    }
+    return node?.type === 'ObjectExpression' || node?.type === 'ArrayExpression' ? node : null
+  }
+  // Bounds pathological chains of repeated spreads; direct properties are always counted.
+  let budget = 10_000
+  const collect = (container) => {
+    // Only spreads being expanded right now are skipped, so a repeated spread still overrides.
+    if (active.has(container)) {
+      return
+    }
+    active.add(container)
+    const entries =
+      container.type === 'ObjectExpression' ? container.properties : container.elements
+    for (const entry of entries) {
+      if (!entry) {
+        continue
+      }
+      if (entry.type === 'SpreadElement') {
+        const spread = --budget >= 0 ? resolve(entry.argument) : null
+        if (spread) {
+          collect(spread)
+        }
+        continue
+      }
+      // Array elements keep their own identity: an index override is not modelled, so it errs toward reporting.
+      const key = entry.type === 'Property' ? propertyKey(entry) : entry
+      byKey.delete(key)
+      byKey.set(key, entry.type === 'Property' ? entry.value : entry)
+    }
+    active.delete(container)
+  }
+  if (literal?.type === 'ObjectExpression' || literal?.type === 'ArrayExpression') {
+    collect(literal)
+  }
+  return [...byKey.values()]
+}
+
 function noWholeHotMapSelectorRule(sourceCode) {
-  return deferredSelectorRule(sourceCode, ({ selector, state }) => {
+  return deferredSelectorRule(sourceCode, ({ selector, shallow, state }) => {
     if (!selector) {
       return null
     }
-    const result = returnedExpressions(selector).find((expression) =>
-      HOT_STORE_FIELDS.has(selectorValue(expression, selector, state))
-    )
-    return result
-      ? {
-          node: result,
-          message:
-            'This whole host-status map changes for every host. Select the derived answer for your own host/item with a stable result (see paired-runtime-parking-capabilities.ts), or add a disable comment with a reason if this consumer needs every host.'
-        }
-      : null
+    const localInit = (identifier) => {
+      const declaration = selectorLocalConstant(variableFor(identifier, state), selector)
+      return declaration?.id.type === 'Identifier' ? declaration.init : null
+    }
+    const reports = new Map()
+    for (const expression of returnedExpressions(selector).flatMap((returned) =>
+      wholeValueCandidates(returned, shallow, localInit)
+    )) {
+      const field = selectorValue(expression, selector, state)
+      if (HOT_STORE_FIELDS.has(field) && !reports.has(field)) {
+        reports.set(field, {
+          node: expression,
+          message: `The whole ${field} map changes whenever any entry does. Select the derived answer for your own host/item with a stable result (see paired-runtime-parking-capabilities.ts), or add a disable comment with a reason if this consumer needs every entry.`
+        })
+      }
+    }
+    return [...reports.values()]
   })
 }
 
