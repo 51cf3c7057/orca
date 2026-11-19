@@ -87,7 +87,8 @@ export function useHostSetting<K extends HostOwnedSettingKey>(args: {
       return
     }
     let current = true
-    const generation = writeGeneration.current
+    // A reply to a write sent to the previous host must not replace this host's value.
+    const generation = ++writeGeneration.current
     void readHostSettings(environmentId).then(
       (result) => {
         if (current && generation === writeGeneration.current) {
@@ -133,7 +134,11 @@ export function useHostSetting<K extends HostOwnedSettingKey>(args: {
           setRemote({ environmentId, setting: toHostSetting(result.settings, settingKey) })
         }
       } catch (error) {
-        toast.error(updateFailedMessage, { description: errorMessage(error) })
+        // Text rows write per keystroke; one toast per host and setting.
+        toast.error(updateFailedMessage, {
+          id: `host-setting:${environmentId}:${settingKey}`,
+          description: errorMessage(error)
+        })
       }
     }
   }
