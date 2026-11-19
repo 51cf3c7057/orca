@@ -1,5 +1,5 @@
 /** One rule for pressing a chat row (a bot's own row only opens; its chevron folds): it opens and unfolds; pressed again while it is the open
- *  one, it folds or unfolds. A double-click's second click does nothing, so it never opens then folds.
+ *  one, it flashes that chat and folds or unfolds. A double-click's second click does nothing, so it never opens then folds.
  *  A phone, whose chat covers the list, never passes `active`: there a press always opens. */
 export function pressFoldableRow(
   row: {
@@ -9,12 +9,17 @@ export function pressFoldableRow(
     open: () => boolean | void
     /** Null for a row with nothing to fold. */
     toggle: (() => void) | null
+    /** Marks the chat already on screen, so a press on its row visibly lands. */
+    highlight?: () => void
   },
   press: { detail: number; repeat?: boolean }
 ): void {
   // A held key repeats; it must not flicker the fold.
   if (press.detail > 1 || press.repeat) {
     return
+  }
+  if (row.active) {
+    row.highlight?.()
   }
   if (row.active && row.toggle) {
     row.toggle()

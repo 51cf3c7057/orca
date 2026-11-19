@@ -153,7 +153,7 @@ function BotSidebarChat({
 }): React.JSX.Element {
   const t = useTranslate()
   const { chat, foldable, open, lines, paging, steps } = view
-  const { active, toggle } = useBotChatPress(bot, chat.chatId)
+  const { active, toggle, highlight } = useBotChatPress(bot, chat.chatId)
   const title = chatTitle(t, chat)
   const label = useBotChatLabel(chat, title)
   const trailing = trailingText(view.trailing)
@@ -169,7 +169,8 @@ function BotSidebarChat({
             openBotSession(bot, chat.chatId)
           }
         },
-        toggle: foldable ? () => toggle(open) : null
+        toggle: foldable ? () => toggle(open) : null,
+        highlight
       },
       event
     )

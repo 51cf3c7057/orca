@@ -376,7 +376,7 @@ describe('BotSidebarEntry', () => {
     expect(lines()).toEqual([])
   })
 
-  it('folds the front chat from its sidebar row and opens a background chat', () => {
+  it('folds and flashes the front chat from its sidebar row and opens a background chat', () => {
     seed({ 'front-work': 'working', 'background-work': 'working' })
     const workspace = folderWorkspaceKey(home.id)
     const groupId = 'group-1'
@@ -423,6 +423,14 @@ describe('BotSidebarEntry', () => {
     }
     openBotSession.mockClear()
     vi.stubGlobal('api', { ui: { set: vi.fn().mockResolvedValue(undefined) } })
+    // The chats' panes on the right, as their overlays mount them.
+    const [frontPane, backgroundPane] = tabs.map(({ id }) => {
+      const pane = document.createElement('div')
+      pane.setAttribute('data-structured-agent-session-overlay-tab-id', id)
+      document.body.append(pane)
+      return pane
+    })
+    const flashed = (pane: HTMLElement): boolean => pane.classList.contains('pane-focus-rim-flash')
     try {
       renderEntry()
       const front = screen.getByRole('button', { name: /^front · Side chat/ })
@@ -432,9 +440,13 @@ describe('BotSidebarEntry', () => {
 
       fireEvent.click(front, { detail: 1 })
       expect(front.getAttribute('aria-expanded')).toBe('true')
+      // The press on the chat already in front flashes its pane, as other jumps to an open pane do.
+      expect(flashed(frontPane)).toBe(true)
+      frontPane.classList.remove('pane-focus-rim-flash')
       fireEvent.click(front, { detail: 2 })
       fireEvent.keyDown(front, { key: 'Enter', repeat: true })
       expect(front.getAttribute('aria-expanded')).toBe('true')
+      expect(flashed(frontPane)).toBe(false)
       fireEvent.click(front, { detail: 1 })
       expect(front.getAttribute('aria-expanded')).toBe('false')
       expect(openBotSession).not.toHaveBeenCalled()
@@ -442,7 +454,10 @@ describe('BotSidebarEntry', () => {
       fireEvent.click(background, { detail: 1 })
       expect(openBotSession).toHaveBeenCalledExactlyOnceWith(bot(), 'background')
       expect(background.getAttribute('aria-expanded')).toBe('true')
+      expect(flashed(backgroundPane)).toBe(false)
     } finally {
+      frontPane.remove()
+      backgroundPane.remove()
       vi.unstubAllGlobals()
     }
   })
