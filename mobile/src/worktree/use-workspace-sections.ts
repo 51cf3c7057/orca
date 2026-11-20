@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { isArchivedSectionKey } from '../../../src/shared/sidebar-list/sections/archived-section-rows'
 import { withoutProjectsListedElsewhere } from './project-sections/projects-listed-elsewhere'
 import { useMobileTranslation } from '../i18n/use-mobile-translation'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
@@ -42,6 +43,7 @@ export function useWorkspaceSections(args: {
   repoHostIdByRepoId: ReadonlyMap<string, ExecutionHostId>
   /** The stores the list spans, so a parent on another machine nests its children. */
   lineageStores?: MobileLineageStores
+  archiveRestoredWorkspaceKeys?: readonly string[]
 }): {
   sections: Section[]
   rawSections: Section[]
@@ -64,7 +66,8 @@ export function useWorkspaceSections(args: {
     collapsedGroups,
     workspaceStatuses,
     repoHostIdByRepoId,
-    lineageStores
+    lineageStores,
+    archiveRestoredWorkspaceKeys
   } = args
 
   const uniqueRepos = useMemo(
@@ -91,7 +94,8 @@ export function useWorkspaceSections(args: {
         undefined,
         showPinnedInGroups,
         repoHostIdByRepoId,
-        lineageStores
+        lineageStores,
+        archiveRestoredWorkspaceKeys && new Set(archiveRestoredWorkspaceKeys)
       ),
     [
       repoHostIdByRepoId,
@@ -106,6 +110,7 @@ export function useWorkspaceSections(args: {
       projectCatalog,
       workspaceStatuses,
       showPinnedInGroups,
+      archiveRestoredWorkspaceKeys,
       t
     ]
   )
@@ -119,7 +124,13 @@ export function useWorkspaceSections(args: {
     () =>
       rawSections.map((s) => ({
         ...s,
-        data: collapsedGroups.has(s.key) ? [] : s.data
+        data: isArchivedSectionKey(s.key)
+          ? collapsedGroups.has(s.key)
+            ? s.data
+            : []
+          : collapsedGroups.has(s.key)
+            ? []
+            : s.data
       })),
     [rawSections, collapsedGroups]
   )

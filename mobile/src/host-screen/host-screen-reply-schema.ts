@@ -142,6 +142,10 @@ export const hostViewSettingsSchema = z
       ),
       filterRepoIds: salvagedOptional('filterRepoIds', z.array(z.string())),
       collapsedGroups: salvagedOptional('collapsedGroups', z.array(z.string())),
+      archiveRestoredWorkspaceKeys: salvagedOptional(
+        'archiveRestoredWorkspaceKeys',
+        z.array(z.string())
+      ),
       workspaceStatuses: salvagedOptional(
         'workspaceStatuses',
         z.array(z.looseObject({ id: z.string(), label: z.string() }))

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Repo } from '../../repository/repo-types'
 import type { Worktree } from '../../worktree/types'
 import type { GroupHeaderRow, Row } from '../row-types'
-import { withArchivedSectionRows } from './archived-section-rows'
+import {
+  collapsedGroupKeysToRevealArchivedCard,
+  withArchivedSectionRows
+} from './archived-section-rows'
 
 function repo(id: string): Repo {
   return { id, path: `/repos/${id}`, displayName: id, badgeColor: '', addedAt: 0 }
@@ -105,6 +108,21 @@ describe('withArchivedSectionRows', () => {
       'repo:docs',
       'repo:docs:notes'
     ])
+  })
+
+  it('opens a folded Archived section and expands its project for reveal', () => {
+    expect(
+      collapsedGroupKeysToRevealArchivedCard({
+        collapsedGroups: new Set(['repo:app']),
+        projectKey: 'repo:app'
+      })
+    ).toEqual(['repo:app', 'archived-open:repo:app'])
+    expect(
+      collapsedGroupKeysToRevealArchivedCard({
+        collapsedGroups: new Set(['archived-open:repo:app']),
+        projectKey: 'repo:app'
+      })
+    ).toEqual([])
   })
 
   it('draws nothing under a collapsed project', () => {

@@ -1,4 +1,7 @@
-import { computeVisibleWorktrees } from './compute-visible-worktrees'
+import {
+  computeArchivedSidebarWorktrees,
+  computeVisibleWorktrees
+} from './compute-visible-worktrees'
 
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import '../controls/sidebar-filter-actions'
@@ -13,7 +16,10 @@ import {
 } from '../../../../../../shared/sidebar-list/sorting/smart-sort'
 import './visible-worktree-activity-inputs'
 import { buildVisibleWorktreeOptionsFromState } from './visible-worktree-options-from-state'
-import { createMergedArchiveIdentitiesSelector } from './sidebar-archived-worktrees'
+import {
+  createMergedArchiveIdentitiesSelector,
+  groupArchivedWorktreesByRepo
+} from './sidebar-archived-worktrees'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import { useAppStore } from '@/store'
 import { getIndexedAllWorktrees } from '@/store/slices/worktrees/listing/worktree-catalog-index'
@@ -51,8 +57,11 @@ export function getPublishedVisibleWorktreeShortcutTargets():
   return _publishedVisibleShortcutTargets
 }
 
-/** The unmounted list's visible rows in sidebar sort order, ranked per host copy like the mounted list. */
-function computeUnmountedVisibleWorktrees(): Worktree[] {
+/** The unmounted list's visible rows, plus the Archived sections an open fold would number. */
+function computeUnmountedSidebarWorktrees(): {
+  visible: Worktree[]
+  archivedByRepo: ReadonlyMap<string, readonly Worktree[]>
+} {
   const state = useAppStore.getState()
   const allWorktrees = getIndexedAllWorktrees(selectWorktreesByRepo(state)).filter(
     (w) => !w.isArchived
@@ -83,16 +92,24 @@ function computeUnmountedVisibleWorktrees(): Worktree[] {
 
   const visibleHostIds = getVisibleWorkspaceHostIdSet(state)
   const defaultHostId = getSettingsFocusedExecutionHostId(state.settings)
-  return computeVisibleWorktrees(selectWorktreesByRepo(state), sortedKeys, {
+  const worktreesByRepo = selectWorktreesByRepo(state)
+  const options = {
     ...buildVisibleWorktreeOptionsFromState(state, repoMap),
     sortedByHostIdentity: true,
-    // Shortcuts number only what the sidebar lists, so rows filed under Archived are skipped.
     archivedWorktreeIdentities: selectMergedArchiveIdentities(state)
-  }).filter(
+  }
+  const visible = computeVisibleWorktrees(worktreesByRepo, sortedKeys, options).filter(
     (worktree) =>
       !worktree.isArchived &&
       worktreeMatchesVisibleHost(worktree, visibleHostIds, repoMap, defaultHostId)
   )
+  const archivedByRepo =
+    state.groupBy === 'repo'
+      ? groupArchivedWorktreesByRepo(
+          computeArchivedSidebarWorktrees(worktreesByRepo, visible, options)
+        )
+      : new Map<string, readonly Worktree[]>()
+  return { visible, archivedByRepo }
 }
 
 export function getVisibleWorktreeIds(): string[] {
@@ -100,10 +117,9 @@ export function getVisibleWorktreeIds(): string[] {
     return _publishedVisibleIds
   }
   // Grouping, pinning and main-worktree hoisting must also govern shortcut numbering.
-  return computeRenderedSidebarWorktreeOrder(
-    useAppStore.getState(),
-    computeUnmountedVisibleWorktrees()
-  )
+  const state = useAppStore.getState()
+  const { visible, archivedByRepo } = computeUnmountedSidebarWorktrees()
+  return computeRenderedSidebarWorktreeOrder(state, visible, archivedByRepo)
 }
 
 export function getVisibleWorktreeShortcutTargets(): VisibleWorktreeShortcutTarget[] {
@@ -112,9 +128,8 @@ export function getVisibleWorktreeShortcutTargets(): VisibleWorktreeShortcutTarg
   }
   const state = useAppStore.getState()
   if (!_publishedVisibleIds) {
-    return toShortcutTargets(
-      computeRenderedSidebarWorktrees(state, computeUnmountedVisibleWorktrees())
-    )
+    const { visible, archivedByRepo } = computeUnmountedSidebarWorktrees()
+    return toShortcutTargets(computeRenderedSidebarWorktrees(state, visible, archivedByRepo))
   }
   const visibleIds = _publishedVisibleIds
   const visibleIdRank = new Map(visibleIds.map((id, index) => [id, index]))

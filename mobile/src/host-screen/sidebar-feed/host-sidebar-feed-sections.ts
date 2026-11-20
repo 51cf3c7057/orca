@@ -263,10 +263,19 @@ export function buildHostFeedSections(sources: HostFeedListSources): Section[] {
         })
         break
       }
+      case 'archived-section':
+        push({
+          ...hostSectionKeys(row.key, sectionHostId),
+          title: 'Archived',
+          count: row.count,
+          ...(row.repo ? { repo: row.repo } : {}),
+          ...(row.groupDepth ? { projectGroupDepth: row.groupDepth } : {}),
+          data: []
+        })
+        break
       // The desktop-only cards draw nothing on the phone.
       case 'imported-worktrees-card':
       case 'new-external-worktrees-inbox':
-      case 'archived-section':
         break
     }
   }

@@ -116,6 +116,7 @@ export function useWorktreeContextMenuModel({
   )
   // Closed menus skip the PR read; the open one offers Restore exactly when the row sits in Archived.
   const sidebarArchived = useAppStore((s) => menuOpen && isWorkspaceSidebarArchived(s, worktree))
+  const groupBy = useAppStore((s) => s.groupBy)
   // The menu offers what the card shows: unread when any agent result or the flag is unread.
   const showsUnread = useAppStore((s) =>
     menuOpen ? selectWorkspaceShowsUnread(s, worktree) : worktree.isUnread
@@ -341,8 +342,8 @@ export function useWorktreeContextMenuModel({
 
   return {
     ...commands,
-    // The main checkout and group folder workspaces stay in the active list.
-    canMoveToArchived: !worktree.isMainWorktree && !folderWorkspaceId,
+    // Other groupings have no Archived section, so the action would hide the card until project grouping is back.
+    canMoveToArchived: groupBy === 'repo' && !worktree.isMainWorktree && !folderWorkspaceId,
     sidebarArchived,
     showsUnread,
     activeContextWorktrees,

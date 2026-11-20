@@ -38,6 +38,11 @@ import {
 } from '../../../../../../shared/sidebar-list/hosts/host-filtering'
 import { selectWorkspaceBoardStatuses } from '@/store/workspaces/status/host-workspace-status-columns'
 import { indexHiddenProjects } from '../../../../../../shared/project/catalog/hidden-projects'
+import { createHostScopedRepoOf } from '../../../../../../shared/sidebar-list/feed/sidebar-feed-index'
+import {
+  placeholderRepoIdsCoveringArchivedProjects,
+  withArchivedSectionRows
+} from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
 
 const EMPTY_REPO_ID_SET: ReadonlySet<string> = Object.freeze(new Set<string>())
 const EMPTY_IMPORTED_BY_REPO: ReadonlyMap<string, ImportedWorktreesCardCandidate> = new Map()
@@ -47,17 +52,19 @@ const EMPTY_PENDING_CREATIONS: readonly PendingCreationRef[] = []
 /** Replay grouping, pins and collapse for unmounted-list shortcut order without reversing the visible-worktrees dependency. */
 export function computeRenderedSidebarWorktrees(
   state: AppState,
-  visibleWorktrees: readonly Worktree[]
+  visibleWorktrees: readonly Worktree[],
+  archivedWorktreesByRepo?: ReadonlyMap<string, readonly Worktree[]>
 ): Worktree[] {
   return getRenderedWorktreesInSidebarOrder(
-    computeRenderedSidebarRows(state, visibleWorktrees),
+    computeRenderedSidebarRows(state, visibleWorktrees, archivedWorktreesByRepo),
     getPinnedWorktreeDisplayPolicy(state.settings)
   )
 }
 
 export function computeRenderedSidebarRows(
   state: AppState,
-  visibleWorktrees: readonly Worktree[]
+  visibleWorktrees: readonly Worktree[],
+  archivedWorktreesByRepo: ReadonlyMap<string, readonly Worktree[]> = new Map()
 ): HostSectionRow[] {
   const defaultHostId = getSettingsFocusedExecutionHostId(state.settings)
   const pinnedDisplayPolicy = getPinnedWorktreeDisplayPolicy(state.settings)
@@ -74,7 +81,7 @@ export function computeRenderedSidebarRows(
   )
 
   const repoMap = getIndexedRepoMap(state.repos)
-  const rows = planSidebarRows({
+  const plannedRows = planSidebarRows({
     groupBy: state.groupBy,
     sortBy: state.sortBy,
     worktrees: [...visibleWorktrees],
@@ -93,7 +100,10 @@ export function computeRenderedSidebarRows(
       defaultHostId
     ),
     // Why empty: placeholder/imported/inbox/pending inputs never emit item or folder-workspace rows, the only two the order reads.
-    placeholderRepoIds: EMPTY_REPO_ID_SET,
+    placeholderRepoIds: placeholderRepoIdsCoveringArchivedProjects(
+      EMPTY_REPO_ID_SET,
+      archivedWorktreesByRepo.keys()
+    ),
     importedWorktreesByRepo: EMPTY_IMPORTED_BY_REPO,
     newExternalWorktreesInboxByRepo: EMPTY_INBOX_BY_REPO,
     pendingCreations: EMPTY_PENDING_CREATIONS,
@@ -110,6 +120,11 @@ export function computeRenderedSidebarRows(
     filterRepoIds: state.filterRepoIds,
     hiddenProjects: indexHiddenProjects(state.repos, defaultHostId)
   }).render(state.collapsedGroups)
+  const rows = withArchivedSectionRows(plannedRows, {
+    archivedWorktreesByRepo,
+    collapsedGroups: state.collapsedGroups,
+    repoOf: createHostScopedRepoOf(state.repos, repoMap)
+  })
 
   // Build the host registry only when sections may affect order; zero/one-host cases still safely no-op.
   const needsHostSections =
@@ -142,9 +157,14 @@ export function computeRenderedSidebarRows(
 
 export function computeRenderedSidebarWorktreeOrder(
   state: AppState,
-  visibleWorktrees: readonly Worktree[]
+  visibleWorktrees: readonly Worktree[],
+  archivedWorktreesByRepo?: ReadonlyMap<string, readonly Worktree[]>
 ): string[] {
   return Array.from(
-    new Set(computeRenderedSidebarWorktrees(state, visibleWorktrees).map((worktree) => worktree.id))
+    new Set(
+      computeRenderedSidebarWorktrees(state, visibleWorktrees, archivedWorktreesByRepo).map(
+        (worktree) => worktree.id
+      )
+    )
   )
 }

@@ -142,7 +142,8 @@ function useLegacyHostListSections({
     collapsedGroups,
     workspaceStatuses: state.view.workspaceStatuses,
     repoHostIdByRepoId: state.repoHostIdByRepoId,
-    lineageStores
+    lineageStores,
+    archiveRestoredWorkspaceKeys: state.view.archiveRestoredWorkspaceKeys
   })
   return { ...sectionsResult, collapsedGroups, projectOrderBy: projectCatalog.projectOrderBy }
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, type ReactElement } from 'react'
+import { isArchivedSectionKey } from '../../../../src/shared/sidebar-list/sections/archived-section-rows'
 import { Animated, Platform, RefreshControl, View } from 'react-native'
 import { isBotsListRow, useMobileBotsListParts } from '../../bots/use-mobile-bots-list-parts'
 import { AuthFailedBanner } from '../../components/host-connection/AuthFailedBanner'
@@ -124,6 +125,7 @@ export function HostWorkspaceList({
   const renderSectionHeader = useCallback(
     ({ section }: { section: Section }) => {
       const collapseKey = section.collapseKey ?? section.key
+      const openWhenPresent = isArchivedSectionKey(collapseKey)
       return (
         bots.header(section, collapsedGroups, pendingCollapseKeys, toggleCollapsed) ?? (
           <HostSectionHeader
@@ -133,7 +135,9 @@ export function HostWorkspaceList({
             projectGroupDepth={section.projectGroupDepth}
             pendingCreations={section.pendingCreations}
             collapseKey={collapseKey}
-            collapsed={collapsedGroups.has(collapseKey)}
+            collapsed={
+              openWhenPresent ? !collapsedGroups.has(collapseKey) : collapsedGroups.has(collapseKey)
+            }
             count={section.count ?? sectionCounts.get(section.key) ?? 0}
             pending={pendingCollapseKeys.has(collapseKey)}
             groupByRepo={groupBy === 'repo'}

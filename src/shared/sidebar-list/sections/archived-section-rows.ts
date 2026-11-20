@@ -49,6 +49,39 @@ function appendArchivedSection(
   }
 }
 
+/** Repo ids that still need a project header so their Archived section has a place to sit. */
+export function placeholderRepoIdsCoveringArchivedProjects(
+  placeholders: ReadonlySet<string>,
+  archivedRepoIds: Iterable<string>
+): Set<string> {
+  const next = new Set(placeholders)
+  for (const repoId of archivedRepoIds) {
+    next.add(repoId)
+  }
+  return next
+}
+
+/** Keys to toggle so reveal can scroll to a card filed under Archived.
+ *  The section stores who is open, the opposite of every other group. */
+export function collapsedGroupKeysToRevealArchivedCard(args: {
+  collapsedGroups: ReadonlySet<string>
+  projectKey: string
+  hostKey?: string
+}): string[] {
+  const keys: string[] = []
+  if (args.hostKey && args.collapsedGroups.has(args.hostKey)) {
+    keys.push(args.hostKey)
+  }
+  if (args.collapsedGroups.has(args.projectKey)) {
+    keys.push(args.projectKey)
+  }
+  const archivedKey = getArchivedSectionKey(args.projectKey)
+  if (!args.collapsedGroups.has(archivedKey)) {
+    keys.push(archivedKey)
+  }
+  return keys
+}
+
 /** Ends each expanded project's rows with its Archived section; a project's rows run to the next header. */
 export function withArchivedSectionRows(
   rows: Row[],

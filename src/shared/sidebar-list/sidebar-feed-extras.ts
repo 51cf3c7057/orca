@@ -10,4 +10,6 @@ export type SidebarFeedWindowExtras = {
   botListedWorktreeIdentities?: ReadonlySet<string>
   importedWorktreesByRepo?: ReadonlyMap<string, ImportedWorktreesCardCandidate>
   newExternalWorktreesInboxByRepo?: ReadonlyMap<string, NewExternalWorktreesInboxCandidate>
+  /** Phone lists: file merged and hand-archived workspaces under each project's Archived section. */
+  fileUnderArchived?: boolean
 }

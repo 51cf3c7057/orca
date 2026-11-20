@@ -54,4 +54,38 @@ describe('buildSections', () => {
 
     expect(sections.map((section) => section.key)).toEqual(['repo:repo-1'])
   })
+
+  it('files a merged workspace under Archived and lists a hand-archived one there too', () => {
+    const main = worktree({
+      isMainWorktree: true,
+      displayName: 'main',
+      branch: 'main',
+      worktreeId: 'repo-1::main'
+    })
+    const merged = worktree({
+      displayName: 'landed',
+      worktreeId: 'repo-1::landed',
+      linkedPR: { number: 4, state: 'merged' }
+    })
+    const archived = worktree({
+      displayName: 'old',
+      worktreeId: 'repo-1::old',
+      isArchived: true
+    })
+    const sections = buildSections(
+      [main, merged, archived],
+      'manual',
+      { ...NO_WORKSPACE_ROW_FILTERS },
+      '',
+      'repo',
+      new Set(),
+      catalogOf([['orca', 'repo-1']])
+    )
+    expect(sections.map((section) => section.key)).toEqual([
+      'repo:repo-1',
+      'archived-open:repo:repo-1'
+    ])
+    expect(sections[0]?.data.map((item) => item.row.displayName)).toEqual(['main'])
+    expect(sections[1]?.data.map((item) => item.row.displayName)).toEqual(['landed', 'old'])
+  })
 })

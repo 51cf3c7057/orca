@@ -104,13 +104,15 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     [repos]
   )
   const allRepoIds = useMemo(() => repos.map((r) => r.id), [repos])
+  const archivedWorktreesByRepo = args.archivedWorktreesByRepo ?? NO_ARCHIVED_WORKTREES
   const placeholderRepoIds = useEmptyProjectPlaceholderRepoIds({
     groupBy: args.groupBy,
     repos,
     visibleRepos: args.visibleReposForRows,
     visibleWorktrees: worktrees,
     filterRepoIds: args.filterRepoIds,
-    defaultHostId
+    defaultHostId,
+    archivedWorktreesByRepo
   })
 
   // Why: subscribe on a flat key array (useShallow) so progress ticks don't rebuild the whole row model.
@@ -227,7 +229,6 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         : effectiveCollapsedGroups,
     [effectiveCollapsedGroups, hostScopedGroups]
   )
-  const archivedWorktreesByRepo = args.archivedWorktreesByRepo ?? NO_ARCHIVED_WORKTREES
   const rows: Row[] = useMemo(
     () =>
       withArchivedSectionRows(rowPlan.render(rowCollapsedGroups), {

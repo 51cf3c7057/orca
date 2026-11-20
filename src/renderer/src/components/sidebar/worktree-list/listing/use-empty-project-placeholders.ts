@@ -4,6 +4,7 @@ import type { ExecutionHostId } from '../../../../../../shared/execution-host/ex
 import { indexHiddenProjects } from '../../../../../../shared/project/catalog/hidden-projects'
 import type { Repo } from '../../../../../../shared/repository/repo-types'
 import { getEmptyProjectPlaceholderRepoIds } from '../../../../../../shared/sidebar-list/catalog/empty-project-placeholder-repos'
+import { placeholderRepoIdsCoveringArchivedProjects } from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import type { Worktree } from '../../../../../../shared/worktree/types'
 import {
@@ -21,21 +22,27 @@ export function useEmptyProjectPlaceholderRepoIds(args: {
   visibleWorktrees: readonly Worktree[]
   filterRepoIds: readonly string[]
   defaultHostId: ExecutionHostId
+  /** Repos whose only sidebar rows are archived; they still need a header. */
+  archivedWorktreesByRepo?: ReadonlyMap<string, readonly unknown[]>
 }): Set<string> {
   const { groupBy, repos, visibleRepos, visibleWorktrees, filterRepoIds, defaultHostId } = args
   const worktreesByRepo = useAppStore((s) => selectWorktreesByRepo(s))
   const hiddenVmCheckouts = useSyncExternalStore(subscribeHiddenVmCheckouts, readHiddenVmCheckouts)
+  const archivedWorktreesByRepo = args.archivedWorktreesByRepo
   return useMemo(
     () =>
-      getEmptyProjectPlaceholderRepoIds({
-        groupBy,
-        repos: visibleRepos,
-        worktreesByRepo,
-        visibleWorktrees,
-        filterRepoIds,
-        hiddenProjects: indexHiddenProjects(repos, defaultHostId),
-        pendingVmRepoIds: hiddenVmCheckouts.repoIds
-      }),
+      placeholderRepoIdsCoveringArchivedProjects(
+        getEmptyProjectPlaceholderRepoIds({
+          groupBy,
+          repos: visibleRepos,
+          worktreesByRepo,
+          visibleWorktrees,
+          filterRepoIds,
+          hiddenProjects: indexHiddenProjects(repos, defaultHostId),
+          pendingVmRepoIds: hiddenVmCheckouts.repoIds
+        }),
+        archivedWorktreesByRepo?.keys() ?? []
+      ),
     [
       groupBy,
       repos,
@@ -44,7 +51,8 @@ export function useEmptyProjectPlaceholderRepoIds(args: {
       visibleWorktrees,
       filterRepoIds,
       defaultHostId,
-      hiddenVmCheckouts
+      hiddenVmCheckouts,
+      archivedWorktreesByRepo
     ]
   )
 }

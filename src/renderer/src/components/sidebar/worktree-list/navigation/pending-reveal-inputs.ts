@@ -15,9 +15,16 @@ import type { Repo } from '../../../../../../shared/repository/repo-types'
 import type { WorkspaceStatusDefinition, Worktree } from '../../../../../../shared/worktree/types'
 import type { WorktreeLineage } from '../../../../../../shared/worktree/lineage-types'
 import type { SidebarLineageParentIdentities } from '../../../../../../shared/sidebar-list/lineage/worktree-lineage-projection'
-import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
+import {
+  getWorktreeExecutionHostId,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host/execution-host'
 import type { RenderRow } from '../listing/render-row'
-import type { ProjectGroupingModel } from '../../../../../../shared/sidebar-list/sections/project-section-grouping'
+import {
+  buildProjectGroupingIndex,
+  getProjectGroupingForRepo,
+  type ProjectGroupingModel
+} from '../../../../../../shared/sidebar-list/sections/project-section-grouping'
 import type {
   PinnedWorktreeDisplayPolicy,
   WorktreeGroupBy
@@ -29,6 +36,8 @@ import {
   rowKeyMatchesRenderRow
 } from './render-row-lookup'
 import { getWorktreeRevealCollapsedGroupKeys } from './worktree-reveal-group-keys'
+import { collapsedGroupKeysToRevealArchivedCard } from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
+import { isSidebarArchived } from '../listing/sidebar-archived-worktrees'
 import { useAppStore } from '@/store'
 import { indexHiddenProjects } from '../../../../../../shared/project/catalog/hidden-projects'
 import { readSidebarWorkspaceOwner } from '../../sidebar-reveal-target-state'
@@ -109,6 +118,27 @@ export function expandGroupsForWorktreeReveal(
     ...args,
     worktree: targetWorktree,
     hostScopedGroups
+  })) {
+    args.toggleGroup(groupKey)
+  }
+  const state = useAppStore.getState()
+  if (!isSidebarArchived(targetWorktree, args.repoMap.get(targetWorktree.repoId), state)) {
+    return
+  }
+  const projectKey = getProjectGroupingForRepo(
+    targetWorktree.repoId,
+    args.repoMap,
+    args.projectGrouping ? buildProjectGroupingIndex(args.projectGrouping) : null
+  ).key
+  const hostId = getWorktreeExecutionHostId(
+    targetWorktree,
+    args.repoMap.get(targetWorktree.repoId),
+    args.defaultHostId
+  )
+  for (const groupKey of collapsedGroupKeysToRevealArchivedCard({
+    collapsedGroups: args.collapsedGroups,
+    projectKey,
+    hostKey: `host:${hostId}`
   })) {
     args.toggleGroup(groupKey)
   }

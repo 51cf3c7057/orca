@@ -36,17 +36,14 @@ import {
   filterReposForVisibleHosts,
   getVisibleSidebarHostIdSet
 } from '../hosts/host-filtering'
-import { deferHostSectionCollapse, scopeHostSectionCollapse } from '../hosts/host-section-collapse'
 import { orderHostSectionOptions } from '../hosts/host-section-order'
-import {
-  addHostSectionRows,
-  type HostSectionOption,
-  type HostSectionRow
-} from '../hosts/host-section-rows'
+import type { HostSectionOption, HostSectionRow } from '../hosts/host-section-rows'
 import type { PinnedWorktreeDisplayPolicy, Row, WorktreeGroupBy } from '../row-types'
 import type { SidebarFeedWindowExtras } from '../sidebar-feed-extras'
 import type { SidebarFeedDomains } from './sidebar-feed-domains'
 import { planSidebarRows } from '../sidebar-row-plan'
+import { coverArchivedRepoPlaceholders, feedArchivedFiling } from './sidebar-feed-archived'
+import { renderSidebarFeedRows } from './sidebar-feed-render'
 import type { FeedLineagePolicy } from './sidebar-feed-lineage-parents'
 import type { WorkspaceSortBy as SortBy } from '../../workspace-view/workspace-row-sort'
 import {
@@ -75,6 +72,8 @@ export type SidebarFeedView = {
   localHostLabel: string
   /** The desktop window's own saved host order, which it writes; a phone reads the host's. */
   workspaceHostOrder?: readonly ExecutionHostId[]
+  /** Host identities a Restore put back in the active list. */
+  archiveRestoredWorkspaceKeys?: readonly string[]
 }
 
 /** The catalog the feed does not carry: every host's repos (repo.list), groups and projects. */
@@ -102,6 +101,8 @@ export type SidebarFeedPlan = {
   visibleFolderWorkspaces: readonly FolderWorkspace[]
   orderedHostOptions: HostSectionOption[]
   hostScoped: boolean
+  archivedWorktreesByRepo: ReadonlyMap<string, readonly Worktree[]>
+  repoOf: SidebarFeedIndex['repoOf']
 }
 
 const NO_LINEAGE_MAP: Record<string, WorktreeLineage> = {}
@@ -140,6 +141,7 @@ export function planSidebarFeedRows(
   const lineageById = NO_LINEAGE_MAP
   const retained = new Set(domains.retention?.retainedIds)
   const rankByIdentity = new Map(rankedIdentities.map((identity, rank) => [identity, rank]))
+  const archivedFiling = feedArchivedFiling(extras, view, domains, allWorktrees)
   const factsOf = (worktree: Worktree) => byIdentity.get(getWorktreeHostIdentity(worktree))?.facts
   const pairedDeviceIdsByEnvironment = feedPairedDeviceIdsByEnvironment(domains)
   const hiddenProjects = indexHiddenProjects(repos, defaultHostId)
@@ -150,7 +152,7 @@ export function planSidebarFeedRows(
     rankOf: (worktree) => rankByIdentity.get(getWorktreeHostIdentity(worktree)),
     filters: view.filters,
     facts: {
-      isArchived: (worktree) => worktree.isArchived,
+      isArchived: archivedFiling.isArchived,
       ...hiddenProjectRowFacts(hiddenProjects),
       isFolderWorkspace: () => false,
       repoId: (worktree) => worktree.repoId,
@@ -212,6 +214,7 @@ export function planSidebarFeedRows(
     filterRepoIds: view.filters.filterRepoIds,
     hiddenProjects
   })
+  coverArchivedRepoPlaceholders(placeholderRepoIds, archivedFiling.byRepo)
   const plan = planSidebarRows({
     groupBy,
     sortBy: view.sortBy,
@@ -254,37 +257,14 @@ export function planSidebarFeedRows(
       normalizeExecutionHostOrder(view.workspaceHostOrder ?? domains.desktop?.workspaceHostOrder)
     ),
     hostScoped:
-      view.workspaceHostScope !== ALL_EXECUTION_HOSTS_SCOPE || view.visibleWorkspaceHostIds !== null
+      view.workspaceHostScope !== ALL_EXECUTION_HOSTS_SCOPE ||
+      view.visibleWorkspaceHostIds !== null,
+    archivedWorktreesByRepo: archivedFiling.byRepo,
+    repoOf: index.repoOf
   }
 }
 
-/** The planned rows under `collapsedGroups`, wrapped in host sections. */
-export function renderSidebarFeedRows(
-  planned: SidebarFeedPlan,
-  view: SidebarFeedView,
-  collapsedGroups: ReadonlySet<string>,
-  forceCollapseHosts = false
-): Pick<SidebarFeedRows, 'rows' | 'sectionRows'> {
-  const collapsed = new Set(collapsedGroups)
-  const rows = planned.plan.render(
-    planned.hostScoped ? deferHostSectionCollapse(collapsed) : collapsed
-  )
-  const sectioned = addHostSectionRows({
-    rows,
-    hostOptions: planned.orderedHostOptions,
-    workspaceHostScope: view.workspaceHostScope,
-    visibleWorkspaceHostIds: view.visibleWorkspaceHostIds,
-    defaultHostId: view.defaultHostId,
-    localHostLabel: view.localHostLabel,
-    collapsedHostKeys: collapsed,
-    forceCollapseHosts,
-    preferProjectGrouping: true
-  })
-  const sectionRows = planned.hostScoped
-    ? scopeHostSectionCollapse({ rows: sectioned, collapsedGroups: collapsed })
-    : sectioned
-  return { rows, sectionRows }
-}
+export { renderSidebarFeedRows }
 
 /** Build from published host inputs through shared filters/grouping without a clock; transient window overlays/cards stay outside. */
 export function buildSidebarFeedRows(
@@ -300,7 +280,7 @@ export function buildSidebarFeedRows(
     catalog,
     view,
     rankSidebarFeedWorktrees(index, view.sortBy),
-    extras
+    { ...extras, fileUnderArchived: true }
   )
   const { rows, sectionRows } = renderSidebarFeedRows(planned, view, view.collapsedGroups)
   const active = {

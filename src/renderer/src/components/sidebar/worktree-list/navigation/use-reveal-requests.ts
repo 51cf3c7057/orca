@@ -14,6 +14,7 @@ import { folderWorkspaceKey } from '../../../../../../shared/workspace/identity/
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import { getKnownSidebarWorktreeById } from './folder-reveal'
 import { readSidebarRevealTarget } from '../../sidebar-reveal-target-state'
+import { isWorkspaceSidebarArchived } from '../../workspace-actions/archive/workspace-sidebar-archive'
 
 function workspacePassesFilters(
   worktree: Worktree,
@@ -138,12 +139,15 @@ export function useSidebarRevealRequests(args: {
         worktrees,
         currentSidebarExecutionHostId
       )
-      if (!activeWorktree || activeWorktree.isArchived) {
+      if (!activeWorktree) {
         return
       }
+      // Filed under Archived, not hidden by a filter: opening the section reveals it.
+      const archived = isWorkspaceSidebarArchived(useAppStore.getState(), activeWorktree)
       // Collapsed groups hide rows without excluding their workspaces from the filter results.
       if (
         hasFilters &&
+        !archived &&
         !workspacePassesFilters(activeWorktree, visibleWorktrees, visibleFolderWorkspaces)
       ) {
         if (confirmationPending.current) {
