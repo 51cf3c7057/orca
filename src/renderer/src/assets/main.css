@@ -112,7 +112,8 @@
   --color-unread-inverse: var(--unread-inverse);
   --color-workspace-activity-waiting: var(--workspace-activity-waiting);
   --color-workspace-activity-working: var(--workspace-activity-working);
-  --color-workspace-activity-idle: var(--workspace-activity-idle);
+  --color-workspace-activity-merged: var(--workspace-activity-merged);
+  --color-workspace-activity-ready: var(--workspace-activity-ready);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -299,10 +300,11 @@
   --unread: var(--color-blue-500);
   /* The unread dot on an inverted surface (tips): blue-500 keeps 3:1 on both the near-black and near-white inverse. */
   --unread-inverse: var(--color-blue-500);
-  /* Workspace card tint ("Activity color"): the agent glyphs' needs-you and working hues, else violet. */
+  /* Workspace card tint ("Activity color"): the agent glyphs' needs-you, working and done hues; violet for a merged PR. */
   --workspace-activity-waiting: var(--agent-question);
   --workspace-activity-working: var(--agent-working);
-  --workspace-activity-idle: var(--color-violet-500);
+  --workspace-activity-merged: var(--color-violet-500);
+  --workspace-activity-ready: var(--color-emerald-500);
   /* Keep PR-state hues stable across theme changes. */
   --workspace-status-done: #c7a594;
   --workspace-status-review: #16a34a;
@@ -428,7 +430,8 @@
   --unread: var(--color-blue-400);
   --workspace-activity-waiting: var(--agent-question);
   --workspace-activity-working: var(--agent-working);
-  --workspace-activity-idle: var(--color-violet-400);
+  --workspace-activity-merged: var(--color-violet-400);
+  --workspace-activity-ready: var(--color-emerald-500);
   --workspace-status-done: #c7a594;
   --workspace-status-review: #16a34a;
   --workspace-status-progress: #d4a300;

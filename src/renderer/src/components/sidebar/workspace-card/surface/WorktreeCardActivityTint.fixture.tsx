@@ -12,7 +12,7 @@ import {
 } from '../../worktree-card-slot-fixture-seeds'
 import WorktreeCard from './WorktreeCard'
 
-// "Activity color": orange when an agent needs you, yellow while one works, purple otherwise.
+// "Activity color": orange when an agent needs you, yellow while one works, purple for a merged PR, green otherwise.
 const now = Date.now()
 const SEEDS: WorkspaceSeed[] = [
   {
@@ -34,6 +34,13 @@ const SEEDS: WorkspaceSeed[] = [
     lastActivityMinutesAgo: 8
   },
   { id: 'at-empty', name: 'no-agents', agents: [], lastActivityMinutesAgo: 60 },
+  {
+    id: 'at-merged',
+    name: 'merged-pr',
+    agents: [],
+    pr: { number: 4821, state: 'merged' },
+    lastActivityMinutesAgo: 90
+  },
   {
     id: 'at-selected',
     name: 'selected-and-working',
@@ -135,6 +142,7 @@ const render = (): React.JSX.Element => (
     <Card id="at-working" />
     <Card id="at-done" />
     <Card id="at-empty" />
+    <Card id="at-merged" />
     <Card id="at-selected" isActive />
     <Card id="at-parent" descendantIds={['at-child']} />
     <Card id="at-failed-working" />

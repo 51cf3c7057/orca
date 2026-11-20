@@ -6,21 +6,25 @@ import { useWorktreeActivityStatus } from '../activity/use-worktree-activity-sta
 import type { SlotException } from '../slots/worktree-card-slot-signal'
 import { useWorktreeCardLineageExceptions } from './worktree-card-title-status'
 
-type ActivityTint = 'waiting' | 'working' | 'idle'
+type ActivityTint = 'waiting' | 'working' | 'merged' | 'ready'
 
-/** Needs you, then any agent still working (a failed one never hides it), then quiet. */
+/** Needs you, then any agent still working (a failed one never hides it), then a merged PR, then ready for input. */
 export function activityTint(
   own: WorktreeStatus,
-  collapsedLineage: readonly SlotException[]
+  collapsedLineage: readonly SlotException[],
+  prMerged: boolean
 ): ActivityTint {
   if (own === 'permission' || collapsedLineage.some((e) => e.kind === 'needs')) {
     return 'waiting'
   }
-  return own === 'working' ||
+  if (
+    own === 'working' ||
     own === 'monitoring' ||
     collapsedLineage.some((e) => e.kind === 'working')
-    ? 'working'
-    : 'idle'
+  ) {
+    return 'working'
+  }
+  return prMerged ? 'merged' : 'ready'
 }
 
 const TINT_CLASS_NAMES: Record<ActivityTint, string> = {
@@ -28,7 +32,10 @@ const TINT_CLASS_NAMES: Record<ActivityTint, string> = {
     'border-workspace-activity-waiting bg-workspace-activity-waiting/10 dark:bg-workspace-activity-waiting/15',
   working:
     'border-workspace-activity-working bg-workspace-activity-working/10 dark:bg-workspace-activity-working/15',
-  idle: 'border-workspace-activity-idle bg-workspace-activity-idle/[0.07] dark:bg-workspace-activity-idle/10'
+  merged:
+    'border-workspace-activity-merged bg-workspace-activity-merged/[0.07] dark:bg-workspace-activity-merged/10',
+  ready:
+    'border-workspace-activity-ready bg-workspace-activity-ready/[0.07] dark:bg-workspace-activity-ready/10'
 }
 
 /**
@@ -37,16 +44,19 @@ const TINT_CLASS_NAMES: Record<ActivityTint, string> = {
  */
 export function WorktreeCardActivityTint({
   worktreeId,
+  prMerged,
   surfacePaddingLeft,
   hasExpandedChildren
 }: {
   worktreeId: string
+  prMerged: boolean
   surfacePaddingLeft: string | undefined
   hasExpandedChildren: boolean
 }): React.JSX.Element {
   const tint = activityTint(
     useWorktreeActivityStatus(worktreeId, { ignoreFailed: true }),
-    useWorktreeCardLineageExceptions()
+    useWorktreeCardLineageExceptions(),
+    prMerged
   )
   return (
     <span

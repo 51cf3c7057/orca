@@ -71,6 +71,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
     <div className="relative">
       <WorktreeCardActivityTint
         worktreeId={worktree.id}
+        prMerged={card.prDisplay?.state === 'merged'}
         surfacePaddingLeft={cardStyle?.paddingLeft?.toString()}
         hasExpandedChildren={Boolean(lineageChildren)}
       />
