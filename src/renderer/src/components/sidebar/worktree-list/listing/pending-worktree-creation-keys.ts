@@ -9,7 +9,27 @@ export const EMPTY_PENDING_WORKTREE_CREATION_KEYS: string[] = Object.freeze(
 
 const keysBySource = new WeakMap<object, { visible: string[]; hidden: string[] }>()
 
-/** Cache creationId/repoId keys per slice; split on the first space because UUID creation IDs cannot contain spaces. */
+// NUL cannot occur in a repo id or a path, so it ends the repo id unambiguously.
+const WORKTREE_ID_SEPARATOR = '\0'
+
+/** Split on the first space because UUID creation IDs cannot contain spaces. */
+export function parsePendingWorktreeCreationKey(key: string): {
+  creationId: string
+  repoId: string
+  worktreeId?: string
+} {
+  const space = key.indexOf(' ')
+  const end = key.indexOf(WORKTREE_ID_SEPARATOR, space)
+  return end === -1
+    ? { creationId: key.slice(0, space), repoId: key.slice(space + 1) }
+    : {
+        creationId: key.slice(0, space),
+        repoId: key.slice(space + 1, end),
+        worktreeId: key.slice(end + 1)
+      }
+}
+
+/** Cache creationId/repoId keys per slice; a creation still handing off its created worktree names it too. */
 export function selectPendingWorktreeCreationKeys(
   pendingWorktreeCreations: AppState['pendingWorktreeCreations'] | undefined,
   visibility: 'visible' | 'hidden' = 'visible'
@@ -23,8 +43,12 @@ export function selectPendingWorktreeCreationKeys(
   }
   const keys: { visible: string[]; hidden: string[] } = { visible: [], hidden: [] }
   for (const creation of Object.values(pendingWorktreeCreations)) {
+    const key = `${creation.creationId} ${creation.request.repoId}`
     keys[pendingWorktreeCreationIsVisible(creation) ? 'visible' : 'hidden'].push(
-      `${creation.creationId} ${creation.request.repoId}`
+      // A failed handoff keeps its own row: that row holds the retry.
+      creation.status === 'creating' && creation.worktreeId
+        ? `${key}${WORKTREE_ID_SEPARATOR}${creation.worktreeId}`
+        : key
     )
   }
   if (keys.visible.length === 0) {

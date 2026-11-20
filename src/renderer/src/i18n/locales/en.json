@@ -23507,6 +23507,15 @@
     },
     "newWorkspace": {
       "agentOptional": "Agent [Optional]",
+      "agentIssue": {
+        "label": "GitHub issue for the agent",
+        "placeholder": "Choose an open issue",
+        "searchPlaceholder": "Search open issues...",
+        "searching": "Searching issues...",
+        "empty": "No open issues found.",
+        "clear": "Remove the issue",
+        "help": "Links the worktree to this issue. The agent opens with the issue link as an unsent message."
+      },
       "createDescription": "Choose the project and workspace name. Select an agent if you want to start one.",
       "setupCheckFailed": "Could not check setup configuration. Try again.",
       "directSetup": {

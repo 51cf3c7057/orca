@@ -39,7 +39,10 @@ import {
   sidebarHostSemantics,
   createSidebarHostLabelsSelector
 } from '../controls/sidebar-host-options'
-import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
+import {
+  parsePendingWorktreeCreationKey,
+  selectPendingWorktreeCreationKeys
+} from './pending-worktree-creation-keys'
 import { selectEphemeralVmHostLifecycles } from '@/store/slices/ephemeral-vm/ephemeral-vm-lifecycle'
 import { withArchivedSectionRows } from '../../../../../../shared/sidebar-list/sections/archived-section-rows'
 import type { Worktree } from '../../../../../../shared/worktree/types'
@@ -121,14 +124,11 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
   )
   const pendingCreations = useMemo(
     () =>
-      pendingCreationKeys.map((key) => {
-        const separator = key.indexOf(' ')
-        return {
-          creationId: key.slice(0, separator),
-          repoId: key.slice(separator + 1)
-        }
-      }),
-    [pendingCreationKeys]
+      pendingCreationKeys
+        .map(parsePendingWorktreeCreationKey)
+        // The created workspace is listed before its creation hands off; its row stands for both.
+        .filter(({ worktreeId }) => worktreeId === undefined || !args.worktreeMap.has(worktreeId)),
+    [pendingCreationKeys, args.worktreeMap]
   )
   const hostLabelOverrides = useMemo(
     () => getHostDisplayLabelOverrides(args.settings),
