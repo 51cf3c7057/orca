@@ -50,7 +50,6 @@ function BranchReusePreview({
           setBranchName(undefined)
         }}
         onOpenSelectedBranchWorkspace={busy && reuse ? () => {} : undefined}
-        baseBranch={baseBranch}
         onNamePlainEnter={() => {}}
       />
     </div>

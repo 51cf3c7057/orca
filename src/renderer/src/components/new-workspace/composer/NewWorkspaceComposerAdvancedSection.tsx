@@ -55,6 +55,7 @@ type NewWorkspaceComposerAdvancedSectionProps = Pick<
   | 'onSparseSelectPreset'
   | 'canUseSparseCheckout'
 > & {
+  nameSection?: React.ReactNode
   sparseEditing?: boolean
   onSparseEditingChange: (editing: boolean) => void
   branchNameInputId: string
@@ -65,6 +66,7 @@ export function NewWorkspaceComposerAdvancedSection({
   advancedOpen,
   setupChoiceRevealRequest,
   onSetupChoiceRevealed,
+  nameSection,
   sparseEditing,
   onSparseEditingChange,
   smartNameSelection,
@@ -153,6 +155,8 @@ export function NewWorkspaceComposerAdvancedSection({
               : '-translate-y-1 opacity-0 delay-0'
           )}
         >
+          {nameSection}
+
           {smartNameSelection ? (
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
