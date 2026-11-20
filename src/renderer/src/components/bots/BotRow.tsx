@@ -43,6 +43,7 @@ import { useDeleteBot } from './use-delete-bot'
 import { setBotPurpose } from './bot-purpose-cache'
 import { botSidebarEntryKey } from './bot-sidebar-entry-keys'
 import { NewBotDialog } from './NewBotDialog'
+import { useBotCanClone } from './NewBotCloneParts'
 
 type BotRowFold = {
   folded: boolean
@@ -108,6 +109,7 @@ export function BotRow({
   }
   const handleDelete = useDeleteBot(bot)
   const [cloning, setCloning] = useState(false)
+  const canClone = useBotCanClone(bot.hostId)
 
   return (
     <>
@@ -178,10 +180,12 @@ export function BotRow({
               <Settings className="size-3.5" />
               {t('bots.row.settings', 'Bot settings…')}
             </ContextMenuItem>
-            <ContextMenuItem disabled={offline} onSelect={() => setCloning(true)}>
-              <CopyPlus className="size-3.5" />
-              {t('bots.row.clone', 'Clone bot…')}
-            </ContextMenuItem>
+            {canClone ? (
+              <ContextMenuItem disabled={offline} onSelect={() => setCloning(true)}>
+                <CopyPlus className="size-3.5" />
+                {t('bots.row.clone', 'Clone bot…')}
+              </ContextMenuItem>
+            ) : null}
             <ContextMenuItem
               disabled={offline}
               onSelect={() => run(updateBot(bot, { paused: !bot.paused }))}

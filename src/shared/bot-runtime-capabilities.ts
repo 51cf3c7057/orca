@@ -46,6 +46,10 @@ export const BOTS_AVATAR_COLOR_RUNTIME_CAPABILITY = 'bots.avatar-color.v1' as co
 // `answered: true`. An older host has no answers, so a client shows its comment box instead of the card.
 export const BOTS_ITEM_ANSWERS_RUNTIME_CAPABILITY = 'bots.item-answers.v1' as const
 
+// Host clones a bot (bots.create `cloneFrom`): its traits, none of its work. An older host ignores the
+// field and makes an empty bot, so a client offers Clone bot only where this is advertised.
+export const BOTS_CLONE_RUNTIME_CAPABILITY = 'bots.clone.v1' as const
+
 export const BOT_RUNTIME_CAPABILITIES = [
   BOTS_GROUPS_RUNTIME_CAPABILITY,
   BOTS_MOBILE_RUNTIME_CAPABILITY,
@@ -59,5 +63,6 @@ export const BOT_RUNTIME_CAPABILITIES = [
   BOTS_ITEM_COMMENT_REQUEST_ID_RUNTIME_CAPABILITY,
   BOTS_SESSION_LINKS_RUNTIME_CAPABILITY,
   BOTS_AVATAR_COLOR_RUNTIME_CAPABILITY,
-  BOTS_ITEM_ANSWERS_RUNTIME_CAPABILITY
+  BOTS_ITEM_ANSWERS_RUNTIME_CAPABILITY,
+  BOTS_CLONE_RUNTIME_CAPABILITY
 ] as const

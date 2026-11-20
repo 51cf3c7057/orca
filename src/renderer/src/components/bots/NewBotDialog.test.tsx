@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { parseBotAvatar } from '../../../../shared/bot-avatar'
@@ -54,6 +54,8 @@ vi.mock('./BotAgentLaunchPicker', () => ({
 }))
 
 import { NewBotDialog } from './NewBotDialog'
+import { useBotCanClone } from './NewBotCloneParts'
+import { useAppStore } from '@/store'
 
 afterEach(() => {
   cleanup()
@@ -402,5 +404,25 @@ describe('NewBotDialog clone mode', () => {
       permissionMode: 'full-access'
     })
     expect(params).not.toHaveProperty('seed')
+  })
+})
+
+describe('Clone bot in a bot’s menus', () => {
+  afterEach(() => useAppStore.setState(useAppStore.getInitialState(), true))
+
+  it('is offered on this computer and a paired one that can clone, not on an older paired one', () => {
+    useAppStore.setState((state) => ({
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: botHostHas reads only status.capabilities from these partial status fixtures.
+      runtimeStatusByEnvironmentId: new Map([
+        ['harbor-old', { status: { capabilities: ['bots.create.v1', 'bots.templates.v2'] } }],
+        ['harbor-new', { status: { capabilities: ['bots.create.v1', 'bots.clone.v1'] } }]
+      ]) as unknown as typeof state.runtimeStatusByEnvironmentId
+    }))
+    const offered = (hostId: 'local' | `runtime:${string}`): boolean =>
+      renderHook(() => useBotCanClone(hostId)).result.current
+
+    expect(offered('local')).toBe(true)
+    expect(offered('runtime:harbor-new')).toBe(true)
+    expect(offered('runtime:harbor-old')).toBe(false)
   })
 })
