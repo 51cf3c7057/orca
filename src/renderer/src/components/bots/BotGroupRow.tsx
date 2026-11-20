@@ -88,6 +88,7 @@ export function BotGroupRow({
         }
       }}
       age={botRowLineAge(line, now)}
+      idle={status === null}
       line={<BotRowLineView line={line} unread={home.isUnread} now={now} />}
       hoverDetails={() => (
         <BotGroupHoverDetails
