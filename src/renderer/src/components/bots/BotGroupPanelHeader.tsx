@@ -17,7 +17,7 @@ import { useAppStore } from '@/store'
 import { selectFolderWorkspaceOnHost } from '@/store/folder-workspaces/folder-workspace-record-index'
 import type { Bot } from '../../../../shared/bot-types'
 import type { BotGroup } from '../../../../shared/bots/bot-group'
-import { BOT_GROUP_FACE_SLOT, botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
+import { botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
 import { BotAvatar } from './BotAvatar'
 import { BotGroupFaces } from './BotGroupFaces'
 import { BotGroupMembersDialog } from './BotGroupMembersDialog'
@@ -25,7 +25,7 @@ import { botQuietLine } from './BotPanelHeader'
 import { BotRowLineText, useBotRowLine } from './BotRowActivityLine'
 import { useBotGroupDelete } from './use-bot-group-delete'
 
-/** The header's picture slot, a bot header's `size-9`. */
+/** The header picture's height, a bot header's `size-9`; the button takes the picture's width. */
 const PICTURE = 36
 /** Members the menu lists before it scrolls. */
 const MENU_ROWS = 6
@@ -140,13 +140,10 @@ export function BotGroupPanelHeader({
               <button
                 type="button"
                 aria-label={membersLabel}
-                className="relative size-9 shrink-0 rounded-[9px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:ring-1 data-[state=open]:ring-ring"
+                className="relative h-9 shrink-0 rounded-[9px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:ring-1 data-[state=open]:ring-ring"
               >
                 {members.length > 0 ? (
-                  <BotGroupFaces
-                    faces={botGroupFaces(members, (bot) => bot.id, PICTURE / BOT_GROUP_FACE_SLOT)}
-                    className="size-9"
-                  />
+                  <BotGroupFaces faces={botGroupFaces(members, (bot) => bot.id)} slot={PICTURE} />
                 ) : (
                   <span className="flex size-9 items-center justify-center rounded-full border border-dashed border-input text-muted-foreground">
                     <Users className="size-4" />
