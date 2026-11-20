@@ -40,14 +40,15 @@ function ComposerPreview({
   const [name, setName] = useState('')
   const [baseBranch, setBaseBranch] = useState<string | undefined>()
   const [note, setNote] = useState('')
+  const [linked, setLinked] = useState(source)
   return (
     <div className="rounded-xl border border-border bg-background p-4">
       <h1 className="text-base font-semibold">Create worktree</h1>
       <NewWorkspaceComposerCard
         quickAgent={null}
         onQuickAgentChange={() => {}}
-        // No eligible repos: the name field then skips source searches that need a paired server.
         eligibleRepos={[]}
+        selectedRepo={repo}
         repoId={repo.id}
         projectOptions={projects}
         selectedProjectId="orca"
@@ -64,12 +65,14 @@ function ComposerPreview({
         onBranchNameOverrideChange={() => {}}
         baseBranch={baseBranch}
         onBaseBranchChange={setBaseBranch}
-        onSmartGitHubItemSelect={() => {}}
+        onSmartGitHubItemSelect={(item) =>
+          setLinked({ kind: 'github-issue', label: `#${item.number} ${item.title}`, url: item.url })
+        }
         onSmartGitLabItemSelect={() => {}}
         onSmartBranchSelect={() => {}}
         onSmartLinearIssueSelect={() => {}}
-        smartNameSelection={source}
-        onClearSmartNameSelection={() => {}}
+        smartNameSelection={linked}
+        onClearSmartNameSelection={() => setLinked(null)}
         canReuseSelectedBranch={false}
         reuseSelectedBranch={false}
         onReuseSelectedBranchChange={() => {}}
@@ -110,9 +113,29 @@ function ComposerPreview({
   )
 }
 
+function openIssue(number: number, title: string) {
+  return {
+    id: `issue-${number}`,
+    type: 'issue' as const,
+    number,
+    title,
+    state: 'open' as const,
+    url: `https://github.com/example/orca/issues/${number}`,
+    labels: [],
+    updatedAt: '2026-11-20T10:00:00Z',
+    author: null,
+    repoId: repo.id
+  }
+}
+const openIssues = [
+  openIssue(128, 'Sidebar tint is too strong in the light theme'),
+  openIssue(131, 'Archived section loses its fold state after restart'),
+  openIssue(137, 'Create worktree: remember the last base branch')
+]
+
 const base = {
   width: 520,
-  store: { repos: [repo] },
+  store: { repos: [repo], fetchWorkItems: async () => openIssues },
   setup: () => {
     window.api.repos.getBaseRefDefault = async () => ({
       defaultBaseRef: 'origin/main',
@@ -135,3 +158,32 @@ export const openedFromPullRequest = defineFixture({
   )
 })
 export const narrow = defineFixture({ ...base, width: 340, render: () => <ComposerPreview /> })
+
+async function openIssueMenu(frame: HTMLElement): Promise<void> {
+  frame.querySelector<HTMLButtonElement>('button[aria-label^="GitHub issue"]')?.click()
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Issue fixture did not load')), 5000)
+    const check = (): void => {
+      if (document.querySelectorAll('[cmdk-item]').length >= openIssues.length) {
+        clearTimeout(timeout)
+        resolve()
+      } else {
+        requestAnimationFrame(check)
+      }
+    }
+    check()
+  })
+}
+
+const withIssues = {
+  ...base,
+  render: () => <ComposerPreview initialAdvancedOpen />
+}
+export const agentIssueMenu = defineFixture({ ...withIssues, interact: openIssueMenu })
+export const agentIssueChosen = defineFixture({
+  ...withIssues,
+  interact: async (frame) => {
+    await openIssueMenu(frame)
+    document.querySelector<HTMLElement>('[cmdk-item]')?.click()
+  }
+})
