@@ -28,6 +28,7 @@ import { structuredAgentSessionTabId } from '../../../../shared/agent-session/vi
 import { openAgentSessionHistoryModal } from '../right-sidebar/ai-vault/panel/agent-session-history-modal'
 import { BotChatStatusSlot, useBotChatLabel } from './BotChatOriginIcon'
 import { BotChatPaging, FOLD_TOGGLE_CLASS } from './BotChatRowControls'
+import { BotChatRenameMenu, BotChatRenameTitle, useBotChatRename } from './BotChatRenameMenu'
 import { openBotAutomation } from './bot-automation-open'
 import { revealWorkerPane } from '@/lib/open-orchestration-worker'
 import { parseExecutionHostId } from '../../../../shared/execution-host/execution-host'
@@ -195,6 +196,7 @@ export function BotChatTreeGroup({
   const title = chat.title || t('bots.chats.untitled', 'New chat')
   const chatName = [source, title].filter(Boolean).join(' · ')
   const label = useBotChatLabel(chat, title)
+  const rename = useBotChatRename(bot, chat)
   const toggleFold = (): void => {
     if (!open && read) {
       loadMore(chat.chatId)
@@ -216,68 +218,84 @@ export function BotChatTreeGroup({
   }
   return (
     <div className="flex flex-col">
-      <div className="group/bot-chat relative flex w-full min-w-0 items-start gap-1 rounded-md py-1.5 pr-2 pl-0.5 hover:bg-accent">
-        <button
-          type="button"
-          aria-label={[label, chat.unread ? t('bots.chats.unread', 'Unread') : null]
-            .filter(Boolean)
-            .join(' · ')}
-          className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          onClick={pressRow}
-          // A held key repeats its click; it must not open the chat again and again.
-          onKeyDown={(event) => {
-            if (event.repeat) {
-              event.preventDefault()
-            }
-          }}
-        />
-        <span className="flex h-5 w-3.5 shrink-0 items-center justify-center">
-          {foldable ? (
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={
-                open
-                  ? t('bots.chats.fold', 'Fold {{name}}', { name: title })
-                  : t('bots.chats.unfold', 'Unfold {{name}}', { name: title })
+      <BotChatRenameMenu rename={rename}>
+        <div className="group/bot-chat relative flex w-full min-w-0 items-start gap-1 rounded-md py-1.5 pr-2 pl-0.5 hover:bg-accent">
+          <button
+            type="button"
+            aria-label={[label, chat.unread ? t('bots.chats.unread', 'Unread') : null]
+              .filter(Boolean)
+              .join(' · ')}
+            className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onClick={pressRow}
+            // A held key repeats its click; it must not open the chat again and again.
+            onKeyDown={(event) => {
+              if (event.repeat) {
+                event.preventDefault()
               }
-              className={cn('relative size-3.5', FOLD_TOGGLE_CLASS)}
-              onClick={toggleFold}
-            >
-              <ChevronRight className={cn('size-3', open && 'rotate-90')} />
-            </button>
-          ) : null}
-        </span>
-        <BotChatStatusSlot
-          chat={chat}
-          stop={stopIndex.bySession.get(chat.chatId) ?? null}
-          className="h-5 w-4"
-          iconClassName="size-3.5"
-          onClick={pressRow}
-        />
-        <span className="min-w-0 flex-1 pl-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span
-              className={cn(
-                'min-w-0 truncate text-[13px] font-medium text-foreground',
-                chat.unread && 'font-semibold'
-              )}
-            >
-              {title}
-            </span>
-            {chat.unseen ? (
-              <span className="shrink-0 rounded border border-input px-1 text-[10px] leading-[14px] font-semibold text-foreground">
-                {t('bots.chats.newTag', 'New')}
-              </span>
+            }}
+          />
+          <span className="flex h-5 w-3.5 shrink-0 items-center justify-center">
+            {foldable ? (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-label={
+                  open
+                    ? t('bots.chats.fold', 'Fold {{name}}', { name: title })
+                    : t('bots.chats.unfold', 'Unfold {{name}}', { name: title })
+                }
+                className={cn('relative size-3.5', FOLD_TOGGLE_CLASS)}
+                onClick={toggleFold}
+              >
+                <ChevronRight className={cn('size-3', open && 'rotate-90')} />
+              </button>
             ) : null}
-            <span className="flex-1" />
-            <ChatRowMeta chat={chat} />
           </span>
-          <span className="block truncate text-2xs text-muted-foreground">
-            <BotChatLine bot={bot} chat={chat} folded={false} />
+          <BotChatStatusSlot
+            chat={chat}
+            stop={stopIndex.bySession.get(chat.chatId) ?? null}
+            className="h-5 w-4"
+            iconClassName="size-3.5"
+            onClick={pressRow}
+          />
+          <span className="min-w-0 flex-1 pl-1">
+            <span className="flex min-w-0 items-center gap-1.5">
+              {rename ? (
+                // Above the row's button so a double-click reaches the name; a single click still opens.
+                <span className="relative flex min-w-0" onClick={pressRow}>
+                  <BotChatRenameTitle
+                    rename={rename}
+                    title={title}
+                    className={cn(
+                      'min-w-0 truncate text-[13px] font-medium text-foreground',
+                      chat.unread && 'font-semibold'
+                    )}
+                  />
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    'min-w-0 truncate text-[13px] font-medium text-foreground',
+                    chat.unread && 'font-semibold'
+                  )}
+                >
+                  {title}
+                </span>
+              )}
+              {chat.unseen ? (
+                <span className="shrink-0 rounded border border-input px-1 text-[10px] leading-[14px] font-semibold text-foreground">
+                  {t('bots.chats.newTag', 'New')}
+                </span>
+              ) : null}
+              <span className="flex-1" />
+              <ChatRowMeta chat={chat} />
+            </span>
+            <span className="block truncate text-2xs text-muted-foreground">
+              <BotChatLine bot={bot} chat={chat} folded={false} />
+            </span>
           </span>
-        </span>
-      </div>
+        </div>
+      </BotChatRenameMenu>
       {open ? (
         <div className="mb-1 ml-6 flex flex-col @max-[240px]:ml-3.5">
           {workers.map((worker) => (

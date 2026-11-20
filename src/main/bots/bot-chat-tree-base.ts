@@ -10,7 +10,7 @@ import type { Automation } from '../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../shared/automations/history/automation-run'
 import type { Bot } from '../../shared/bot-types'
 import { botOfHomeWorkspace } from '../../shared/bots/bot-homes'
-import type { BotChatOrigin } from '../../shared/bots/bot-chat-tree'
+import { botChatIds, type BotChatOrigin } from '../../shared/bots/bot-chat-tree'
 import {
   HOME_CHAT_TITLE,
   type BotChatFacts,
@@ -103,6 +103,8 @@ export function botChatRecordShown(record: AgentSessionConversationView): string
 /** A chat as its records say it, before live status, tabs and read state. */
 export type BotChatBaseChat = {
   chatId: string
+  /** Set only once /clear has moved the chat past `chatId`. */
+  sessionId?: string
   home: boolean
   /** Its own name, else its origin's, else the provider's default; a tab's title wins over it. */
   title: string
@@ -157,7 +159,7 @@ export function botChatBaseChat(
   const origin = row.home ? { origin: 'home' as const } : build.originBySessionId.get(row.id)
   const preview = row.lastSaid ?? row.lastAsked
   return {
-    chatId: row.id,
+    ...botChatIds(row.id, record.sessionId),
     home: row.home,
     title: row.home
       ? HOME_CHAT_TITLE
@@ -309,7 +311,7 @@ export function overlayBotChats(
     ...shown.map((chat): BotChatFacts => {
       const status = live.rowByPaneKey.get(chat.paneKey)
       return {
-        chatId: chat.chatId,
+        ...botChatIds(chat.chatId, chat.sessionId),
         title: chat.home ? chat.title : live.tabTitles.get(chat.chatId) || chat.title,
         origin: chat.origin,
         ...(chat.originLabel ? { originLabel: chat.originLabel } : {}),

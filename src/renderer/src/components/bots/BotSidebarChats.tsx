@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { AttachedWorktreeCards } from '@/components/sidebar/AttachedWorktreeCards'
 import { useTranslate } from '@/i18n/use-translate'
@@ -19,6 +19,7 @@ import {
 import type { Worktree } from '../../../../shared/worktree/types'
 import { BotChatStatusSlot, useBotChatLabel } from './BotChatOriginIcon'
 import { BotChatPaging, BotChatRowEnd, useBotChatPress } from './BotChatRowControls'
+import { BotChatRenameMenu, BotChatRenameTitle, useBotChatRename } from './BotChatRenameMenu'
 import type { BotChatTree } from './use-bot-chat-tree'
 import { openBotSession } from './bot-session-open'
 import { botSidebarEntryKey } from './bot-sidebar-entry-keys'
@@ -157,7 +158,13 @@ function BotSidebarChat({
   const title = chatTitle(t, chat)
   const label = useBotChatLabel(chat, title)
   const trailing = trailingText(view.trailing)
-  const pressRow = (event: Parameters<typeof pressFoldableRow>[1]): void =>
+  const rename = useBotChatRename(bot, chat)
+  // A double-click's first click already folded or unfolded the row; renaming puts that back.
+  const undoFold = useRef<(() => void) | null>(null)
+  const pressRow = (event: Parameters<typeof pressFoldableRow>[1]): void => {
+    if (event.detail <= 1) {
+      undoFold.current = null
+    }
     pressFoldableRow(
       {
         active,
@@ -169,49 +176,61 @@ function BotSidebarChat({
             openBotSession(bot, chat.chatId)
           }
         },
-        toggle: foldable ? () => toggle(open) : null
+        toggle: foldable
+          ? () => {
+              toggle(open)
+              undoFold.current = () => toggle(!open)
+            }
+          : null
       },
       event
     )
+  }
 
   return (
     <div className="flex flex-col gap-1">
       {/* Its label names the slot's kind and state; pr-0.5 puts the chevron on the bot chevron's edge. */}
-      <div
-        role="button"
-        data-bot-sidebar-chat={chat.chatId}
-        aria-label={[label, trailing].filter(Boolean).join(' · ')}
-        // The chat whose tab is in front reads as the current row, as the open workspace's does.
-        aria-current={active ? 'true' : undefined}
-        tabIndex={0}
-        aria-expanded={foldable ? open : undefined}
-        className={cn(
-          'group/bot-chat flex h-6 min-w-0 cursor-pointer items-center gap-1.5 rounded-md pr-0.5 pl-1 text-xs text-muted-foreground outline-none hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          active && 'bg-sidebar-accent'
-        )}
-        onClick={pressRow}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            pressRow(event)
-          }
-        }}
-      >
-        <BotChatStatusSlot chat={chat} />
-        <span
+      <BotChatRenameMenu rename={rename}>
+        <div
+          role="button"
+          data-bot-sidebar-chat={chat.chatId}
+          aria-label={[label, trailing].filter(Boolean).join(' · ')}
+          // The chat whose tab is in front reads as the current row, as the open workspace's does.
+          aria-current={active ? 'true' : undefined}
+          tabIndex={0}
+          aria-expanded={foldable ? open : undefined}
           className={cn(
-            'min-w-0 flex-1 truncate text-foreground',
-            (chat.unread || active) && 'font-semibold'
+            'group/bot-chat flex h-6 min-w-0 cursor-pointer items-center gap-1.5 rounded-md pr-0.5 pl-1 text-xs text-muted-foreground outline-none hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
+            active && 'bg-sidebar-accent'
           )}
+          onClick={pressRow}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              pressRow(event)
+            }
+          }}
         >
-          {title}
-        </span>
-        <BotChatRowEnd
-          text={trailing}
-          fold={foldable ? { open, name: title, onToggle: () => toggle(open) } : null}
-          className="max-w-[60%]"
-        />
-      </div>
+          <BotChatStatusSlot chat={chat} />
+          <BotChatRenameTitle
+            rename={rename}
+            title={title}
+            className={cn(
+              'min-w-0 flex-1 truncate text-foreground',
+              (chat.unread || active) && 'font-semibold'
+            )}
+            onRenameStart={() => {
+              undoFold.current?.()
+              undoFold.current = null
+            }}
+          />
+          <BotChatRowEnd
+            text={trailing}
+            fold={foldable ? { open, name: title, onToggle: () => toggle(open) } : null}
+            className="max-w-[60%]"
+          />
+        </div>
+      </BotChatRenameMenu>
       {open ? (
         <div className="ml-3 flex flex-col gap-1">
           <AttachedWorktreeCards
