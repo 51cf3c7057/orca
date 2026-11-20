@@ -23,6 +23,12 @@ export const BOT_CREATE_OFFER_METHOD = defineMethod({
     if (runtime.lookAround.botOfLook(callerSessionId)) {
       throw new InvalidArgumentError(LOOK_AROUND_REFUSAL)
     }
+    if (
+      proposal.cloneFrom &&
+      !runtime.bots.list().some((entry) => entry.id === proposal.cloneFrom?.botId)
+    ) {
+      throw new InvalidArgumentError('No bot with that id to clone.')
+    }
     const wanted = proposal.name.toLowerCase()
     if (runtime.bots.list().some((entry) => entry.name.toLowerCase() === wanted)) {
       return {
@@ -57,7 +63,9 @@ export const BOT_CREATE_OFFER_METHOD = defineMethod({
     )
     return {
       offered: true,
-      message: `Your owner now sees a card proposing ${proposal.name}. Nothing is created until they press Create bot; if they create it, it starts with this purpose in its SOUL.md${proposal.worktrees?.length ? ' and takes over those workspaces' : ''}. A "Dismiss" comes back as a message.`
+      message: proposal.cloneFrom
+        ? `Your owner now sees a card proposing ${proposal.name}, a clone of ${proposal.cloneFrom.name}. Nothing is created until they press Create bot; if they create it, it gets ${proposal.cloneFrom.name}'s soul, skills, tools and schedules (turned off) and none of its memory, chats or work${proposal.worktrees?.length ? ', and takes over those workspaces' : ''}. A "Dismiss" comes back as a message.`
+        : `Your owner now sees a card proposing ${proposal.name}. Nothing is created until they press Create bot; if they create it, it starts with ${proposal.soul ? 'the soul text you gave as' : 'this purpose in'} its SOUL.md${proposal.worktrees?.length ? ' and takes over those workspaces' : ''}. A "Dismiss" comes back as a message.`
     }
   }
 })

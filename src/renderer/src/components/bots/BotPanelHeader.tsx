@@ -1,7 +1,7 @@
 // The top of a bot's Activity tab: its picture (edited in place), name, what it is doing now or does next,
 // and its settings.
 import { useMemo, useState } from 'react'
-import { Copy, MoreHorizontal, Pause, Play, Settings, Share2 } from 'lucide-react'
+import { Copy, CopyPlus, MoreHorizontal, Pause, Play, Settings, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AgentStateDot } from '@/components/agent/status/AgentStateDot'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,8 @@ import { setBotSettingsPlace } from './settings-view/bot-settings-place'
 import { BotPictureButton } from './BotPictureButton'
 import { BotRowLineText, useBotRowLine } from './BotRowActivityLine'
 import { BotShareFlow } from './sharing/BotShareFlow'
+import { NewBotDialog } from './NewBotDialog'
+import { useBotCanClone } from './NewBotCloneParts'
 import { formatWaitTime } from './bot-wait-copy'
 import { useBotWorkerWorkspaces } from './use-bot-worker-statuses'
 import { useBotUsageLimitStops } from './use-bot-usage-limit-stops'
@@ -164,6 +166,8 @@ export function BotPanelHeader({
     setRightSidebarTab('bot-activity')
   }
   const [sharing, setSharing] = useState(false)
+  const [cloning, setCloning] = useState(false)
+  const canClone = useBotCanClone(bot.hostId)
   return (
     <div className="flex items-center gap-2.5 px-2 pb-1 pt-1 @max-[284px]:gap-1.5">
       <fieldset disabled={offline} className="contents">
@@ -245,6 +249,12 @@ export function BotPanelHeader({
               <Share2 />
               {t('bots.share.shareBot', 'Share bot…')}
             </DropdownMenuItem>
+            {canClone ? (
+              <DropdownMenuItem onSelect={() => setCloning(true)}>
+                <CopyPlus />
+                {t('bots.row.clone', 'Clone bot…')}
+              </DropdownMenuItem>
+            ) : null}
             {folderPath ? (
               <>
                 <DropdownMenuSeparator />
@@ -258,6 +268,7 @@ export function BotPanelHeader({
         </DropdownMenu>
       </fieldset>
       {sharing ? <BotShareFlow bot={bot} onClose={() => setSharing(false)} /> : null}
+      {cloning ? <NewBotDialog open onOpenChange={setCloning} cloneFrom={bot} /> : null}
     </div>
   )
 }

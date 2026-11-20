@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ORCA_AGENT_SESSION_ID_ENV } from '../../shared/agent-session/lifecycle/launch/agent-session-caller-env'
 import { REPEATED_FLAG_SEPARATOR } from '../arguments/args'
@@ -89,6 +92,27 @@ describe('orca bot create --offer', () => {
       })
     ).rejects.toThrow('A bot can’t create a bot. Propose one with --offer')
     expect(calls).toEqual([])
+  })
+
+  it('sends a soul file as the soul of the proposed bot', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'orca-bot-create-soul-'))
+    try {
+      const path = join(folder, 'lighthouse.md')
+      writeFileSync(path, '# Lighthouse\nKeeps watch.\n')
+      const [sent] = await offer([
+        ['name', 'Lighthouse'],
+        ['purpose', 'Keeps watch over the harbor.'],
+        ['soul-file', path]
+      ])
+      expect(sent?.params).toEqual({
+        callerSessionId: 'chat-1',
+        name: 'Lighthouse',
+        purpose: 'Keeps watch over the harbor.',
+        soul: '# Lighthouse\nKeeps watch.\n'
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
   })
 
   it('refuses a template Orca does not have', async () => {

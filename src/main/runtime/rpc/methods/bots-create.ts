@@ -9,14 +9,30 @@ import { ownerOnly } from './bots-caller-gates'
 import { createBotFromShare } from '../../../bots/sharing/bot-share-create'
 import { botTemplateCreation, createBotFromTemplate } from '../../../bots/bot-template-create'
 import { botShareCreateDeps } from './bots-share-create-deps'
+import {
+  assertSoulHoldsNoSecret,
+  botCloneCreation,
+  createBotFromClone,
+  type BotCloneCreateDeps
+} from '../../../bots/bot-clone-create'
+import type { OrcaRuntimeService } from '../../orca-runtime'
 import { defineMethod, InvalidArgumentError } from '../core'
+
+/** A clone reads the source through the same runtime read Share bot uses. */
+function botCloneCreateDeps(runtime: OrcaRuntimeService): BotCloneCreateDeps {
+  return {
+    ...botShareCreateDeps(runtime),
+    bots: runtime.bots,
+    readShareable: (bot) => runtime.readBotShareableOf(bot)
+  }
+}
 
 export const BOT_CREATE_METHOD = defineMethod({
   name: 'bots.create',
   permission: 'workspace',
   params: BotCreate,
   handler: async (
-    { handOff, takingOver, fromOffer, fromShare, fromTemplate, ...params },
+    { handOff, takingOver, fromOffer, fromShare, fromTemplate, cloneFrom, ...params },
     context
   ) => {
     const { runtime } = context
@@ -27,6 +43,13 @@ export const BOT_CREATE_METHOD = defineMethod({
       context,
       'A bot can’t create a bot. Propose one with `orca bot create --offer`; your owner creates it from the card.'
     )
+    if (cloneFrom && (fromShare || fromTemplate || params.importFrom)) {
+      throw new InvalidArgumentError('Pick one way to make the bot.')
+    }
+    // A clone scans its given soul itself, after finding its source.
+    if (params.soul && !cloneFrom) {
+      assertSoulHoldsNoSecret(params.soul)
+    }
     let bot
     if (fromShare) {
       bot = await createBotFromShare(botShareCreateDeps(runtime), { ...params, fromShare })
@@ -34,14 +57,16 @@ export const BOT_CREATE_METHOD = defineMethod({
       if (!runtime.bots.list().some((entry) => entry.id === fromOffer.botId)) {
         throw new InvalidArgumentError('The bot that proposed this bot is gone.')
       }
-      // A template offer is still made once per card, its package installed in that same step.
-      const template = fromTemplate
-        ? botTemplateCreation(botShareCreateDeps(runtime), { ...params, fromTemplate })
-        : null
+      // A template or clone offer is still made once per card, its package installed in that same step.
+      const install = cloneFrom
+        ? await botCloneCreation(botCloneCreateDeps(runtime), { ...params, cloneFrom })
+        : fromTemplate
+          ? botTemplateCreation(botShareCreateDeps(runtime), { ...params, fromTemplate })
+          : null
       const made = await runtime.bots.createFromOffer(
-        { ...(template?.params ?? params), fromOffer },
-        template?.origin,
-        template?.finish
+        { ...(install?.params ?? params), fromOffer },
+        install?.origin,
+        install?.finish
       )
       if (made.existing) {
         // Already created from this card (another window, or Create and Edit at once): that bot,
@@ -52,6 +77,8 @@ export const BOT_CREATE_METHOD = defineMethod({
         return { bot: made.bot }
       }
       bot = made.bot!
+    } else if (cloneFrom) {
+      bot = await createBotFromClone(botCloneCreateDeps(runtime), { ...params, cloneFrom })
     } else if (fromTemplate) {
       bot = await createBotFromTemplate(botShareCreateDeps(runtime), { ...params, fromTemplate })
     } else {
@@ -63,7 +90,8 @@ export const BOT_CREATE_METHOD = defineMethod({
     }
     // The bot speaks first: its first-run rules turn this into a greeting. Made for workspaces, it then
     // offers to take them over; made from another app's bot, its first turn brings that bot over; made
-    // from a link, it says whose; made from a template, it says which.
+    // from a link, it says whose; made as a clone, it names what in its soul is the source's; made from a
+    // template, it says which.
     const first = runtimeBotChats(runtime).sendToChat(
       bot.id,
       handOff ? botMadeForWorkspacesKickoff(handOff) : botFirstKickoff(bot),

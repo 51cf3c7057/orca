@@ -20,6 +20,7 @@ import {
 } from '../../shared/rpc-contract/bots-params'
 import type { RuntimeStore } from '../runtime/construction/runtime-store-contract'
 import { proposalSoul } from '../../shared/bots/bot-proposal'
+import { soulForName } from '../../shared/bots/bot-clone'
 import { botOfferCreation } from './bot-offer-creation'
 import { assertBotOwnsHome, type BotHomeFilesystem, botHomeFolder, writeBotHome } from './bot-home'
 import { type BotMemoryRecord, hostBotMemoryRecord } from './bot-memory-record'
@@ -29,7 +30,7 @@ import { newBotRecord } from './bot-new-record'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 
 /** Where a new bot came from, kept on its record. */
-export type BotOrigin = Partial<Pick<Bot, 'sharedFrom' | 'templateId'>>
+export type BotOrigin = Partial<Pick<Bot, 'sharedFrom' | 'templateId' | 'clonedFrom'>>
 
 type BotStore = Required<
   Pick<
@@ -182,7 +183,11 @@ export class BotController {
             this.deps.filesystem,
             path,
             { ...draft, folder, folderWorkspaceId: '' },
-            input.seed ? proposalSoul(name, input.seed) : undefined
+            input.soul
+              ? soulForName(input.soul, name)
+              : input.seed
+                ? proposalSoul(name, input.seed)
+                : undefined
           )
       ))
     }

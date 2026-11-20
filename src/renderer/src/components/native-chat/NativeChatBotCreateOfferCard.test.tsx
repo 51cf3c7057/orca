@@ -20,8 +20,20 @@ vi.mock('@/lib/bot-catalog', () => ({
   openBotHomeTabById: mocks.openBotHomeTabById
 }))
 vi.mock('../bots/NewBotDialog', () => ({
-  NewBotDialog: ({ origin, fromOffer }: { origin?: string; fromOffer?: unknown }) => (
-    <div role="dialog" data-from-offer={JSON.stringify(fromOffer)}>
+  NewBotDialog: ({
+    origin,
+    fromOffer,
+    cloneFrom
+  }: {
+    origin?: string
+    fromOffer?: unknown
+    cloneFrom?: unknown
+  }) => (
+    <div
+      role="dialog"
+      data-from-offer={JSON.stringify(fromOffer)}
+      data-clone-from={JSON.stringify(cloneFrom)}
+    >
       {origin}
     </div>
   )
@@ -188,5 +200,54 @@ describe('the new-bot card', () => {
   it('shows the host’s line for a proposer this window does not list', () => {
     show([])
     expect(screen.getByText('fallback line')).toBeTruthy()
+  })
+})
+
+describe('the card for a clone', () => {
+  const cloneOffer: BotCreateOffer = {
+    botId: 'atlas',
+    offerId: 'offer-2',
+    offeredAt: 1000,
+    proposal: {
+      name: 'Scout 2',
+      purpose: 'A clone of Scout: its traits, none of its work.',
+      cloneFrom: { botId: 'scout', name: 'Scout' },
+      soul: '# Scout\n\nReviews pull requests.\n'
+    }
+  }
+  const showClone = (): void => {
+    mocks.bots = [
+      makeTestBot({}),
+      makeTestBot({ id: 'scout', name: 'Scout', folder: 'scout', agent: 'claude' })
+    ]
+    render(<NativeChatBotCreateOfferCard offer={cloneOffer} messageId="m2" fallback="" />)
+  }
+
+  it('creates the clone on the source bot’s agent, not the proposer’s, passing its soul on', async () => {
+    mocks.createBot.mockResolvedValue(makeTestBot({ id: 'scout-2', name: 'Scout 2' }))
+    showClone()
+    fireEvent.click(screen.getByRole('button', { name: 'Create bot' }))
+    await waitFor(() => expect(mocks.createBot).toHaveBeenCalledTimes(1))
+    expect(mocks.createBot).toHaveBeenCalledWith('local', {
+      name: 'Scout 2',
+      agent: 'claude',
+      seed: { purpose: 'A clone of Scout: its traits, none of its work.' },
+      cloneFrom: { botId: 'scout' },
+      soul: '# Scout\n\nReviews pull requests.\n',
+      fromOffer: { botId: 'atlas', offerId: 'offer-2' }
+    })
+  })
+
+  it('Edit opens New bot in clone mode for the source bot', () => {
+    showClone()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(
+      JSON.parse(screen.getByRole('dialog').getAttribute('data-clone-from') ?? 'null')
+    ).toEqual({
+      id: 'scout',
+      name: 'Scout',
+      hostId: 'local',
+      agent: 'claude'
+    })
   })
 })

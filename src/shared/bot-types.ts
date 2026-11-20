@@ -196,6 +196,11 @@ export const BotSchema = z.object({
   sharedFrom: BotSharedFromSchema.optional().catch(undefined),
   /** The built-in template it was made from. */
   templateId: z.string().max(64).optional().catch(undefined),
+  /** The bot it was cloned from, as it was then: a record of origin only, never read back. */
+  clonedFrom: z
+    .object({ botId: z.string(), name: z.string(), clonedAt: z.number() })
+    .optional()
+    .catch(undefined),
   createdAt: z.number(),
   updatedAt: z.number()
 })

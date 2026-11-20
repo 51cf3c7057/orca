@@ -20,7 +20,7 @@ import { BotShareCandidates } from '../bots/sharing/bot-package-export'
 import type { BotShareClient } from '../bots/sharing/bot-share-client'
 import type { BotShareDownloadPolicy } from '../bots/sharing/bot-share-receive'
 import { BotShareService } from '../bots/sharing/bot-share-service'
-import { readBotShareable } from '../bots/sharing/bot-share-sources'
+import { readBotShareable, type BotShareable } from '../bots/sharing/bot-share-sources'
 import { botHomeWorktreeOnBranch, runtimeBotWork, workerGitHubRepo } from '../bots/bot-work-runtime'
 import type { BotHomeLineage, BotWorkRuntime } from '../bots/bot-work-runtime'
 import type { WorkspaceKey } from '../../shared/workspace/identity/workspace-scope'
@@ -141,14 +141,18 @@ export abstract class OrcaRuntimeWithBots extends OrcaRuntimeWithLinearCommands 
       download,
       candidates: new BotShareCandidates(join(getProfileUserDataPath(), 'bot-share-candidates')),
       picks: this.botSharePicks(),
-      readShareable: (bot) =>
-        readBotShareable({
-          bot,
-          home: botHomeFolder(bot),
-          automations: this.store?.listAutomations?.() ?? []
-        })
+      readShareable: (bot) => this.readBotShareableOf(bot)
     })
     return this.botShareService
+  }
+
+  /** What a bot could share, and what a clone copies: read from its record, home and automations. */
+  readBotShareableOf(bot: Bot): Promise<BotShareable> {
+    return readBotShareable({
+      bot,
+      home: botHomeFolder(bot),
+      automations: this.store?.listAutomations?.() ?? []
+    })
   }
 
   /** The scheduler's per-automation lane once bot automations bind to it; until then nothing runs there. */

@@ -16,7 +16,7 @@ import {
 import { ImeInput } from '@/lib/text-input/ime/ime-text-field'
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
-import { createBot } from '@/lib/bot-catalog'
+import { createBot, useHostBots } from '@/lib/bot-catalog'
 import { isScreenSubmitShortcut } from '@/lib/keyboard/screen-submit-shortcut'
 import { BOT_NAME_MAX_LENGTH, type Bot, type BotAgent } from '../../../../shared/bot-types'
 import { botErrorMessage } from './bot-presentation'
@@ -46,6 +46,8 @@ import { NewBotPurposeField } from './NewBotPurposeField'
 import { BotCreateButton } from './BotCreateButton'
 import { BARE_HEADING_CLASS, keyboardNavMarkerHandlers } from './new-bot-bare-fields'
 import { openBotTemplates } from './templates/bot-templates-open'
+import { cloneName } from '../../../../shared/bots/bot-clone'
+import { NewBotCloneParts, type NewBotCloneSource } from './NewBotCloneParts'
 
 type NewBotDraft = NewBotProposalDraft & { purpose: string }
 
@@ -91,7 +93,8 @@ export function NewBotDialog({
   returnFocusTo,
   onImport,
   hosts,
-  offerHostId
+  offerHostId,
+  cloneFrom
 }: {
   open: boolean
   /** Closed with `made` once that bot is created, else dismissed. */
@@ -122,18 +125,47 @@ export function NewBotDialog({
   /** The computer of the bot that proposed it (`fromOffer`): picked first. Made on another computer,
    *  it is a plain new bot, since that bot and the workspaces it named aren't there. */
   offerHostId?: ExecutionHostId
+  /** Clone mode: a new bot with this bot's traits, made on its computer. Its agent, model and permission
+   *  start the pickers; purpose, template and workspace fields are left out. */
+  cloneFrom?: NewBotCloneSource
 }): React.JSX.Element {
   const t = useTranslate()
   const nameRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
-  const [name, setName] = useState(proposal?.name ?? initialName ?? '')
+  const takenNames = useHostBots(cloneFrom?.hostId ?? LOCAL_EXECUTION_HOST_ID)
+  const [name, setName] = useState(
+    () =>
+      proposal?.name ??
+      initialName ??
+      (cloneFrom
+        ? cloneName(
+            cloneFrom.name,
+            takenNames.map((bot) => bot.name)
+          )
+        : '')
+  )
   const [addHostMode, setAddHostMode] = useState<AddRemoteHostMode | null>(null)
   const [draft, setDraft] = useState(() => draftOf(proposal, initialPurpose))
-  const hostChoice = useBotCreateHost(open, hosts, offerHostId)
+  // The source's computer reads it, so a clone is made there.
+  const hostChoice = useBotCreateHost(
+    open,
+    cloneFrom ? [cloneFrom.hostId] : hosts,
+    cloneFrom?.hostId ?? offerHostId
+  )
   const { hostId, blocked } = hostChoice.host
   const menu = useBotAgentMenu(hostId, open)
   const { choices } = menu
-  const agentSetup = useBotAgentSetup(choices, hostId, initialAgent)
+  const agentSetup = useBotAgentSetup(choices, hostId, cloneFrom?.agent ?? initialAgent)
+  // The source's model and permission start the pickers once; the hook itself takes only an agent.
+  const [seeded, setSeeded] = useState(false)
+  if (!seeded && cloneFrom?.agent && (cloneFrom.launch || cloneFrom.permissionMode)) {
+    setSeeded(true)
+    agentSetup.setSetup({
+      agent: cloneFrom.agent,
+      ...(cloneFrom.launch ? { launch: cloneFrom.launch } : {}),
+      ...(cloneFrom.permissionMode ? { permissionMode: cloneFrom.permissionMode } : {})
+    })
+  }
   const [creating, setCreating] = useState(false)
   const canCreate = !creating && !blocked && choices.length > 0
   const createdBot = useRef(false)
@@ -145,7 +177,7 @@ export function NewBotDialog({
   const fromTemplates = useAppStore((state) => state.activeModal === 'bot-templates')
   const trimmedName = name.trim()
   // From a template: what it comes with, its skills kept unless unticked; an older host takes the seed only.
-  const template = botTemplate(proposal?.templateId)
+  const template = cloneFrom ? undefined : botTemplate(proposal?.templateId)
   const templatePackages = useBotHostHas(hostId, BOTS_TEMPLATES_RUNTIME_CAPABILITY)
   const [kept, setKept] = useState<ReadonlySet<BotTemplateSkill>>(
     () => new Set(template?.skills ?? [])
@@ -194,6 +226,7 @@ export function NewBotDialog({
               }
             )
           : { name: trimmedName }),
+        ...(cloneFrom ? { cloneFrom: { botId: cloneFrom.id } } : {}),
         ...agentSetup.setup,
         avatar: picture.avatar,
         avatarColor: picture.avatarColor,
@@ -217,20 +250,24 @@ export function NewBotDialog({
     })
   }
 
-  const showTemplateLink = !proposal && !fromTemplates && !name && !draft.purpose
+  const showTemplateLink = !proposal && !cloneFrom && !fromTemplates && !name && !draft.purpose
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
           'max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md grid-rows-[auto_minmax(0,1fr)] sm:max-w-md',
-          proposal && 'max-w-xl sm:max-w-xl'
+          proposal && !cloneFrom && 'max-w-xl sm:max-w-xl'
         )}
         {...keyboardNavMarkerHandlers}
         onOpenAutoFocus={(event) => {
-          // The name, not Radix's first tabbable (the picture arrows), so typing names the bot.
+          // The name, not Radix's first tabbable (the picture arrows), so typing names the bot; a
+          // clone's suggested name is selected, so typing replaces it.
           event.preventDefault()
           nameRef.current?.focus()
+          if (cloneFrom) {
+            nameRef.current?.select()
+          }
         }}
         onCloseAutoFocus={(event) => {
           // The new bot's page is opening and its composer takes focus; the New bot button must not.
@@ -244,13 +281,25 @@ export function NewBotDialog({
         }}
       >
         <DialogHeader className="sm:text-center">
-          <DialogTitle>{t('bots.new.title', 'New bot')}</DialogTitle>
+          <DialogTitle>
+            {cloneFrom
+              ? t('bots.clone.title', 'Clone {{name}}', { name: cloneFrom.name })
+              : t('bots.new.title', 'New bot')}
+          </DialogTitle>
           <DialogDescription>
             {origin ??
-              t(
-                'bots.new.description',
-                'Your AI teammate, with a name, memory and automations. It lives in a folder on one computer.'
-              )}
+              (cloneFrom
+                ? t(
+                    'bots.clone.description',
+                    'A new bot with {{name}}’s traits and none of its work.',
+                    {
+                      name: cloneFrom.name
+                    }
+                  )
+                : t(
+                    'bots.new.description',
+                    'Your AI teammate, with a name, memory and automations. It lives in a folder on one computer.'
+                  ))}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -270,7 +319,7 @@ export function NewBotDialog({
         >
           <div className="-mx-4 -mt-3 min-h-0 space-y-4 overflow-x-hidden overflow-y-auto px-4 pt-3 scrollbar-sleek">
             {/* The nudge reads this computer's other apps, so it shows only while this computer is picked. */}
-            {onImport && hostId === LOCAL_EXECUTION_HOST_ID ? (
+            {onImport && !cloneFrom && hostId === LOCAL_EXECUTION_HOST_ID ? (
               <BotImportNudge
                 open={open}
                 onImport={() => {
@@ -300,10 +349,12 @@ export function NewBotDialog({
                 placeholder={t('bots.new.namePlaceholder', 'Name your bot')}
                 onChange={(event) => setName(event.target.value)}
               />
-              <NewBotPurposeField
-                value={draft.purpose}
-                onChange={(purpose) => setDraft({ ...draft, purpose })}
-              />
+              {cloneFrom ? null : (
+                <NewBotPurposeField
+                  value={draft.purpose}
+                  onChange={(purpose) => setDraft({ ...draft, purpose })}
+                />
+              )}
             </div>
             <BotRunsOnPicker
               variant="caption"
@@ -314,7 +365,8 @@ export function NewBotDialog({
               onSetupChange={agentSetup.setSetup}
               onAddHost={hosts ? undefined : setAddHostMode}
             />
-            {proposal ? (
+            {cloneFrom ? <NewBotCloneParts /> : null}
+            {proposal && !cloneFrom ? (
               <div className="border-t border-border pt-4">
                 <NewBotProposalFields
                   draft={draft}
@@ -362,7 +414,9 @@ export function NewBotDialog({
               busy={creating}
               disabled={!canCreate}
             >
-              {t('bots.new.createBot', 'Create bot')}
+              {cloneFrom
+                ? t('bots.clone.cloneBot', 'Clone bot')
+                : t('bots.new.createBot', 'Create bot')}
             </BotCreateButton>
           </div>
         </form>

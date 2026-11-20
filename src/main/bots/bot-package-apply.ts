@@ -15,6 +15,8 @@ export type BotPackageSchedule = { name: string; prompt: string; rrule: string; 
 export type BotPackageSetup = {
   /** Made from a link: the sharer's name, null when the account has none. */
   sharedBy?: string | null
+  /** Cloned from another bot: that bot's name. */
+  clonedFrom?: string
   /** Made from a built-in template: its name, and what it does first. */
   template?: string
   firstSteps?: string

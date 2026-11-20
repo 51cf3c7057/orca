@@ -68,7 +68,9 @@ export const storedBotCreateOffer = z.object({
     automations: z.array(z.string()).optional(),
     templateId: text,
     mascot: text,
-    worktrees: z.array(z.object({ id: z.string(), name: z.string() })).optional()
+    worktrees: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+    cloneFrom: z.object({ botId: z.string(), name: z.string() }).optional(),
+    soul: text
   }),
   offeredAt: z.number()
 })

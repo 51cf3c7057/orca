@@ -10,6 +10,7 @@ import { isBotMascotId, mascotAvatar } from '../bot-avatar'
 import { type Bot, type BotAgent, BotNameSchema } from '../bot-types'
 import { type BotTemplate, botTemplate, isLegacyBotTemplateId } from './bot-templates'
 import { HANDED_WORKSPACES_MAX, HandedWorkspaceSchema } from './bot-made-for-workspaces'
+import { BOT_SOUL_TEXT_MAX } from './bot-clone'
 
 const line = (max: number) => z.string().trim().min(1).max(max)
 
@@ -34,7 +35,11 @@ export const BotProposalSchema = BotProposalSeedSchema.extend({
   /** A mascot id; absent, the new bot gets a random one. */
   mascot: z.string().refine(isBotMascotId).optional(),
   /** Workspaces it is made for: its first turn offers to take them over. */
-  worktrees: z.array(HandedWorkspaceSchema).max(HANDED_WORKSPACES_MAX).optional()
+  worktrees: z.array(HandedWorkspaceSchema).max(HANDED_WORKSPACES_MAX).optional(),
+  /** A bot to clone, with its name as the card shows it: the new bot gets its traits and none of its work. */
+  cloneFrom: z.object({ botId: z.string().min(1), name: BotNameSchema }).optional(),
+  /** A full SOUL.md text to start from, in place of the generated one. */
+  soul: z.string().min(1).max(BOT_SOUL_TEXT_MAX).optional()
 })
 
 export type BotProposal = z.infer<typeof BotProposalSchema>
@@ -102,9 +107,12 @@ export function proposalCreateParams(
       : {}),
     ...(proposal.worktrees?.length ? { handOff: proposal.worktrees } : {}),
     seed,
-    ...(template && target.templatePackages
+    // A clone is made one way only; a template id beside it stays a note in the seed.
+    ...(template && target.templatePackages && !proposal.cloneFrom
       ? { fromTemplate: { id: template.id, skills: [...(target.skills ?? template.skills)] } }
       : {}),
+    ...(proposal.cloneFrom ? { cloneFrom: { botId: proposal.cloneFrom.botId } } : {}),
+    ...(proposal.soul ? { soul: proposal.soul } : {}),
     ...(target.fromOffer ? { fromOffer: target.fromOffer } : {})
   }
 }
@@ -151,11 +159,12 @@ export type BotCreateOffer = z.infer<typeof BotCreateOfferSchema>
 
 /** The line a client that can't draw the card shows instead. */
 export function botCreateOfferText(offer: BotCreateOffer, botName: string): string {
-  const { name, purpose, worktrees } = offer.proposal
+  const { name, purpose, worktrees, cloneFrom } = offer.proposal
   const takes = worktrees?.length
     ? ` It would take over ${worktrees.map((entry) => entry.name).join(', ')}.`
     : ''
-  return `${botName} suggests a new bot, ${name}: ${purpose}${takes} Create it from New bot in Orca.`
+  const what = cloneFrom ? `a clone of ${cloneFrom.name}` : 'a new bot'
+  return `${botName} suggests ${what}, ${name}: ${purpose}${takes} Create it from New bot in Orca.`
 }
 
 export function botCreateOfferBody(

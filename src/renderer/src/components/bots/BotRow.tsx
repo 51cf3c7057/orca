@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { openBotSettings } from './bot-settings-open'
-import { ChevronDown, Copy, Pause, Play, Settings, Trash2 } from 'lucide-react'
+import { ChevronDown, Copy, CopyPlus, Pause, Play, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import StatusIndicator from '@/components/sidebar/workspace-card/surface/StatusIndicator'
@@ -42,6 +42,8 @@ import { revealBotUpNext } from './bot-up-next-reveal'
 import { useDeleteBot } from './use-delete-bot'
 import { setBotPurpose } from './bot-purpose-cache'
 import { botSidebarEntryKey } from './bot-sidebar-entry-keys'
+import { NewBotDialog } from './NewBotDialog'
+import { useBotCanClone } from './NewBotCloneParts'
 
 type BotRowFold = {
   folded: boolean
@@ -106,105 +108,133 @@ export function BotRow({
     work.catch((error: unknown) => toast.error(botErrorMessage(error)))
   }
   const handleDelete = useDeleteBot(bot)
+  const [cloning, setCloning] = useState(false)
+  const canClone = useBotCanClone(bot.hostId)
 
   return (
-    <BotSidebarRow
-      avatar={<BotAvatar bot={bot} className="size-9 rounded-md text-sm" />}
-      name={bot.name}
-      workspaceId={workspaceId}
-      hostId={bot.hostId}
-      status={offline ? null : status}
-      stopTip={!offline && limit ? usageLimitStopTip(t, limit.stop) : null}
-      isUnread={isUnread}
-      isActive={isActive}
-      expanded={fold ? !fold.folded : undefined}
-      dimmed={bot.paused || offline}
-      actionsDisabled={offline}
-      dragHandle={dragHandle}
-      onOpen={open}
-      onRename={async (name) => {
-        try {
-          await updateBot(bot, { name })
-        } catch (error) {
-          throw new Error(botErrorMessage(error))
+    <>
+      <BotSidebarRow
+        avatar={<BotAvatar bot={bot} className="size-9 rounded-md text-sm" />}
+        name={bot.name}
+        workspaceId={workspaceId}
+        hostId={bot.hostId}
+        status={offline ? null : status}
+        stopTip={!offline && limit ? usageLimitStopTip(t, limit.stop) : null}
+        isUnread={isUnread}
+        isActive={isActive}
+        expanded={fold ? !fold.folded : undefined}
+        dimmed={bot.paused || offline}
+        actionsDisabled={offline}
+        dragHandle={dragHandle}
+        onOpen={open}
+        onRename={async (name) => {
+          try {
+            await updateBot(bot, { name })
+          } catch (error) {
+            throw new Error(botErrorMessage(error))
+          }
+        }}
+        age={age}
+        idle={idle}
+        line={
+          // Time by the name, Up next count under it; both end where the fold strip starts.
+          line || limit || description || fold || upNextNew > 0 || hostPill || offline ? (
+            <BotRowLineView
+              line={line}
+              limit={offline ? null : limit}
+              fallback={description}
+              unread={isUnread}
+              now={now}
+              disconnected={offline}
+              leading={hostPill}
+              trailing={
+                upNextNew > 0 && !offline ? (
+                  <BotUpNextCount
+                    count={upNextNew}
+                    onReveal={() => {
+                      if (openBotFromSidebar(bot, onOpen)) {
+                        revealBotUpNext(bot.id)
+                      }
+                    }}
+                  />
+                ) : null
+              }
+            />
+          ) : null
         }
-      }}
-      age={age}
-      idle={idle}
-      line={
-        // Time by the name, Up next count under it; both end where the fold strip starts.
-        line || limit || description || fold || upNextNew > 0 || hostPill || offline ? (
-          <BotRowLineView
-            line={line}
-            limit={offline ? null : limit}
-            fallback={description}
-            unread={isUnread}
-            now={now}
-            disconnected={offline}
-            leading={hostPill}
-            trailing={
-              upNextNew > 0 && !offline ? (
-                <BotUpNextCount
-                  count={upNextNew}
-                  onReveal={() => {
-                    if (openBotFromSidebar(bot, onOpen)) {
-                      revealBotUpNext(bot.id)
-                    }
-                  }}
-                />
-              ) : null
-            }
+        trailing={fold ? <BotRowFoldToggle botName={bot.name} fold={fold} /> : null}
+        hoverDetails={() => (
+          <BotHoverDetails
+            bot={bot}
+            home={home}
+            workspaceId={workspaceId}
+            status={status}
+            hostLabel={hostLabel}
+            offline={offline}
+            latest={<BotHoverLatestLine line={line} now={now} />}
           />
-        ) : null
-      }
-      trailing={fold ? <BotRowFoldToggle botName={bot.name} fold={fold} /> : null}
-      hoverDetails={() => (
-        <BotHoverDetails
-          bot={bot}
-          home={home}
-          workspaceId={workspaceId}
-          status={status}
-          hostLabel={hostLabel}
-          offline={offline}
-          latest={<BotHoverLatestLine line={line} now={now} />}
-        />
-      )}
-      menuItems={
-        <>
-          <ContextMenuItem onSelect={() => openBotSettings(bot.id)}>
-            <Settings className="size-3.5" />
-            {t('bots.row.settings', 'Bot settings…')}
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={offline}
-            onSelect={() => run(updateBot(bot, { paused: !bot.paused }))}
-          >
-            {bot.paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-            {bot.paused ? t('bots.row.resume', 'Resume bot') : t('bots.row.pause', 'Pause bot')}
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={() => window.api.ui.writeClipboardText(home.folderPath)}>
-            <Copy className="size-3.5" />
-            {t('bots.row.copyPath', 'Copy Path')}
-          </ContextMenuItem>
-        </>
-      }
-      menuFooter={
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            variant="destructive"
-            disabled={offline}
-            onSelect={() => void handleDelete()}
-          >
-            <Trash2 className="size-3.5" />
-            {t('bots.row.delete', 'Delete bot')}
-          </ContextMenuItem>
-        </>
-      }
-    />
+        )}
+        menuItems={
+          <>
+            <ContextMenuItem onSelect={() => openBotSettings(bot.id)}>
+              <Settings className="size-3.5" />
+              {t('bots.row.settings', 'Bot settings…')}
+            </ContextMenuItem>
+            {canClone ? (
+              <ContextMenuItem disabled={offline} onSelect={() => setCloning(true)}>
+                <CopyPlus className="size-3.5" />
+                {t('bots.row.clone', 'Clone bot…')}
+              </ContextMenuItem>
+            ) : null}
+            <ContextMenuItem
+              disabled={offline}
+              onSelect={() => run(updateBot(bot, { paused: !bot.paused }))}
+            >
+              {bot.paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+              {bot.paused ? t('bots.row.resume', 'Resume bot') : t('bots.row.pause', 'Pause bot')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => window.api.ui.writeClipboardText(home.folderPath)}>
+              <Copy className="size-3.5" />
+              {t('bots.row.copyPath', 'Copy Path')}
+            </ContextMenuItem>
+          </>
+        }
+        menuFooter={
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              variant="destructive"
+              disabled={offline}
+              onSelect={() => void handleDelete()}
+            >
+              <Trash2 className="size-3.5" />
+              {t('bots.row.delete', 'Delete bot')}
+            </ContextMenuItem>
+          </>
+        }
+      />
+      {cloning ? (
+        // The dialog's portal still bubbles React events through the sidebar entry; keep them from
+        // dragging or opening rows there.
+        <span
+          className="contents"
+          onPointerDown={stopEvent}
+          onMouseDown={stopEvent}
+          onClick={stopEvent}
+          onDoubleClick={stopEvent}
+          onKeyDown={stopEvent}
+          onDragOver={stopEvent}
+          onDrop={stopEvent}
+        >
+          <NewBotDialog open onOpenChange={setCloning} cloneFrom={bot} />
+        </span>
+      ) : null}
+    </>
   )
 }
+
+const stopEvent = (event: React.SyntheticEvent): void => event.stopPropagation()
 
 /** Opens the bot's home as clicking its sidebar row does; false when its home can't open yet. */
 export function openBotFromSidebar(bot: Bot, onOpened: () => void): boolean {

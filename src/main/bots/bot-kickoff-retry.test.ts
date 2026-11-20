@@ -161,6 +161,28 @@ describe('a new bot whose kickoff ended silent', () => {
     expect(send).toHaveBeenCalledOnce()
   })
 
+  it("sends a clone's own first turn again, naming the bot it came from", async () => {
+    const bot = {
+      id: 'b2',
+      name: 'Harbor',
+      firstRun: true as const,
+      chatSessionId: CHAT,
+      clonedFrom: { botId: 'b-scout', name: 'Scout', clonedAt: 1 }
+    }
+    const kickoffText = botFirstKickoff(bot)
+    expect(kickoffText).toBe(
+      'Orca: you were just created. Start your first-run setup. You were made as a clone of Scout. You have its SOUL.md, skills and settings, and none of its memory, chats or work. Read SOUL.md now. Then greet your owner in two or three sentences: say what you are for, and list anything in SOUL.md that names a project, a person, a path or a past decision that belongs to Scout and not to you. Change nothing in SOUL.md until your owner says which of those to cut.'
+    )
+    const fingerprint = botKickoffFingerprint(CHAT, kickoffText)
+    const fingerprints = async () => [{ clientMessageId: 'kickoff', fingerprint }]
+    const snapshot = async () => ({
+      submissions: [submission(fingerprint)],
+      items: [turn('interrupted')]
+    })
+    const send = vi.fn(async () => {})
+    expect(await retryBotKickoff(bot, { fingerprints, snapshot, send })).toBe(true)
+  })
+
   it("sends an imported bot's own first turn again, not the usual setup", async () => {
     const bot = {
       id: 'b1',

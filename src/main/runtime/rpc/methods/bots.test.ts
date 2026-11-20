@@ -230,6 +230,58 @@ describe('bots.create', () => {
     expect(bots.create).not.toHaveBeenCalled()
   })
 
+  it('refuses a clone mixed with another way to make the bot, or of a bot that is gone', async () => {
+    const { bots, dispatcher } = createRuntime(makeTestBot({ id: 'scout', name: 'Scout' }))
+    const cloneFrom = { botId: 'scout' }
+    for (const other of [
+      { fromShare: { reviewId: '6f1c2b1e-9a35-4d3a-8a52-0d8f3c1b2a10', toolIds: [] } },
+      { fromTemplate: { id: 'release', skills: [] } },
+      { importFrom: { app: 'openclaw', path: '/synthetic/workspace', name: 'Scout' } }
+    ]) {
+      expect(
+        await dispatcher.dispatch(
+          request('bots.create', { name: 'Harbor', cloneFrom, ...other }),
+          OWNER
+        )
+      ).toMatchObject({ ok: false, error: { message: 'Pick one way to make the bot.' } })
+    }
+    expect(
+      await dispatcher.dispatch(
+        request('bots.create', { name: 'Harbor', cloneFrom: { botId: 'gone' } }),
+        OWNER
+      )
+    ).toMatchObject({ ok: false, error: { message: 'The bot to clone is gone.' } })
+    expect(bots.create).not.toHaveBeenCalled()
+  })
+
+  it('refuses a soul text that looks like it holds a secret, without echoing it', async () => {
+    const { bots, dispatcher } = createRuntime(makeTestBot({ id: 'scout', name: 'Scout' }))
+    const soul = '# Harbor\nPosts with xoxb-1234567890-abcdef\n'
+    for (const params of [
+      { name: 'Harbor', soul },
+      { name: 'Harbor', soul, cloneFrom: { botId: 'scout' } }
+    ]) {
+      const response = await dispatcher.dispatch(request('bots.create', params), OWNER)
+      expect(response).toMatchObject({
+        ok: false,
+        error: { message: 'That soul text looks like it holds a secret. Nothing was created.' }
+      })
+      expect(JSON.stringify(response)).not.toContain('xoxb-1234567890-abcdef')
+    }
+    expect(bots.create).not.toHaveBeenCalled()
+  })
+
+  it("refuses an agent's CLI a clone too: only the owner creates a bot", async () => {
+    const { bots, dispatcher } = createRuntime(makeTestBot({ id: 'scout', name: 'Scout' }))
+    expect(
+      await dispatcher.dispatch(
+        request('bots.create', { name: 'Harbor', cloneFrom: { botId: 'scout' } }),
+        { caller: LOCAL_CLI_RPC_CALLER }
+      )
+    ).toMatchObject({ ok: false })
+    expect(bots.create).not.toHaveBeenCalled()
+  })
+
   it('returns the original bot when a second acceptance includes an unknown template', async () => {
     const { bots, proposer, dispatcher } = createRuntime(
       makeTestBot({ id: 'atlas', name: 'Atlas' })

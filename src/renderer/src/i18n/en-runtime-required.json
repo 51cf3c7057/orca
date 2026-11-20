@@ -1584,6 +1584,22 @@
       "showMoreWorkers_one": "Show {{count}} more worker",
       "showMoreWorkers_other": "Show {{count}} more workers"
     },
+    "clone": {
+      "copied": {
+        "0": "Soul",
+        "1": "Agent and model",
+        "2": "Skills",
+        "3": "Tools (sign in again)",
+        "4": "Schedules (turned off)"
+      },
+      "notCopied": {
+        "0": "Memory",
+        "1": "Chats and items",
+        "2": "Workspaces",
+        "3": "Connectors and sign-ins",
+        "4": "Picture"
+      }
+    },
     "connectors": {
       "needYou_one": "{{count}} needs you",
       "needYou_other": "{{count}} need you"
@@ -2089,6 +2105,8 @@
         "originTemplate": "From {{template}}, proposed by {{bot}}",
         "rename": "Rename",
         "reports": "Reports",
+        "soulLines_one": "Starts from a soul text of {{count}} line.",
+        "soulLines_other": "Starts from a soul text of {{count}} lines.",
         "takesOver": "Takes over",
         "takesOverMany": "Takes over {{count}} workspaces",
         "takesOverOne": "Takes over 1 workspace",

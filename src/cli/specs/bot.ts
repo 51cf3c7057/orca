@@ -2,8 +2,11 @@ import { CONNECTOR_REPLY_MAX_FILES } from '../../shared/connector-action-contrac
 import type { CommandSpec } from '../discovery/command-spec'
 import { CLI_GLOBAL_FLAGS as GLOBAL_FLAGS } from '../../shared/cli/cli-argument-boundary'
 import { SLACK_MARKDOWN, SLACK_MENTION, TEXT_FILE } from './slack'
+import { BOT_CLONE_COPIED, BOT_CLONE_NOT_COPIED } from '../../shared/bots/bot-clone'
 
 const BOT_NOTES = ['A bot lives on the computer that runs the command, in ~/.orca/bots/<name>.']
+const SOUL_FILE_NOTE =
+  "--soul-file is a full SOUL.md to start from (UTF-8; - reads standard input): it replaces the generated one, and its first heading becomes the bot's name."
 
 export const BOT_COMMAND_SPECS: CommandSpec[] = [
   {
@@ -11,7 +14,7 @@ export const BOT_COMMAND_SPECS: CommandSpec[] = [
     summary:
       'Propose a new bot to your owner as a card in your chat; it is created only when they accept',
     usage:
-      'orca bot create --offer --name <name> --purpose <one sentence> [--template <id>] [--watches <text>] [--does <text>] [--reports <text>] [--worktree <selector>]... [--json]',
+      'orca bot create --offer --name <name> --purpose <one sentence> [--template <id>] [--watches <text>] [--does <text>] [--reports <text>] [--worktree <selector>]... [--soul-file <path|->] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'name',
@@ -21,14 +24,31 @@ export const BOT_COMMAND_SPECS: CommandSpec[] = [
       'watches',
       'does',
       'reports',
-      'worktree'
+      'worktree',
+      'soul-file'
     ],
     repeatableFlags: ['worktree'],
     notes: [
       ...BOT_NOTES,
       "Run it from a bot's chat when your owner asks for a new bot, or work fits no bot `orca bot list` shows. Nothing is created until they press Create bot (or Edit it first); a Not now comes back as a message.",
       '--purpose becomes the first line of its SOUL.md, written before its first turn; it starts by reading and reporting only. --template takes a built-in template id (pr-review, release, support…; a wrong id lists them all) and fills --name, --purpose, --watches, --does and --reports when you leave them out.',
-      "--worktree takes id:<id> or name:<workspace name>, as `orca worktree ps` shows them; the new bot's first turn takes each over. Repeat it for several."
+      "--worktree takes id:<id> or name:<workspace name>, as `orca worktree ps` shows them; the new bot's first turn takes each over. Repeat it for several.",
+      SOUL_FILE_NOTE
+    ]
+  },
+  {
+    path: ['bot', 'clone'],
+    summary:
+      'Propose a clone of a bot to your owner as a card: its traits, none of its work; it is created only when they accept',
+    usage:
+      'orca bot clone --offer --from <bot> --name <name> [--purpose <one sentence>] [--soul-file <path|->] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'offer', 'from', 'name', 'purpose', 'soul-file'],
+    notes: [
+      ...BOT_NOTES,
+      "Run it from a bot's chat when your owner asks for a bot like one they have. --from is a bot's name (any case) or id, as `orca bot list` shows it. Nothing is created until they press Create bot.",
+      `Copied: ${BOT_CLONE_COPIED.join(', ')}. Not copied: ${BOT_CLONE_NOT_COPIED.join(', ')}.`,
+      '--purpose defaults to "A clone of <bot>: its traits, none of its work."',
+      SOUL_FILE_NOTE
     ]
   },
   {

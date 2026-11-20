@@ -2,6 +2,7 @@ import { defineFixture } from '../../component-fixtures/component-fixture'
 import { stubBots } from '../../component-fixtures/fixture-bots'
 import { BOT_TEMPLATES } from '../../../../shared/bots/bot-templates'
 import { templateProposal, type BotProposal } from '../../../../shared/bots/bot-proposal'
+import type { Bot } from '../../../../shared/bot-types'
 import { NewBotDialog } from './NewBotDialog'
 
 const dialog = () => (
@@ -92,4 +93,38 @@ export const proposalLongPurpose = defineFixture({
     },
     'Proposed by CoS'
   )
+})
+
+const scoutBot: Bot = {
+  id: 'scout',
+  name: 'Scout',
+  hostId: 'local',
+  folder: 'scout',
+  folderWorkspaceId: 'fw-scout',
+  agent: 'claude',
+  launch: { model: 'opus' },
+  permissionMode: 'full-access',
+  avatar: 'mascot:H1',
+  paused: false,
+  notifications: { needsPermission: true, taskComplete: true, couldNotFinish: true },
+  members: [],
+  slack: null,
+  linear: null,
+  github: null,
+  chatSessionId: null,
+  createdAt: 1,
+  updatedAt: 1
+}
+
+const cloning = () => (
+  <div className="h-[720px] bg-background">
+    <NewBotDialog open onOpenChange={() => {}} cloneFrom={scoutBot} />
+  </div>
+)
+
+// From Clone bot… in Scout's menus: its name counts up, selected so typing replaces it.
+export const clone = defineFixture({
+  width: 720,
+  setup: () => stubBots([scoutBot]),
+  render: cloning
 })

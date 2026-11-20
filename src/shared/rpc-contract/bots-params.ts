@@ -1,6 +1,7 @@
 import { botTidyUp, patchTidyUp, TIDY_UP_EVERY_CHOICES } from '../bots/bot-tidy-up'
 import * as z from 'zod'
 import { BOT_IMPORT_REPLY_MAX, BotImportFromSchema } from '../bots/bot-import'
+import { BOT_SOUL_TEXT_MAX } from '../bots/bot-clone'
 import { AGENT_CHAT_PERMISSION_MODES } from '../agent-launch/permissions/agent-chat-permission-mode'
 import {
   BOT_AGENTS,
@@ -98,7 +99,11 @@ export const BotCreate = z.object({
     name: z.string().trim().min(1).max(200),
     /** What the old bot wrote back when asked for its setup. */
     reply: z.string().max(BOT_IMPORT_REPLY_MAX).optional()
-  }).optional()
+  }).optional(),
+  /** An existing bot to clone: the new bot gets its traits and none of its work. */
+  cloneFrom: z.object({ botId: z.string().min(1) }).optional(),
+  /** A full SOUL.md text to start from, in place of the generated one. Its first heading becomes the name. */
+  soul: z.string().min(1).max(BOT_SOUL_TEXT_MAX).optional()
 })
 
 /** `orca bot create --offer`: a card in the calling bot's chat proposing a new bot; Orca picks its mascot. */
