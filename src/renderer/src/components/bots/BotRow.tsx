@@ -80,6 +80,12 @@ export function BotRow({
   const upNextNew = useBotUpNextUnseen(bot)
   const { line, limit, now } = useBotRowLine(bot, home)
   const age = offline ? null : botRowLineAge(line, now)
+  // Doing nothing: its own turn is quiet and none of its workspaces works or waits on you.
+  const idle =
+    !offline &&
+    (status === 'active' || status === 'inactive') &&
+    !fold?.counts.working &&
+    !fold?.counts.permission
   const hostPill = hostLabel ? <WorktreeHostContextBadge label={hostLabel} /> : null
   // With no recent activity the line falls back to what the bot is for, so the row never shows a blank line.
   const description = useBotSoulDescription({ bot, folderPath: home.folderPath })
@@ -124,6 +130,7 @@ export function BotRow({
         }
       }}
       age={age}
+      idle={idle}
       line={
         // Time by the name, Up next count under it; both end where the fold strip starts.
         line || limit || description || fold || upNextNew > 0 || hostPill || offline ? (

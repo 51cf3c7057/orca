@@ -13,6 +13,7 @@ import {
 import WorktreeCard from './WorktreeCard'
 
 // "Activity color": orange when an agent needs you, yellow while one works, purple for a merged PR, green otherwise.
+// Green and purple cards are idle, so their title row adds a sleeping "zzz" before the time.
 const now = Date.now()
 const SEEDS: WorkspaceSeed[] = [
   {

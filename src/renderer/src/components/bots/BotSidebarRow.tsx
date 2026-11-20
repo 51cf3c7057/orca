@@ -10,6 +10,7 @@ import { HoverCardContent } from '@/components/ui/hover-card'
 import { ActivityThreadHoverCardRoot } from '@/components/activity/thread-preview/activity-thread-hover-card-root'
 import { WORKTREE_CARD_SURFACE_CLASS_NAME } from '@/components/sidebar/workspace-card/surface/worktree-card-surface'
 import { WorktreeTitleInlineRename } from '@/components/sidebar/workspace-card/identity/WorktreeTitleInlineRename'
+import { IdleZzz } from '@/components/sidebar/workspace-card/slots/IdleZzz'
 import type { WorktreeStatus } from '../../../../shared/worktree/row-display/worktree-status-rollup'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
@@ -46,6 +47,8 @@ export type BotSidebarRowProps = {
   onRename: (name: string) => Promise<void>
   /** How long ago its newest line happened. */
   age: string | null
+  /** Doing nothing: a sleeping "zzz" before the time. */
+  idle?: boolean
   /** The second line, under the name. */
   line: React.ReactNode
   /** A column after both lines at the row's right edge, such as the fold toggle's strip. */
@@ -73,6 +76,7 @@ export function BotSidebarRow({
   onOpen,
   onRename,
   age,
+  idle = false,
   line,
   trailing = null,
   hoverDetails,
@@ -149,8 +153,9 @@ export function BotSidebarRow({
                       beginEditing={renameRequested}
                       onBeginEditingConsumed={() => setRenameRequested(false)}
                     />
-                    {age ? (
-                      <span className="ml-auto shrink-0 text-xs leading-4 text-muted-foreground tabular-nums">
+                    {age || idle ? (
+                      <span className="ml-auto flex shrink-0 items-center text-xs leading-4 text-muted-foreground tabular-nums">
+                        {idle ? <IdleZzz label={t('bots.row.idle', 'Idle')} /> : null}
                         {age}
                       </span>
                     ) : null}

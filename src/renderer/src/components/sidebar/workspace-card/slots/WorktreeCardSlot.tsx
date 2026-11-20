@@ -7,6 +7,7 @@ import { cn } from '@/lib/class-names'
 import type { SlotException, SlotSignal } from './worktree-card-slot-signal'
 import type { SlotTarget } from './worktree-card-slot-targets'
 import { SlotJumpTrigger } from './worktree-card-slot-jump'
+import { IdleZzz } from './IdleZzz'
 
 function formatSlotTime(at: number | null, now: number): string {
   return at === null ? '' : formatShortTimeAgo(at, now)
@@ -38,17 +39,21 @@ function slotLabel(signal: SlotSignal, t: Translate): string | undefined {
 export function WorktreeCardSlot({
   signal,
   now,
-  timeTone
+  timeTone,
+  idle = false
 }: {
   signal: Extract<SlotSignal, { kind: 'time' } | { kind: 'offline' }>
   now: number
   timeTone?: 'unread' | 'working'
+  idle?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
+  const showIdle = idle && signal.kind === 'time'
+  const idleLabel = t('sidebar.cardSlot.idle', 'Idle')
   return (
     <span
       data-worktree-card-slot={signal.kind}
-      title={slotLabel(signal, t)}
+      title={showIdle ? idleLabel : slotLabel(signal, t)}
       // Why 2.5em: fits the widest time ("999d") so title icons line up across rows; "offline" grows past it.
       className={cn(
         'inline-flex min-w-[2.5em] shrink-0 items-center justify-end whitespace-nowrap text-3xs leading-none tabular-nums',
@@ -61,6 +66,7 @@ export function WorktreeCardSlot({
               : 'text-muted-foreground/70'
       )}
     >
+      {showIdle ? <IdleZzz label={idleLabel} /> : null}
       {signal.kind === 'offline'
         ? t('sidebar.cardSlot.offline', 'offline')
         : formatSlotTime(signal.at, now)}
@@ -144,17 +150,20 @@ export function WorktreeCardTitlePills({
 export function WorktreeCardTitleTime({
   exceptions,
   at,
-  now
+  now,
+  idle
 }: {
   exceptions: readonly SlotException[]
   at: number | null
   now: number
+  idle: boolean
 }): React.JSX.Element {
   return (
     <WorktreeCardSlot
       signal={{ kind: 'time', at }}
       now={now}
       timeTone={titleTimeTone(exceptions)}
+      idle={idle}
     />
   )
 }

@@ -68,15 +68,14 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
   const showActivityTint = !affiliateListMode && card.cardProps.includes('status-tint')
   // The wrapper bounds the tint to this card's own lines, so expanded children keep only their own.
   const ownContent = showActivityTint ? (
-    <div className="relative">
-      <WorktreeCardActivityTint
-        worktreeId={worktree.id}
-        prMerged={card.prDisplay?.state === 'merged'}
-        surfacePaddingLeft={cardStyle?.paddingLeft?.toString()}
-        hasExpandedChildren={Boolean(lineageChildren)}
-      />
+    <WorktreeCardActivityTint
+      worktreeId={worktree.id}
+      prMerged={card.prDisplay?.state === 'merged'}
+      surfacePaddingLeft={cardStyle?.paddingLeft?.toString()}
+      hasExpandedChildren={Boolean(lineageChildren)}
+    >
       {templateContent}
-    </div>
+    </WorktreeCardActivityTint>
   ) : (
     templateContent
   )
