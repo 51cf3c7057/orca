@@ -25930,6 +25930,7 @@
       "terminalEqualizePaneSizes": "Equalize pane sizes",
       "terminalExpandPane": "Expand / collapse pane",
       "chatFind": "Find in chat",
+      "chatAddSelectionToChat": "Add selection to chat",
       "terminalToggleNativeChat": "Switch between Chat UI and terminal",
       "terminalClosePane": "Close active pane",
       "terminalCopySessionId": "Copy Session ID",

@@ -87,6 +87,7 @@ export type KeybindingActionId =
   | 'tab.openQuickCommandsMenu'
   | 'browser.find'
   | 'chat.find'
+  | 'chat.addSelectionToChat'
   | 'browser.back'
   | 'browser.forward'
   | 'browser.reload'

@@ -1,12 +1,15 @@
-import type { RefObject } from 'react'
+import { useRef, type RefObject } from 'react'
 import { useAppStore } from '../../../store/index'
 import type { NativeChatComposerHandle } from '../composer/native-chat-composer-types'
-import {
-  formatNativeChatQuote,
-  readNativeChatQuotableSelection
-} from '../../../../../shared/native-chat/input/quotes/native-chat-quote-selection'
+import { useShortcutKeyComboDetails } from '@/lib/keyboard/useShortcutLabel'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { readNativeChatTranscriptSelection } from './native-chat-transcript-selection'
 import { SelectionAddToChatPopover } from './SelectionAddToChatPopover'
+import {
+  addNativeChatQuote,
+  readNativeChatComposerQuotable,
+  useNativeChatAddSelectionShortcut
+} from './use-native-chat-add-selection-shortcut'
 
 function copyTranscriptSelectionOnSelect(root: HTMLElement): void {
   if (!useAppStore.getState().settings?.terminalClipboardOnSelect) {
@@ -28,15 +31,23 @@ export function NativeChatSelectionQuote({
   composerRef: RefObject<NativeChatComposerHandle | null>
   enabled: boolean
 }): React.JSX.Element {
+  const dismissOfferRef = useRef<(() => void) | null>(null)
+  const [shortcut] = useShortcutKeyComboDetails('chat.addSelectionToChat')
+  useNativeChatAddSelectionShortcut({
+    rootRef,
+    composerRef,
+    enabled,
+    onAdded: () => dismissOfferRef.current?.()
+  })
   return (
     <SelectionAddToChatPopover
       rootRef={rootRef}
       enabled={enabled}
-      readQuotable={(root) =>
-        composerRef.current?.acceptsText() ? readNativeChatQuotableSelection(root) : null
-      }
+      readQuotable={(root) => readNativeChatComposerQuotable(root, composerRef.current)}
       onSelectionSettled={copyTranscriptSelectionOnSelect}
-      onAdd={(text) => composerRef.current?.appendText(formatNativeChatQuote(text))}
+      onAdd={(text) => addNativeChatQuote(composerRef.current, text)}
+      shortcut={isWebClientLocation() ? undefined : shortcut}
+      dismissRef={dismissOfferRef}
     />
   )
 }

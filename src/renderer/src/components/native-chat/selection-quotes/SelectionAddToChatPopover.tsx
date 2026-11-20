@@ -2,6 +2,8 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState, type RefObject } 
 import { Quote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { ShortcutKeyCombo } from '@/components/ui/ShortcutKeyCombo'
+import type { ShortcutKeyComboDetails } from '@/lib/keyboard/useShortcutLabel'
 import { addViewportSizeChangeListener } from '@/lib/window-activity/viewport-size-change-listener'
 import { useTranslate } from '@/i18n/use-translate'
 
@@ -21,7 +23,9 @@ export function SelectionAddToChatPopover({
   enabled,
   readQuotable,
   onSelectionSettled,
-  onAdd
+  onAdd,
+  shortcut,
+  dismissRef
 }: {
   rootRef: RefObject<HTMLElement | null>
   enabled: boolean
@@ -30,6 +34,10 @@ export function SelectionAddToChatPopover({
   onSelectionSettled?: (root: HTMLElement) => void
   /** `button` is where the offer was clicked, for a surface that opens a menu from it. */
   onAdd: (text: string, button: DOMRect) => void
+  /** The key that adds the selection without the pointer, shown on the button. */
+  shortcut?: ShortcutKeyComboDetails
+  /** Set while mounted to close the offer, for a surface that took the quote another way. */
+  dismissRef?: RefObject<(() => void) | null>
 }): React.JSX.Element {
   const t = useTranslate()
   const [request, setRequest] = useState<QuoteRequest | null>(null)
@@ -117,7 +125,13 @@ export function SelectionAddToChatPopover({
     document.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', close)
     const removeResizeListener = addViewportSizeChangeListener(close)
+    if (dismissRef) {
+      dismissRef.current = close
+    }
     return () => {
+      if (dismissRef?.current === close) {
+        dismissRef.current = null
+      }
       close()
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('selectionchange', onSelectionChange)
@@ -126,7 +140,7 @@ export function SelectionAddToChatPopover({
       window.removeEventListener('blur', close)
       removeResizeListener()
     }
-  }, [enabled, rootRef])
+  }, [dismissRef, enabled, rootRef])
 
   return (
     <Popover open={request !== null} onOpenChange={(open) => !open && setRequest(null)}>
@@ -158,6 +172,15 @@ export function SelectionAddToChatPopover({
             >
               <Quote />
               {t('components.native-chat.addSelectionToChat', 'Add to chat')}
+              {shortcut && shortcut.keys.length > 0 ? (
+                <span aria-hidden className="ml-1 inline-flex">
+                  <ShortcutKeyCombo
+                    keys={shortcut.keys}
+                    doubleTap={shortcut.doubleTap}
+                    size="compact"
+                  />
+                </span>
+              ) : null}
             </Button>
           </div>
         </PopoverContent>

@@ -143,6 +143,8 @@ const STATIC_TITLE_COPY = {
     translate('keybindings.title.terminalExpandPane', 'Expand / collapse pane'),
   'terminal.setTitle': () => translate('keybindings.title.128cce6e6d', 'Set title…'),
   'chat.find': () => translate('keybindings.title.chatFind', 'Find in chat'),
+  'chat.addSelectionToChat': () =>
+    translate('keybindings.title.chatAddSelectionToChat', 'Add selection to chat'),
   'botItem.back': () => translate('keybindings.title.botItemBack', 'Back to items'),
   'terminal.toggleNativeChat': () =>
     translate('keybindings.title.terminalToggleNativeChat', 'Switch between Chat UI and terminal'),
