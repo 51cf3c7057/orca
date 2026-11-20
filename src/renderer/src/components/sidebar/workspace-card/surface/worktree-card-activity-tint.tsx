@@ -31,11 +31,18 @@ const TINT_CLASS_NAMES: Record<ActivityTint, string> = {
   idle: 'border-workspace-activity-idle bg-workspace-activity-idle/[0.07] dark:bg-workspace-activity-idle/10'
 }
 
-/** The "Activity color" wash and left accent; paints under the card's content (the surface isolates it). */
+/**
+ * The "Activity color" wash and left accent, behind the parent's own content (the surface isolates it).
+ * Top, right and, without children, bottom overshoot into the surface's padding, which clips them.
+ */
 export function WorktreeCardActivityTint({
-  worktreeId
+  worktreeId,
+  surfacePaddingLeft,
+  hasExpandedChildren
 }: {
   worktreeId: string
+  surfacePaddingLeft: string | undefined
+  hasExpandedChildren: boolean
 }): React.JSX.Element {
   const tint = activityTint(
     useWorktreeActivityStatus(worktreeId, { ignoreFailed: true }),
@@ -46,9 +53,12 @@ export function WorktreeCardActivityTint({
       aria-hidden="true"
       data-worktree-activity-tint={tint}
       className={cn(
-        'pointer-events-none absolute inset-0 -z-10 border-l-[3px] transition-colors duration-200',
+        'pointer-events-none absolute -top-4 -z-10 border-l-[3px] transition-colors duration-200',
+        // With children it ends inside the card, so it matches the surface's pr-1.5 to round both corners.
+        hasExpandedChildren ? '-right-1.5 -bottom-1 rounded-b-lg' : '-right-4 -bottom-4',
         TINT_CLASS_NAMES[tint]
       )}
+      style={{ left: surfacePaddingLeft ? `calc(-1 * ${surfacePaddingLeft})` : 0 }}
     />
   )
 }

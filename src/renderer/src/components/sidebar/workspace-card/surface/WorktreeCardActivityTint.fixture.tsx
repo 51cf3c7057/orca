@@ -54,7 +54,14 @@ const SEEDS: WorkspaceSeed[] = [
       { agentType: 'claude', state: 'working', minutesAgo: 2, prompt: 'Fix the flaky test' }
     ],
     lastActivityMinutesAgo: 2
-  }
+  },
+  {
+    id: 'at-open-parent',
+    name: 'expanded-parent-working',
+    agents: [{ agentType: 'claude', state: 'working', minutesAgo: 1, prompt: 'Plan the release' }],
+    lastActivityMinutesAgo: 1
+  },
+  { id: 'at-open-child', name: 'quiet-child', agents: [], lastActivityMinutesAgo: 30 }
 ]
 
 const worktrees = new Map(SEEDS.map((seed) => [seed.id, makeWorktree(seed, now)]))
@@ -62,11 +69,13 @@ const worktrees = new Map(SEEDS.map((seed) => [seed.id, makeWorktree(seed, now)]
 function Card({
   id,
   isActive = false,
-  descendantIds
+  descendantIds,
+  expandedChildIds
 }: {
   id: string
   isActive?: boolean
   descendantIds?: readonly string[]
+  expandedChildIds?: readonly string[]
 }): React.JSX.Element {
   const worktree = worktrees.get(id)!
   return (
@@ -78,7 +87,10 @@ function Card({
       contentIndent={20}
       flushSurface
       nativeDragEnabled={false}
-      lineageChildCount={descendantIds?.length ?? 0}
+      lineageChildren={expandedChildIds?.map((childId) => (
+        <Card key={childId} id={childId} />
+      ))}
+      lineageChildCount={(descendantIds ?? expandedChildIds)?.length ?? 0}
       lineageCollapsed={Boolean(descendantIds)}
       lineageDescendantIdentities={descendantIds?.map((d) =>
         composeWorktreeHostIdentity(worktrees.get(d)?.hostId, d)
@@ -123,6 +135,7 @@ const render = (): React.JSX.Element => (
     <Card id="at-selected" isActive />
     <Card id="at-parent" descendantIds={['at-child']} />
     <Card id="at-failed-working" />
+    <Card id="at-open-parent" expandedChildIds={['at-open-child']} />
   </Frame>
 )
 

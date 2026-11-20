@@ -63,24 +63,28 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         : undefined
     }
   )
+  const { cardStyle } = geometryFor(frame.statusLane)
   // Picker lists reuse the card; the tint is for the sidebar's own rows.
   const showActivityTint = !affiliateListMode && card.cardProps.includes('status-tint')
-  const activityTint = showActivityTint ? (
-    <WorktreeCardActivityTint worktreeId={worktree.id} />
-  ) : null
+  // The wrapper bounds the tint to this card's own lines, so expanded children keep only their own.
+  const ownContent = showActivityTint ? (
+    <div className="relative">
+      <WorktreeCardActivityTint
+        worktreeId={worktree.id}
+        surfacePaddingLeft={cardStyle?.paddingLeft?.toString()}
+        hasExpandedChildren={Boolean(lineageChildren)}
+      />
+      {templateContent}
+    </div>
+  ) : (
+    templateContent
+  )
   const parentCardContent = newCardStyle ? (
     // One roll-up per card feeds the status lane, the title and the title's right-hand slot.
-    <WorktreeCardTitleStatusProvider card={card}>
-      {activityTint}
-      {templateContent}
-    </WorktreeCardTitleStatusProvider>
+    <WorktreeCardTitleStatusProvider card={card}>{ownContent}</WorktreeCardTitleStatusProvider>
   ) : (
-    <>
-      {activityTint}
-      {templateContent}
-    </>
+    ownContent
   )
-  const { cardStyle } = geometryFor(frame.statusLane)
   const titleOnlyCard = frame.singleLine
 
   const cardBody = (
