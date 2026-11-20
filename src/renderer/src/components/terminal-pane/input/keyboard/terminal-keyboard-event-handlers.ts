@@ -224,7 +224,8 @@ export function createTerminalKeyboardEventHandlers(context: EventContext) {
       (action.type === 'toggleSearch' ||
         action.type === 'selectAll' ||
         action.type === 'copySelection' ||
-        keybindingMatchesAction('chat.find', e, shortcutPlatform, keybindings))
+        keybindingMatchesAction('chat.find', e, shortcutPlatform, keybindings) ||
+        keybindingMatchesAction('chat.addSelectionToChat', e, shortcutPlatform, keybindings))
     ) {
       return
     }

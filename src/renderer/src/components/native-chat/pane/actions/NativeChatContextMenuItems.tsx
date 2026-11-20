@@ -8,6 +8,7 @@ import { formatOptionalPrimaryShortcutLabel } from '@/lib/keyboard/useShortcutLa
 import { useAppStore } from '@/store'
 import type { LinkAction } from '@/components/link-actions/link-action-request'
 import { useTranslate } from '@/i18n/use-translate'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import type { NativeChatContextMenuTarget } from './native-chat-context-menu-target'
 import type { NativeChatRewindSurface } from '../../messages/actions/use-native-chat-rewind-host'
 
@@ -29,6 +30,11 @@ export function NativeChatContextMenuTargetItems({
   const t = useTranslate()
   const { quoteText, link, codeText, messageText, rewindItemId, slackPostedItemId } = target
   const slackMirror = useNativeChatSlackMirrorContext()
+  const keybindings = useAppStore((state) => state.keybindings)
+  // The web client leaves Mod+L to the browser, so it shows no key it would not handle.
+  const quoteShortcut = isWebClientLocation()
+    ? null
+    : formatOptionalPrimaryShortcutLabel('chat.addSelectionToChat', keybindings)
   const linkRows = link ? [link.primary, link.alternate, ...(link.secondaryActions ?? [])] : []
   return (
     <>
@@ -36,6 +42,7 @@ export function NativeChatContextMenuTargetItems({
         <DropdownMenuItem onSelect={() => onQuote(quoteText)}>
           <Quote />
           {t('components.native-chat.addSelectionToChat', 'Add to chat')}
+          {quoteShortcut ? <DropdownMenuShortcut>{quoteShortcut}</DropdownMenuShortcut> : null}
         </DropdownMenuItem>
       ) : null}
       {linkRows.map((action) =>

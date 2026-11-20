@@ -41,6 +41,14 @@ export const KEYBINDING_DEFINITION_CORE_4: readonly KeybindingDefinition[] = [
     defaultBindings: platformBindings(['Mod+F'])
   },
   {
+    id: 'chat.addSelectionToChat',
+    title: 'Add selection to chat',
+    group: 'Chat',
+    scope: 'chat',
+    searchKeywords: ['shortcut', 'chat', 'add to chat', 'selection', 'quote'],
+    defaultBindings: platformBindings(['Mod+L'])
+  },
+  {
     id: 'terminal.toggleNativeChat',
     title: 'Switch between Chat UI and terminal',
     group: 'Chat',
