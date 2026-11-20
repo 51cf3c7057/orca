@@ -34,21 +34,43 @@ function slotLabel(signal: SlotSignal, t: Translate): string | undefined {
   }
 }
 
+/** Sleeping "zzz", each z a step smaller and lower, for a card nothing is working on. */
+function IdleMark({ label }: { label: string }): React.JSX.Element {
+  return (
+    <span data-worktree-card-idle="" className="mr-1 inline-flex items-end">
+      <span aria-hidden="true" className="inline-block scale-75 translate-y-px">
+        z
+      </span>
+      <span aria-hidden="true" className="inline-block scale-90 -translate-y-px">
+        z
+      </span>
+      <span aria-hidden="true" className="inline-block -translate-y-[3px]">
+        z
+      </span>
+      <span className="sr-only">{label}</span>
+    </span>
+  )
+}
+
 /** The title's time, or its host's offline state. */
 export function WorktreeCardSlot({
   signal,
   now,
-  timeTone
+  timeTone,
+  idle = false
 }: {
   signal: Extract<SlotSignal, { kind: 'time' } | { kind: 'offline' }>
   now: number
   timeTone?: 'unread' | 'working'
+  idle?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
+  const showIdle = idle && signal.kind === 'time'
+  const idleLabel = t('sidebar.cardSlot.idle', 'Idle')
   return (
     <span
       data-worktree-card-slot={signal.kind}
-      title={slotLabel(signal, t)}
+      title={showIdle ? idleLabel : slotLabel(signal, t)}
       // Why 2.5em: fits the widest time ("999d") so title icons line up across rows; "offline" grows past it.
       className={cn(
         'inline-flex min-w-[2.5em] shrink-0 items-center justify-end whitespace-nowrap text-3xs leading-none tabular-nums',
@@ -61,6 +83,7 @@ export function WorktreeCardSlot({
               : 'text-muted-foreground/70'
       )}
     >
+      {showIdle ? <IdleMark label={idleLabel} /> : null}
       {signal.kind === 'offline'
         ? t('sidebar.cardSlot.offline', 'offline')
         : formatSlotTime(signal.at, now)}
@@ -144,17 +167,20 @@ export function WorktreeCardTitlePills({
 export function WorktreeCardTitleTime({
   exceptions,
   at,
-  now
+  now,
+  idle
 }: {
   exceptions: readonly SlotException[]
   at: number | null
   now: number
+  idle: boolean
 }): React.JSX.Element {
   return (
     <WorktreeCardSlot
       signal={{ kind: 'time', at }}
       now={now}
       timeTone={titleTimeTone(exceptions)}
+      idle={idle}
     />
   )
 }

@@ -318,7 +318,8 @@
       "failed": "Failed",
       "detailsRow": "Details row",
       "workspaceUnread": "Unread in this workspace",
-      "unreadTab": "Unread tab"
+      "unreadTab": "Unread tab",
+      "idle": "Idle"
     }
   },
   "app": {

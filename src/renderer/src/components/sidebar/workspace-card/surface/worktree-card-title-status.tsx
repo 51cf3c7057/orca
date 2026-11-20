@@ -36,6 +36,7 @@ import {
   type SlotTarget
 } from '../slots/worktree-card-slot-targets'
 import { createWorkspaceUnreadSelector } from './worktree-card-workspace-unread-selector'
+import { useWorktreeCardIdle } from './worktree-card-activity-tint-context'
 import {
   WorktreeCardSlot,
   WorktreeCardTitlePills,
@@ -188,6 +189,7 @@ export function useWorktreeCardLineageExceptions(): readonly SlotException[] {
 /** The title row's right edge: a pill per loud status the card speaks for, then the time. */
 export function WorktreeCardTitleStatus(): React.JSX.Element | null {
   const status = useContext(TitleStatusContext)
+  const idle = useWorktreeCardIdle()
   const now = useNow(30_000)
   if (!status) {
     return null
@@ -201,7 +203,7 @@ export function WorktreeCardTitleStatus(): React.JSX.Element | null {
         exceptions={status.exceptions}
         resolveTargets={status.resolveTargets}
       />
-      <WorktreeCardTitleTime exceptions={status.exceptions} at={status.at} now={now} />
+      <WorktreeCardTitleTime exceptions={status.exceptions} at={status.at} now={now} idle={idle} />
     </>
   )
 }
