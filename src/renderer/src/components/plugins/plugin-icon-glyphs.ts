@@ -26,6 +26,8 @@ import {
   Folder,
   Gauge,
   GitBranch,
+  GitMerge,
+  GitPullRequest,
   Globe,
   Hammer,
   Info,
@@ -52,17 +54,31 @@ import {
   Upload,
   Wrench,
   X,
-  Zap,
-  type LucideIcon
+  Zap
 } from 'lucide-react'
+import { createElement, type ComponentType } from 'react'
+import { GitHubIcon } from '../icons/GitHubIcon'
 import {
   canonicalPluginPanelIcon,
   type PluginPanelIconName
 } from '../../../../shared/plugins/contributions/plugin-panel-contribution'
 
+type PluginIconGlyphProps = { size?: number; className?: string }
+type PluginIconGlyph = ComponentType<PluginIconGlyphProps>
+
+// Why: sized like lucide (24 default) and inset 2 of 24 like its glyphs, so the mark sits level.
+function GitHubGlyph({ size = 24, className }: PluginIconGlyphProps): React.JSX.Element {
+  return createElement(GitHubIcon, {
+    width: size,
+    height: size,
+    viewBox: '-1.6 -1.6 19.2 19.2',
+    className
+  })
+}
+
 // Why a closed map: names are Orca's (one vocabulary for manifests and components), and
 // lucide's full `icons` table would defeat tree-shaking.
-const PLUGIN_ICON_GLYPHS: Record<PluginPanelIconName, LucideIcon> = {
+const PLUGIN_ICON_GLYPHS: Record<PluginPanelIconName, PluginIconGlyph> = {
   activity: Activity,
   'bar-chart-3': BarChart3,
   bell: Bell,
@@ -117,11 +133,17 @@ const PLUGIN_ICON_GLYPHS: Record<PluginPanelIconName, LucideIcon> = {
   branch: GitBranch,
   file: File,
   agent: Bot,
-  link: Link
+  link: Link,
+  github: GitHubGlyph,
+  'git-pull-request': GitPullRequest,
+  'git-merge': GitMerge
 }
 
 /** The glyph for a plugin icon name, or `fallback` for a name this Orca does not know. */
-export function resolvePluginIconGlyph(name: string | undefined, fallback: LucideIcon): LucideIcon {
+export function resolvePluginIconGlyph(
+  name: string | undefined,
+  fallback: PluginIconGlyph
+): PluginIconGlyph {
   // Why canonicalize: hosts from before the closed list still send `FileText`-style names.
   const known = name ? canonicalPluginPanelIcon(name) : null
   return known ? PLUGIN_ICON_GLYPHS[known] : fallback

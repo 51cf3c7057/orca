@@ -12,7 +12,7 @@ Everything a components panel (`"ui": "components"`) imports comes from `orca`. 
 - `Size`: `'xs' | 'sm' | 'md'`
 - `Variant`: `'solid' | 'outline' | 'ghost'`
 - `Press`: `() => unknown`
-- `IconName`: activity, bar-chart-3, bell, blocks, book, bot, bug, calendar, cloud, code, database, file-text, flag, folder, gauge, globe, hammer, layers, lightbulb, package, plug, puzzle, rocket, star, terminal, wrench, zap, add, remove, delete, edit, refresh, search, settings, check, close, info, warning, error, open-external, copy, download, upload, play, pause, stop, more, expand, collapse, next, filter, branch, file, agent, link. Any other name draws a fallback glyph.
+- `IconName`: activity, bar-chart-3, bell, blocks, book, bot, bug, calendar, cloud, code, database, file-text, flag, folder, gauge, globe, hammer, layers, lightbulb, package, plug, puzzle, rocket, star, terminal, wrench, zap, add, remove, delete, edit, refresh, search, settings, check, close, info, warning, error, open-external, copy, download, upload, play, pause, stop, more, expand, collapse, next, filter, branch, file, agent, link, github, git-pull-request, git-merge. Any other name draws a fallback glyph.
 
 ## Components
 

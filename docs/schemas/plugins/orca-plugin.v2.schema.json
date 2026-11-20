@@ -516,7 +516,10 @@
             "branch": "1.4.246",
             "file": "1.4.246",
             "agent": "1.4.246",
-            "link": "1.4.246"
+            "link": "1.4.246",
+            "github": "1.4.265",
+            "git-pull-request": "1.4.265",
+            "git-merge": "1.4.265"
           },
           "type": "string",
           "enum": [
@@ -574,7 +577,10 @@
             "branch",
             "file",
             "agent",
-            "link"
+            "link",
+            "github",
+            "git-pull-request",
+            "git-merge"
           ]
         },
         "entry": {
@@ -1467,6 +1473,39 @@
           "examples": [
             "bell"
           ],
+          "x-orca-enum-since": {
+            "add": "1.4.246",
+            "remove": "1.4.246",
+            "delete": "1.4.246",
+            "edit": "1.4.246",
+            "refresh": "1.4.246",
+            "search": "1.4.246",
+            "settings": "1.4.246",
+            "check": "1.4.246",
+            "close": "1.4.246",
+            "info": "1.4.246",
+            "warning": "1.4.246",
+            "error": "1.4.246",
+            "open-external": "1.4.246",
+            "copy": "1.4.246",
+            "download": "1.4.246",
+            "upload": "1.4.246",
+            "play": "1.4.246",
+            "pause": "1.4.246",
+            "stop": "1.4.246",
+            "more": "1.4.246",
+            "expand": "1.4.246",
+            "collapse": "1.4.246",
+            "next": "1.4.246",
+            "filter": "1.4.246",
+            "branch": "1.4.246",
+            "file": "1.4.246",
+            "agent": "1.4.246",
+            "link": "1.4.246",
+            "github": "1.4.265",
+            "git-pull-request": "1.4.265",
+            "git-merge": "1.4.265"
+          },
           "type": "string",
           "enum": [
             "activity",
@@ -1523,7 +1562,10 @@
             "branch",
             "file",
             "agent",
-            "link"
+            "link",
+            "github",
+            "git-pull-request",
+            "git-merge"
           ]
         },
         "tone": {

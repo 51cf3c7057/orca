@@ -240,3 +240,45 @@ export const oneCharacterTitleOpenFromMoreNarrowest = defineFixture({
   ),
   interact: openLastFromMore
 })
+
+// The git hosting icons beside lucide tabs, so the filled GitHub mark can be checked against them.
+const GIT_PLUGIN_PANELS = getPluginPanelActivityItems(
+  (
+    [
+      ['github', 'GitHub'],
+      ['git-pull-request', 'Pull requests'],
+      ['git-merge', 'Merges'],
+      ['branch', 'Branches']
+    ] as const
+  ).map(([icon, title]) => ({
+    id: icon,
+    title,
+    icon,
+    tabKey: `plugin:samples.git/${icon}` as const,
+    pluginKey: 'samples.git',
+    pluginName: 'Git'
+  }))
+)
+const FILES_TAB: ActivityBarItem = { id: 'explorer', icon: Files, title: 'Files', shortcut: '' }
+
+export const gitHostingPluginIcons = defineFixture({
+  width: 440,
+  render: () => (
+    <BotPageBar
+      width={400}
+      activeTab="plugin:samples.git/github"
+      items={[FILES_TAB, ...GIT_PLUGIN_PANELS]}
+    />
+  )
+})
+
+export const gitHostingPluginIconsAsTabs = defineFixture({
+  width: 640,
+  render: () => (
+    <BotPageBar
+      width={600}
+      activeTab="plugin:samples.git/github"
+      items={[FILES_TAB, ...GIT_PLUGIN_PANELS].map((item) => ({ ...item, labeledTab: true }))}
+    />
+  )
+})
