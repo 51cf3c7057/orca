@@ -205,6 +205,7 @@ export const UI_STATE_GLOBAL_FIELDS = [
   '_museStatusBarDefaultAdded',
   '_portsStatusBarDefaultAdded',
   '_sortBySmartMigrated',
+  '_statusTintWorktreeCardPropertyDefaulted',
   '_workspaceStatusesDefaultOrderMigrated',
   '_workspaceStatusesDefaultVisualsMigrated',
   '_workspaceStatusesDefaultWorkflowMigrated',

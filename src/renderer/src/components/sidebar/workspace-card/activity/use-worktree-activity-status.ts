@@ -61,7 +61,11 @@ export function selectWorktreeActivityPtyIds(
     : ptyIds
 }
 
-export function useWorktreeActivityStatus(worktreeId: string): WorktreeStatus {
+/** `ignoreFailed`: a failed agent stops hiding a live one, for surfaces that rank work above failure. */
+export function useWorktreeActivityStatus(
+  worktreeId: string,
+  { ignoreFailed = false }: { ignoreFailed?: boolean } = {}
+): WorktreeStatus {
   const tabs = useAppStore((s) => s.tabsByWorktree[worktreeId] ?? EMPTY_TABS)
   const browserTabs = useAppStore((s) => s.browserTabsByWorktree[worktreeId] ?? EMPTY_BROWSER_TABS)
   const hasStructuredChat = useAppStore((s) =>
@@ -88,7 +92,8 @@ export function useWorktreeActivityStatus(worktreeId: string): WorktreeStatus {
         ptyIdsByTabId: ptyIdsForWorktree,
         runtimePaneTitlesByTabId: runtimePaneTitlesForWorktree,
         terminalLayoutRootsByTabId,
-        ...summary
+        ...summary,
+        hasFailed: summary.hasFailed && !ignoreFailed
       }),
     [
       tabs,
@@ -97,7 +102,8 @@ export function useWorktreeActivityStatus(worktreeId: string): WorktreeStatus {
       ptyIdsForWorktree,
       runtimePaneTitlesForWorktree,
       terminalLayoutRootsByTabId,
-      summary
+      summary,
+      ignoreFailed
     ]
   )
 }

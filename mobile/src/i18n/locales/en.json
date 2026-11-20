@@ -892,7 +892,8 @@
       "searchProjectsPlaceholder": "Search projects…",
       "searchProjects": "Search projects",
       "hover": "Hover",
-      "agentActivityLayout": "Agent activity layout"
+      "agentActivityLayout": "Agent activity layout",
+      "activityColor": "Activity color"
     },
     "workspaceOptionsSheet": {
       "hosts": "Hosts",

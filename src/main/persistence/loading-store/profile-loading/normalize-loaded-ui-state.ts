@@ -84,6 +84,7 @@ export function normalizeLoadedUiState(
   const expandedCardPropsMigrated = parsed.ui?._expandedWorktreeCardPropertiesDefaulted === true
   const jiraIssueCardPropDefaulted = parsed.ui?._jiraIssueWorktreeCardPropertyDefaulted === true
   const hostCardPropDefaulted = parsed.ui?._hostWorktreeCardPropertyDefaulted === true
+  const statusTintCardPropDefaulted = parsed.ui?._statusTintWorktreeCardPropertyDefaulted === true
   const hadExperimentOn = readDeprecatedExperimentFlag(parsed)
   const deliberateUncheck =
     hadExperimentOn && Array.isArray(rawCardProps) && !rawCardProps.includes('inline-agents')
@@ -101,6 +102,13 @@ export function normalizeLoadedUiState(
       return undefined
     }
     if (hasDefaultedCompactPreset) {
+      // The tint adds no row, so Compact cards get the one-time backfill too.
+      if (!statusTintCardPropDefaulted) {
+        return normalizeWorktreeCardProperties([
+          ...getWorktreeCardModeProperties('Compact'),
+          'status-tint'
+        ])
+      }
       // Only legacy presets need rewriting; returning a current one would save on every load.
       return isCurrentCompactWorktreeCardProperties(rawCardProps)
         ? undefined
@@ -133,7 +141,11 @@ export function normalizeLoadedUiState(
       hostCardPropDefaulted || jiraCandidate.includes('host')
         ? jiraCandidate
         : [...jiraCandidate, 'host' as const]
-    const normalized = normalizeWorktreeCardProperties(hostCandidate)
+    const statusTintCandidate =
+      statusTintCardPropDefaulted || hostCandidate.includes('status-tint')
+        ? hostCandidate
+        : [...hostCandidate, 'status-tint' as const]
+    const normalized = normalizeWorktreeCardProperties(statusTintCandidate)
     const changed =
       normalized.length !== rawCardProps.length ||
       normalized.some((property, index) => property !== rawCardProps[index])
@@ -144,7 +156,8 @@ export function normalizeLoadedUiState(
     !inlineAgentsMigrated ||
     !expandedCardPropsMigrated ||
     !jiraIssueCardPropDefaulted ||
-    !hostCardPropDefaulted
+    !hostCardPropDefaulted ||
+    !statusTintCardPropDefaulted
   ) {
     markNeedsSave()
   }
@@ -249,6 +262,7 @@ export function normalizeLoadedUiState(
     _expandedWorktreeCardPropertiesDefaulted: true,
     _jiraIssueWorktreeCardPropertyDefaulted: true,
     _hostWorktreeCardPropertyDefaulted: true,
+    _statusTintWorktreeCardPropertyDefaulted: true,
     ...(statusBarDefaultOn.needsSave
       ? { statusBarItems: statusBarDefaultOn.items, ...statusBarDefaultOn.flags }
       : {})

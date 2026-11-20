@@ -44,3 +44,26 @@ it('adds Muse on a headless profile that never ran the renderer default-on step'
   expect(ui._museStatusBarDefaultAdded).toBe(true)
   expect(ui._antigravityStatusBarDefaultAdded).toBe(true)
 })
+
+it('turns Activity color on once for saved card properties, then keeps an uncheck', () => {
+  const upgraded = loadUi({
+    worktreeCardProperties: ['status', 'unread', 'pr', 'host'],
+    _inlineAgentsDefaultedForAllUsers: true,
+    _expandedWorktreeCardPropertiesDefaulted: true,
+    _jiraIssueWorktreeCardPropertyDefaulted: true,
+    _hostWorktreeCardPropertyDefaulted: true,
+    _statusTintWorktreeCardPropertyDefaulted: undefined
+  })
+  expect(upgraded.worktreeCardProperties).toEqual(['status', 'unread', 'pr', 'host', 'status-tint'])
+  expect(upgraded._statusTintWorktreeCardPropertyDefaulted).toBe(true)
+
+  const unchecked = loadUi({
+    worktreeCardProperties: ['status', 'unread', 'pr', 'host'],
+    _inlineAgentsDefaultedForAllUsers: true,
+    _expandedWorktreeCardPropertiesDefaulted: true,
+    _jiraIssueWorktreeCardPropertyDefaulted: true,
+    _hostWorktreeCardPropertyDefaulted: true,
+    _statusTintWorktreeCardPropertyDefaulted: true
+  })
+  expect(unchecked.worktreeCardProperties).toEqual(['status', 'unread', 'pr', 'host'])
+})
