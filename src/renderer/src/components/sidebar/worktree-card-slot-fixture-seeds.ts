@@ -151,11 +151,8 @@ export function seedWorkspaces(seeds: readonly WorkspaceSeed[], now: number): vo
     if (!seed.pr) {
       continue
     }
-    const { hostedReviewCacheKey } = getWorktreeReviewCacheKeys(
-      makeWorktree(seed, now),
-      FIXTURE_REPO,
-      settings
-    )
+    const worktree = makeWorktree(seed, now)
+    const { hostedReviewCacheKey } = getWorktreeReviewCacheKeys(worktree, FIXTURE_REPO, settings)
     hostedReviewCache[hostedReviewCacheKey] = {
       fetchedAt: now,
       // A plain branch lookup, not a linked-PR request.
@@ -165,6 +162,8 @@ export function seedWorkspaces(seeds: readonly WorkspaceSeed[], now: number): vo
         number: seed.pr.number,
         title: seed.name,
         state: seed.pr.state,
+        // A merged PR counts only while it is the PR of the workspace's current commit.
+        headSha: worktree.head,
         url: `https://github.com/stablyai/orca/pull/${seed.pr.number}`,
         status: 'success',
         updatedAt: new Date(now).toISOString(),
