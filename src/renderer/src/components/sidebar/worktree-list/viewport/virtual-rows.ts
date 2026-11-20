@@ -11,6 +11,8 @@ const SECONDARY_GROUP_HEADER_TOP_MARGIN = 4
 const IMPORTED_WORKTREES_LINE_ROW_HEIGHT = 36
 const PENDING_CREATION_ROW_HEIGHT = 56
 const FOLDER_WORKSPACE_ROW_HEIGHT = 64
+// Why: ArchivedSectionLine is a min-h-7 (28px) line in my-0.5 (2px) margins.
+const ARCHIVED_SECTION_ROW_HEIGHT = 32
 
 export function shouldUseHeaderTopSpacing(args: {
   rows: readonly RenderRow[]
@@ -64,6 +66,9 @@ export function estimateRenderRowSize(
   }
   if (row?.type === 'folder-workspace') {
     return FOLDER_WORKSPACE_ROW_HEIGHT
+  }
+  if (row?.type === 'archived-section') {
+    return ARCHIVED_SECTION_ROW_HEIGHT
   }
   return 116
 }

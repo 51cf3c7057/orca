@@ -309,9 +309,10 @@ export function projectParityRows(
         ]
       case 'pending-creation':
         return [`PENDING ${row.key}`]
-      // Desktop-only cards: the feed never carries detected worktrees (see exclusions).
+      // Desktop-only rows: the feed carries no detected worktrees (see exclusions) and no archived rows.
       case 'imported-worktrees-card':
       case 'new-external-worktrees-inbox':
+      case 'archived-section':
         return []
     }
   })

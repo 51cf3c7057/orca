@@ -12,10 +12,7 @@ import {
   withDefaultWorkspaceStatuses
 } from '../../../../src/shared/workspace/status/workspace-statuses'
 import { DEFAULT_WORKSPACE_STATUSES } from '../../../../src/shared/workspace/status/workspace-status-defaults'
-import {
-  getMobileOccurrenceRows,
-  getMobileWorkspaceLineageChildren
-} from '../agent-lineage/mobile-workspace-lineage'
+import { getMobileWorkspaceLineageChildren } from '../agent-lineage/mobile-workspace-lineage'
 import {
   getPRLaneKey,
   PR_GROUP_ORDER
@@ -27,8 +24,10 @@ import type {
 } from '../../../../src/shared/workspace-view/workspace-view-options'
 import { hostSortsByStamps, sortWorktrees } from './workspace-list-ordering'
 import { getWorktreeRowIdentity } from '../row-presentation/worktree-host-row-identity'
-import { NO_WORKTREE_HOST_CONTEXT } from '../row-presentation/worktree-host-context-labels'
-import type { WorktreeHostContextOf } from '../row-presentation/worktree-host-context-labels'
+import {
+  NO_WORKTREE_HOST_CONTEXT,
+  type WorktreeHostContextOf
+} from '../row-presentation/worktree-host-context-labels'
 import {
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
@@ -42,16 +41,20 @@ import {
 import type { ProjectOrderBy } from '../../../../src/shared/ui-chrome/ui-chrome-types'
 import { translate } from '../../i18n/mobile-i18n'
 import {
+  groupPhoneArchivedByProject,
+  renderPhoneSectionsWithArchived,
+  selectPhoneArchivedRows
+} from './phone-archived-workspaces'
+import {
   indexHiddenProjects,
   isRepoHidden,
   withoutHiddenFilterRepoIds
 } from '../../../../src/shared/project/catalog/hidden-projects'
-import { filterWorktrees, isPhoneRowInHiddenProject } from './workspace-row-filtering'
+import { isPhoneRowInHiddenProject } from './workspace-row-filtering'
 import { buildSectionRepoMap } from './section-repo-map'
 import { keepHiddenRowsBelowFolders } from '../../../../src/shared/sidebar-list/folders/folder-workspace-occurrences'
 import type { ProjectGroup } from '../../../../src/shared/project/groups/project-group-types'
 import {
-  placeInProjectGroupTree,
   planProjectGroupTree,
   bindGroupFolderRows,
   type GroupTreePlacement
@@ -95,7 +98,7 @@ function makeSection(
   }
 }
 
-export function isWorktreePinned(w: Worktree, localPins: Set<string>): boolean {
+export function isWorktreePinned(w: Worktree, localPins: ReadonlySet<string>): boolean {
   return w.isPinned || localPins.has(w.worktreeId)
 }
 
@@ -111,7 +114,8 @@ export function buildMobileWorkspacePlan(
   _collapsedGroups: ReadonlySet<string> = new Set(),
   showPinnedInGroups = false,
   repoHostIdByRepoId: ReadonlyMap<string, ExecutionHostId> = new Map(),
-  lineageStores?: Parameters<typeof getMobileWorkspaceLineageChildren>[1]
+  lineageStores?: Parameters<typeof getMobileWorkspaceLineageChildren>[1],
+  archiveRestoredWorkspaceKeys: ReadonlySet<string> = new Set()
 ) {
   const groupLabels = {
     pinned: translate('worktree.workspaceListSections.pinned', 'Pinned'),
@@ -128,14 +132,17 @@ export function buildMobileWorkspacePlan(
     lineageStores,
     listedFilterIds
   )
-  const filtered = filterWorktrees(
+  const { active: filtered, archived: archivedRows } = selectPhoneArchivedRows({
     worktrees,
+    groupMode,
+    pinnedIds,
+    restoredKeys: archiveRestoredWorkspaceKeys,
     filters,
     search,
     repoHostIdByRepoId,
     hiddenProjects,
     childrenByParentIdentity
-  )
+  })
   const isHiddenRow = (w: Worktree) =>
     isPhoneRowInHiddenProject(w, repoHostIdByRepoId, hiddenProjects)
   const sorted = keepHiddenRowsBelowFolders({
@@ -147,6 +154,7 @@ export function buildMobileWorkspacePlan(
   })
   const repoMap = buildSectionRepoMap(projectCatalog.repos, worktrees)
   const projectIndex = buildProjectGroupingIndex(projectCatalog.grouping ?? undefined)
+  const archivedByProjectKey = groupPhoneArchivedByProject(archivedRows, repoMap, projectIndex)
   let groupTreePlacements = new Map<string, GroupTreePlacement>()
   const occurrencePlan = buildWorktreeOccurrencePlan({
     rows: sorted,
@@ -176,7 +184,7 @@ export function buildMobileWorkspacePlan(
           childrenByParentIdentity,
           isHiddenRow
         )
-        const representedRepoIds = new Set(worktrees.map((w) => w.repoId))
+        const representedRepoIds = new Set(filtered.map((w) => w.repoId))
         const query = search.trim().toLowerCase()
         const placeholderRepoIds = projectCatalog.repos
           .filter(
@@ -279,18 +287,14 @@ export function buildMobileWorkspacePlan(
     render: (
       collapsed: ReadonlySet<string>,
       hostContextOf: WorktreeHostContextOf = NO_WORKTREE_HOST_CONTEXT
-    ): Section[] =>
-      occurrencePlan.sections.flatMap(({ items: _items, placement: _placement, ...section }) => {
-        const listed = placeInProjectGroupTree(
-          {
-            ...section,
-            data: getMobileOccurrenceRows(occurrencePlan, section.key, collapsed, hostContextOf)
-          },
-          groupTreePlacements.get(section.key),
-          collapsed
-        )
-        return listed ? [listed] : []
-      })
+    ) =>
+      renderPhoneSectionsWithArchived(
+        occurrencePlan,
+        groupTreePlacements,
+        archivedByProjectKey,
+        collapsed,
+        hostContextOf
+      )
   }
 }
 

@@ -123,6 +123,8 @@ export type PersistedUIState = {
   /** Agents-view thread grouping. Absent means 'status'. */
   agentsGroupBy?: ActivityGroupBy
   collapsedGroups: string[]
+  /** Host identities of merged-PR workspaces restored from Archived; the merged rule leaves them active. */
+  archiveRestoredWorkspaceKeys?: string[]
   uiZoomLevel: number
   editorFontZoomLevel: number
   worktreeCardProperties: WorktreeCardProperty[]

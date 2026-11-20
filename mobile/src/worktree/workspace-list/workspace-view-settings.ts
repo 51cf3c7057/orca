@@ -35,6 +35,7 @@ export type WorkspaceViewSettings = {
   Pick<
     PersistedUIState,
     | (typeof WORKSPACE_VIEW_UI_FIELDS)[number]
+    | 'archiveRestoredWorkspaceKeys'
     // Written with the card properties only: whether they are a Card layout preset.
     | '_worktreeCardModeDefaulted'
   >
@@ -57,6 +58,8 @@ export type MobileViewState = {
   /** Desktop settings, not UI state: read with settings.get; Card layout writes the first. */
   compactWorktreeCards: boolean
   newCardStyle: boolean
+  /** Host identities restored out of the merged-PR rule. Absent until ui.get. */
+  archiveRestoredWorkspaceKeys?: readonly string[]
 }
 
 export const INITIAL_MOBILE_VIEW: MobileViewState = {
@@ -70,7 +73,8 @@ export const INITIAL_MOBILE_VIEW: MobileViewState = {
   agentActivityDisplayMode: 'compact',
   sharesOtherClientFilter: null,
   compactWorktreeCards: false,
-  newCardStyle: false
+  newCardStyle: false,
+  archiveRestoredWorkspaceKeys: []
 }
 
 // Patch only touched fields; compactWorktreeCards is written as a setting after host acceptance.
@@ -137,6 +141,9 @@ export function buildWorkspaceViewSettingsUpdate(
   if ('collapsedGroups' in patch) {
     update.collapsedGroups = [...next.collapsedGroups]
   }
+  if ('archiveRestoredWorkspaceKeys' in patch) {
+    update.archiveRestoredWorkspaceKeys = [...(next.archiveRestoredWorkspaceKeys ?? [])]
+  }
   if ('workspaceStatuses' in patch) {
     update.workspaceStatuses = [...next.workspaceStatuses]
   }
@@ -177,6 +184,8 @@ export function applyDesktopViewSettings(
     agentActivityDisplayMode: settings.agentActivityDisplayMode ?? current.agentActivityDisplayMode,
     // Each ui.get is the desktop's whole state, so the field's absence means it keeps the filter.
     sharesOtherClientFilter: settings.hideWorkspacesFromOtherDevices !== undefined,
+    archiveRestoredWorkspaceKeys:
+      settings.archiveRestoredWorkspaceKeys ?? current.archiveRestoredWorkspaceKeys,
     compactWorktreeCards: current.compactWorktreeCards,
     newCardStyle: current.newCardStyle
   }

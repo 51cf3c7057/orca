@@ -6,9 +6,13 @@ import {
 } from '../../worktree/row-presentation/worktree-host-row-identity'
 import type { Worktree } from '../../worktree/workspace-list/workspace-list-types'
 import type { HostScreenState } from '../use-host-screen-state'
-import { worktreeReadStateWrite, worktreeStatusWrite } from './workspace-row-menu-operations'
+import {
+  worktreeArchiveWrite,
+  worktreeReadStateWrite,
+  worktreeStatusWrite
+} from './workspace-row-menu-operations'
 
-type RowPatch = Partial<Pick<Worktree, 'unread' | 'workspaceStatus'>>
+type RowPatch = Partial<Pick<Worktree, 'unread' | 'workspaceStatus' | 'isArchived'>>
 
 /** Read state and status, written at the row's owner as desktop does, drawn before the host answers. */
 export function useHostWorktreeRowWrites(args: {
@@ -89,6 +93,18 @@ export function useHostWorktreeRowWrites(args: {
     [write]
   )
 
+  const setWorktreeArchived = useCallback(
+    (item: Worktree, isArchived: boolean) =>
+      write(item, { isArchived }, { isArchived: item.isArchived }, async (client) => {
+        const reply = await worktreeArchiveWrite.request(client, {
+          worktree: `id:${item.worktreeId}`,
+          isArchived
+        })
+        return worktreeArchiveWrite.interpret(reply).accepted
+      }),
+    [write]
+  )
+
   const setWorktreeStatus = useCallback(
     (item: Worktree, workspaceStatus: string) =>
       write(
@@ -106,5 +122,5 @@ export function useHostWorktreeRowWrites(args: {
     [write]
   )
 
-  return { setWorktreeUnread, setWorktreeStatus }
+  return { setWorktreeArchived, setWorktreeUnread, setWorktreeStatus }
 }

@@ -74,4 +74,6 @@ export type SectionRowsArgs = {
   filterRepoIds: readonly string[]
   visibleWorkspaceHostIds: readonly ExecutionHostId[] | null
   workspaceHostScope: AppState['workspaceHostScope']
+  /** Archived rows per repo id; project grouping lists them in each project's Archived section. */
+  archivedWorktreesByRepo?: ReadonlyMap<string, readonly Worktree[]>
 }

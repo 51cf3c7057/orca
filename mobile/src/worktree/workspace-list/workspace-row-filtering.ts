@@ -47,7 +47,8 @@ export function isPhoneRowInHiddenProject(
 function phoneRowFacts(
   repoHostIdByRepoId: ReadonlyMap<string, ExecutionHostId>,
   hiddenProjects: HiddenProjects,
-  childrenByParentIdentity: ReadonlyMap<string, readonly Worktree[]> | undefined
+  childrenByParentIdentity: ReadonlyMap<string, readonly Worktree[]> | undefined,
+  keepArchived = false
 ): WorkspaceRowFactReader<Worktree> {
   const parentByChild = new Map(
     [...(childrenByParentIdentity ?? [])].flatMap(([parent, children]) =>
@@ -55,7 +56,7 @@ function phoneRowFacts(
     )
   )
   return {
-    isArchived: (w) => w.isArchived === true,
+    isArchived: (w) => (keepArchived ? false : w.isArchived === true),
     isInHiddenProject: (w) =>
       isPhoneRowInHiddenProject(w, repoHostIdByRepoId, hiddenProjects) &&
       !isListedByFolderWorkspace(getWorktreeRowIdentity(w), (id) => parentByChild.get(id)),
@@ -81,12 +82,14 @@ export function filterWorktrees(
   repoHostIdByRepoId: ReadonlyMap<string, ExecutionHostId> = new Map(),
   hiddenProjects: HiddenProjects = NO_HIDDEN_PROJECTS,
   /** The list's nesting; a hidden project's row under a folder workspace stays listed. */
-  childrenByParentIdentity?: ReadonlyMap<string, readonly Worktree[]>
+  childrenByParentIdentity?: ReadonlyMap<string, readonly Worktree[]>,
+  /** Archived rows the phone lists under Archived, which the default filter would drop. */
+  keepArchived = false
 ): Worktree[] {
   const result = filterWorkspaceRows(
     worktrees,
     filters,
-    phoneRowFacts(repoHostIdByRepoId, hiddenProjects, childrenByParentIdentity)
+    phoneRowFacts(repoHostIdByRepoId, hiddenProjects, childrenByParentIdentity, keepArchived)
   )
   const q = search.trim().toLowerCase()
   if (!q) {

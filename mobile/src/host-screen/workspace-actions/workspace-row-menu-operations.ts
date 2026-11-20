@@ -48,6 +48,16 @@ export const worktreeReadStateWrite = bindDeferredRpcOperation(
   })
 )
 
+export const worktreeArchiveWrite = bindDeferredRpcOperation(
+  defineRpcOperation({
+    name: 'worktree.set-archived-or-skip',
+    method: 'worktree.set',
+    acceptance: 'success-result-or-skip',
+    barrier: 'after-caller-barrier',
+    read: rpcResultVariant('archived-written', hostScreenUnreadReplySchema)
+  })
+)
+
 export const worktreeStatusWrite = bindDeferredRpcOperation(
   defineRpcOperation({
     name: 'worktree.set-status-or-skip',

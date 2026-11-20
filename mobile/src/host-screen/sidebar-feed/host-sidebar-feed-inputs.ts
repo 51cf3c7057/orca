@@ -37,6 +37,7 @@ export function buildHostFeedView(args: {
     defaultHostId: normalizeExecutionHostId(desktop?.focusedHostId) ?? LOCAL_EXECUTION_HOST_ID,
     hostLabelOverrides,
     // Null platform names no OS ("This computer"); the phone's own never stands in for it.
-    localHostLabel: getHostContextLabel(LOCAL_EXECUTION_HOST_ID, { hostPlatform })
+    localHostLabel: getHostContextLabel(LOCAL_EXECUTION_HOST_ID, { hostPlatform }),
+    archiveRestoredWorkspaceKeys: view.archiveRestoredWorkspaceKeys
   }
 }

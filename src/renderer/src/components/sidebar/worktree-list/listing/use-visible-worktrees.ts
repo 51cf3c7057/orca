@@ -10,7 +10,16 @@ import type { Repo } from '../../../../../../shared/repository/repo-types'
 import type { WorktreeLineage } from '../../../../../../shared/worktree/lineage-types'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import './visible-worktrees'
-import { computeVisibleWorktrees } from './compute-visible-worktrees'
+import {
+  computeArchivedSidebarWorktrees,
+  computeVisibleWorktrees,
+  type VisibleWorktreeOptions
+} from './compute-visible-worktrees'
+import {
+  createMergedArchiveIdentitiesSelector,
+  groupArchivedWorktreesByRepo
+} from './sidebar-archived-worktrees'
+import type { Worktree } from '../../../../../../shared/worktree/types'
 import {
   EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
   getPairedDeviceIdsByEnvironment
@@ -33,6 +42,7 @@ import {
 } from '@/runtime/ephemeral-vm/vm-create-hidden-checkouts'
 
 const EMPTY_WORKTREE_ID_SET: ReadonlySet<string> = new Set()
+const NO_ARCHIVED_WORKTREES: Worktree[] = []
 
 function createSidebarPairedDeviceIdsSelector(enabled: boolean) {
   let inputs: readonly unknown[] = []
@@ -127,9 +137,14 @@ export function useVisibleSidebarWorktrees(args: {
     worktreeIdsWithStructuredChat
   })
 
+  const [selectMergedArchiveIdentities] = useState(createMergedArchiveIdentitiesSelector)
+  const archivedWorktreeIdentities = useAppStore(selectMergedArchiveIdentities)
+  // Only project grouping draws Archived sections; elsewhere archived rows stay hidden.
+  const listsArchived = useAppStore((s) => s.groupBy === 'repo')
+
   const hiddenVmCheckouts = useSyncExternalStore(subscribeHiddenVmCheckouts, readHiddenVmCheckouts)
-  const recomputedVisibleWorktrees = useMemo(() => {
-    const visible = computeVisibleWorktrees(worktreesByRepo, sortedIds, {
+  const recomputed = useMemo(() => {
+    const options: VisibleWorktreeOptions = {
       filterRepoIds,
       showSleepingWorkspaces,
       tabsByWorktree,
@@ -158,10 +173,23 @@ export function useVisibleSidebarWorktrees(args: {
       sortedByHostIdentity: true,
       forcedVisibleWorktreeIds: args.agentSendTargetWorktreeId
         ? [args.agentSendTargetWorktreeId]
-        : undefined
-    })
-    return withoutHiddenVmWorktrees(visible, hiddenVmCheckouts)
+        : undefined,
+      archivedWorktreeIdentities
+    }
+    const visible = withoutHiddenVmWorktrees(
+      computeVisibleWorktrees(worktreesByRepo, sortedIds, options),
+      hiddenVmCheckouts
+    )
+    const archived = listsArchived
+      ? withoutHiddenVmWorktrees(
+          computeArchivedSidebarWorktrees(worktreesByRepo, visible, options),
+          hiddenVmCheckouts
+        )
+      : NO_ARCHIVED_WORKTREES
+    return { visible, archived }
   }, [
+    archivedWorktreeIdentities,
+    listsArchived,
     hiddenVmCheckouts,
     args.agentSendTargetWorktreeId,
     worktreeIdsWithLiveAgent,
@@ -192,7 +220,17 @@ export function useVisibleSidebarWorktrees(args: {
     worktreeIdsWithStructuredChat
   ])
   // Reuse equal visibility results across epochs to avoid churning the entire row-model chain.
-  const visibleWorktrees = useReusedArrayIdentity(recomputedVisibleWorktrees)
+  const visibleWorktrees = useReusedArrayIdentity(recomputed.visible)
+  const archivedWorktrees = useReusedArrayIdentity(recomputed.archived)
+  const archivedWorktreesByRepo = useMemo(
+    () => groupArchivedWorktreesByRepo(archivedWorktrees),
+    [archivedWorktrees]
+  )
 
-  return { visibleWorktrees, pairedDeviceIdsByEnvironment, botListedWorktreeIdentities }
+  return {
+    visibleWorktrees,
+    archivedWorktreesByRepo,
+    pairedDeviceIdsByEnvironment,
+    botListedWorktreeIdentities
+  }
 }

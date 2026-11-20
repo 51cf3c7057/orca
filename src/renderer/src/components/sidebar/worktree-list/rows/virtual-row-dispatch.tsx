@@ -24,6 +24,7 @@ import { HostSectionHeader } from './HostSectionHeader'
 import { renderFolderWorkspaceOption, type FolderWorkspaceRowContext } from './folder-row'
 import type { LineageToggleHandler } from '../../workspace-card/identity/worktree-lineage-toggle-handler-cache'
 import {
+  renderArchivedSectionVirtualRow,
   renderImportedWorktreesVirtualRow,
   renderNewExternalWorktreesInboxVirtualRow,
   renderPendingCreationVirtualRow
@@ -174,6 +175,15 @@ export function renderWorktreeVirtualRow(
       row,
       vItem,
       measureVirtualRowElement: ctx.measureVirtualRowElement
+    })
+  }
+
+  if (row.type === 'archived-section') {
+    return renderArchivedSectionVirtualRow({
+      row,
+      vItem,
+      measureVirtualRowElement: ctx.measureVirtualRowElement,
+      onToggle: ctx.toggleGroupWithScrollAnchor
     })
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store/index'
 import { useRepoById } from '@/store/repos/use-repository-catalog'
+import { isWorkspaceSidebarArchived } from '../archive/workspace-sidebar-archive'
 import type { Worktree } from '../../../../../../shared/worktree/types'
 import { useContextWorkspaceStatuses } from '../../workspace-status/presentation/use-workspace-board-statuses'
 import { useMenuScopedWorktreeCatalog } from './use-menu-scoped-worktree-catalog'
@@ -113,6 +114,9 @@ export function useWorktreeContextMenuModel({
   const unifiedTabsByWorktree = useAppStore((s) =>
     selectMenuScopedMap(menuOpen, s.unifiedTabsByWorktree, EMPTY_UNIFIED_TABS_BY_WORKTREE)
   )
+  // Closed menus skip the PR read; the open one offers Restore exactly when the row sits in Archived.
+  const sidebarArchived = useAppStore((s) => menuOpen && isWorkspaceSidebarArchived(s, worktree))
+  const groupBy = useAppStore((s) => s.groupBy)
   // The menu offers what the card shows: unread when any agent result or the flag is unread.
   const showsUnread = useAppStore((s) =>
     menuOpen ? selectWorkspaceShowsUnread(s, worktree) : worktree.isUnread
@@ -284,6 +288,7 @@ export function useWorktreeContextMenuModel({
     createProjectGroup,
     folderWorkspaceId,
     isMultiContext,
+    isSidebarArchived: sidebarArchived,
     moveProjectToGroup,
     onAssignWorkspaceStatus,
     openModal,
@@ -337,6 +342,9 @@ export function useWorktreeContextMenuModel({
 
   return {
     ...commands,
+    // Other groupings have no Archived section, so the action would hide the card until project grouping is back.
+    canMoveToArchived: groupBy === 'repo' && !worktree.isMainWorktree && !folderWorkspaceId,
+    sidebarArchived,
     showsUnread,
     activeContextWorktrees,
     batchDeleteWorktrees,

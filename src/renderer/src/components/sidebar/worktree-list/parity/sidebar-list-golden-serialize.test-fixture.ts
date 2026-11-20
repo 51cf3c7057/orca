@@ -124,6 +124,14 @@ export function serializeSidebarRow(
         field('hostLabel', row.hostContextLabel ? JSON.stringify(row.hostContextLabel) : undefined),
         field('hostId', row.hostContextHostId)
       ])
+    case 'archived-section':
+      return line('ARCHIVED', [
+        field('key', row.key),
+        field('repo', row.repo?.id),
+        field('count', row.count),
+        field('open', row.open),
+        field('groupDepth', row.groupDepth)
+      ])
     case 'new-external-worktrees-inbox':
       return line('INBOX', [
         field('key', row.key),

@@ -72,7 +72,7 @@ import {
   hydrateReadAndBotState,
   sanitizeTaskResumeState
 } from './ui-slice-bot-sidebar-hydration'
-import { hydrateWslMovedSection } from './ui-slice-wsl-moved-section-actions'
+import { hydrateSidebarSectionState } from './ui-slice-archived-section-actions'
 import { hydrateBrowserPaneLayout } from './browser-pane-layout-hydration'
 import { hydrateStatusBarItems } from './ui-slice-hydration-status-bar-items'
 
@@ -267,7 +267,7 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
             ui.usagePercentageDisplayChangeNoticeDismissed === true,
           statusBarCompactChangeNoticeDismissed: ui.statusBarCompactChangeNoticeDismissed !== false,
           ...hydrateOneShotNoticesSeen(ui),
-          ...hydrateWslMovedSection(ui),
+          ...hydrateSidebarSectionState(ui),
           ...hydrateReadAndBotState(ui),
           workspaceCleanupDismissals: sanitizeWorkspaceCleanupDismissals(
             ui.workspaceCleanup?.dismissals

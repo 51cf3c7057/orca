@@ -3,6 +3,7 @@ import type { VirtualItem } from '@tanstack/react-virtual'
 import type { Row } from '../../../../../../shared/sidebar-list/row-types'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
 import { PendingWorktreeRow } from './PendingWorktreeRow'
+import { ArchivedSectionLine } from './ArchivedSectionLine'
 import ImportedWorktreesVisibilityLine from '../listing/ImportedWorktreesVisibilityLine'
 import NewExternalWorktreesInboxLine from '../listing/NewExternalWorktreesInboxLine'
 import type { ImportedWorktreeCardActionState } from '../listing/imported-worktrees-card-actions'
@@ -130,6 +131,30 @@ export function renderPendingCreationVirtualRow(args: {
       <PendingWorktreeRow
         creationId={args.row.creationId}
         repoName={args.row.repo?.displayName ?? null}
+      />
+    </NoticeRowFrame>
+  )
+}
+
+export function renderArchivedSectionVirtualRow(args: {
+  row: Extract<Row, { type: 'archived-section' }>
+  vItem: VirtualItem
+  measureVirtualRowElement: (element: HTMLDivElement | null) => void
+  onToggle: (key: string) => void
+}): React.JSX.Element {
+  const { row } = args
+  return (
+    <NoticeRowFrame
+      key={args.vItem.key}
+      vItem={args.vItem}
+      measureVirtualRowElement={args.measureVirtualRowElement}
+    >
+      <ArchivedSectionLine
+        count={row.count}
+        open={row.open}
+        repoDisplayName={row.repo?.displayName}
+        groupDepth={row.groupDepth}
+        onToggle={() => args.onToggle(row.key)}
       />
     </NoticeRowFrame>
   )

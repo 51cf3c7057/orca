@@ -264,6 +264,19 @@ export function useHostViewSettings(args: {
     },
     [client, applyViewState, persistViewSettings, pendingChanges, refused]
   )
+  const setArchiveRestored = useCallback(
+    (key: string, restored: boolean) => {
+      const current = viewRef.current.archiveRestoredWorkspaceKeys ?? []
+      if (current.includes(key) === restored) {
+        return
+      }
+      const next = restored
+        ? [...current, key].slice(-500)
+        : current.filter((candidate) => candidate !== key)
+      persistViewSettings({ archiveRestoredWorkspaceKeys: next })
+    },
+    [persistViewSettings]
+  )
   const toggleWorktreeLineage = useCallback(
     ({ row, view }: WorkspaceListItem) =>
       toggleCollapsed(view.lineageGroupKey ?? getMobileWorkspaceLineageGroupKey(row)),
@@ -281,6 +294,7 @@ export function useHostViewSettings(args: {
     handleSortChange,
     syncViewSettingsFromDesktop,
     toggleCollapsed,
+    setArchiveRestored,
     setFilter,
     toggleRepoFilter,
     toggleWorktreeLineage

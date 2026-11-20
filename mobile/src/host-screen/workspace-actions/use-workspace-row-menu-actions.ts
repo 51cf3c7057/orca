@@ -1,4 +1,6 @@
 import {
+  Archive,
+  ArchiveRestore,
   Bell,
   BellMinus,
   BellOff,
@@ -9,6 +11,8 @@ import {
   Pin,
   PinOff
 } from 'lucide-react-native'
+import { composeWorktreeHostIdentity } from '../../../../src/shared/worktree/host-qualified-identity'
+import { isPhoneSidebarArchived } from '../../worktree/workspace-list/phone-archived-workspaces'
 import { buildWorktreeNavigationActions } from '../../agent-history/worktree-navigation-actions'
 import type { ActionSheetAction } from '../../components/sheets/ActionSheetModal'
 import { useMobileTranslation } from '../../i18n/use-mobile-translation'
@@ -39,6 +43,14 @@ export function useWorkspaceRowMenuActions(args: {
   }
   const close = () => state.setActionTarget(null)
   const pinned = isWorktreePinned(row, state.pinnedIds)
+  const restoredKeys = new Set(state.view.archiveRestoredWorkspaceKeys ?? [])
+  const sidebarArchived =
+    state.view.groupBy === 'repo' && isPhoneSidebarArchived(row, state.pinnedIds, restoredKeys)
+  const canMoveToArchived =
+    state.view.groupBy === 'repo' &&
+    row.isMainWorktree !== true &&
+    row.workspaceKind !== 'folder-workspace'
+  const archiveIdentity = composeWorktreeHostIdentity(row.hostId, row.worktreeId)
   const muted = mutes?.[row.worktreeId] === true
   // A server row's writes go through the desktop; with that server unreachable they cannot land.
   const serverUnreachable =
@@ -120,6 +132,37 @@ export function useWorkspaceRowMenuActions(args: {
             onPress: () => onMoveToStatus(row)
           }
         ]),
+    ...(sidebarArchived
+      ? [
+          {
+            id: 'restore',
+            label: t('hostScreen.hostScreenOverlays.restoreFromArchived', 'Restore'),
+            icon: ArchiveRestore,
+            disabled: serverUnreachable,
+            onPress: () => {
+              actions.setWorktreeArchived(row, false)
+              if (row.linkedPR?.state === 'merged') {
+                controller.settings.setArchiveRestored(archiveIdentity, true)
+              }
+              close()
+            }
+          }
+        ]
+      : canMoveToArchived
+        ? [
+            {
+              id: 'archive',
+              label: t('hostScreen.hostScreenOverlays.moveToArchived', 'Move to Archived'),
+              icon: Archive,
+              disabled: serverUnreachable,
+              onPress: () => {
+                controller.settings.setArchiveRestored(archiveIdentity, false)
+                actions.setWorktreeArchived(row, true)
+                close()
+              }
+            }
+          ]
+        : []),
     {
       id: 'delete',
       label: t('common.delete', 'Delete'),

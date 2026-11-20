@@ -17,6 +17,8 @@ import type { SidebarLineageParentIdentities } from '../../../../../../shared/si
 import { buildDesktopWorkspaceRowFactReader } from './desktop-workspace-row-facts'
 import { sidebarWorkspaceRowFilters } from '../controls/sidebar-filter-actions'
 import { getLineageAncestorIndex, getSortedWorktreeRankIndex } from './visible-worktree-indexes'
+import { filterWorkspaceRows } from '../../../../../../shared/workspace-view/workspace-row-filters'
+import { isWorktreeRetiredByRemoval } from '../../../../../../shared/worktree/removal/removal-visibility'
 
 // Separate store binding avoids attention-slice import cycles; shared builders retain the filter rules.
 
@@ -52,6 +54,8 @@ export type VisibleWorktreeOptions = {
   sleepingSweepExemptWorktreeIds?: ReadonlySet<string>
   /** Host identities listed under their bot instead of their project; not a filter, so muting and filter counts ignore it. */
   botListedWorktreeIdentities?: ReadonlySet<string>
+  /** Host identities the sidebar's merged-PR rule files under Archived. */
+  archivedWorktreeIdentities?: ReadonlySet<string>
 }
 
 export function computeVisibleWorktrees(
@@ -87,4 +91,29 @@ export function computeVisibleWorktreeIds(
   opts: VisibleWorktreeOptions
 ): string[] {
   return computeVisibleWorktrees(worktreesByRepo, sortedKeys, opts).map((worktree) => worktree.id)
+}
+
+/** The rows Archived sections list: archived, not already listed, inside the sidebar's scope filters. */
+export function computeArchivedSidebarWorktrees(
+  worktreesByRepo: Record<string, Worktree[]>,
+  visible: readonly Worktree[],
+  opts: VisibleWorktreeOptions
+): Worktree[] {
+  const facts = buildDesktopWorkspaceRowFactReader(opts)
+  const listed = new Set(visible.map(getWorktreeHostIdentity))
+  const archived = withoutBotListedWorktrees(
+    getIndexedAllWorktrees(worktreesByRepo),
+    opts.botListedWorktreeIdentities
+  ).filter(
+    (worktree) =>
+      facts.isArchived(worktree) &&
+      !isWorktreeRetiredByRemoval(worktree) &&
+      !listed.has(getWorktreeHostIdentity(worktree))
+  )
+  // Archived rows are asleep by nature, so the sleeping sweep would empty the section.
+  return filterWorkspaceRows(
+    archived,
+    { ...sidebarWorkspaceRowFilters(opts), hideSleepingWorkspaces: false },
+    { ...facts, isArchived: () => false }
+  )
 }

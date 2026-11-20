@@ -20,6 +20,7 @@ import {
   type HiddenProjects
 } from '../../../../../../shared/project/catalog/hidden-projects'
 import { isInactiveWorkspace } from '@/lib/workspace/activity/worktree-activity-state'
+import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 
 export type DesktopWorkspaceRowFactInputs = {
   repoMap: ReadonlyMap<string, Repo>
@@ -34,6 +35,8 @@ export type DesktopWorkspaceRowFactInputs = {
   worktreeIdsWithStructuredChat?: ReadonlySet<string>
   /** Rows in a PTY-rebind grace window; read as unverifiable, never as asleep (#15996). */
   sleepingSweepExemptWorktreeIds?: ReadonlySet<string>
+  /** Host identities the sidebar's merged-PR rule files under Archived. */
+  archivedWorktreeIdentities?: ReadonlySet<string>
 }
 
 export function buildDesktopWorkspaceRowFactReader(
@@ -44,7 +47,10 @@ export function buildDesktopWorkspaceRowFactReader(
     return repo ? getWorktreeExecutionHostId(worktree, repo, inputs.defaultHostId) : null
   }
   return {
-    isArchived: (worktree) => worktree.isArchived || isWorktreeRetiredByRemoval(worktree),
+    isArchived: (worktree) =>
+      worktree.isArchived ||
+      isWorktreeRetiredByRemoval(worktree) ||
+      inputs.archivedWorktreeIdentities?.has(getWorktreeHostIdentity(worktree)) === true,
     ...hiddenProjectRowFacts(inputs.hiddenProjects),
     isFolderWorkspace: (worktree) => parseWorkspaceKey(worktree.id)?.type === 'folder',
     repoId: (worktree) => worktree.repoId,
