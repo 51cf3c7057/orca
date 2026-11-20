@@ -5,25 +5,47 @@ import type { Bot } from '../../../../shared/bot-types'
 import {
   BOT_GROUP_FACE_GAP,
   BOT_GROUP_FACE_SLOT,
+  BOT_GROUP_FACE_WIDTH,
+  botGroupFaceLinks,
   type BotGroupFace
 } from '../../../../shared/bots/bot-group-face-layout'
 import { BotAvatar, BotAvatarTile } from './BotAvatar'
 
-/** A group's overlapping member circles, laid out by one of the face layouts. */
+/** A group's member circles, laid out by one of the face layouts, with a link across each gap. */
 export function BotGroupFaces({
   faces: layout,
   className,
-  slot = BOT_GROUP_FACE_SLOT
+  slot
 }: {
   faces: readonly BotGroupFace<Bot>[]
-  /** Sizes the slot the faces fill. */
-  className: string
-  /** The slot's side in px; the layout is drawn for BOT_GROUP_FACE_SLOT and scaled to it. */
+  /** Sizes the box when there is no `slot`, as a tab icon's does. */
+  className?: string
+  /** The group picture's height in px: the layout is scaled to it and the box sized from the face
+   *  constants, square while there are no faces. */
   slot?: number
 }): React.JSX.Element {
-  const faces = scaleBotGroupFaces(layout, slot / BOT_GROUP_FACE_SLOT)
+  const faces = scaleBotGroupFaces(layout, (slot ?? BOT_GROUP_FACE_SLOT) / BOT_GROUP_FACE_SLOT)
   return (
-    <span className={cn('relative block shrink-0', className)} data-testid="bot-group-faces">
+    <span
+      className={cn('relative block shrink-0', className)}
+      style={
+        slot === undefined
+          ? undefined
+          : {
+              width: faces.length > 0 ? (slot * BOT_GROUP_FACE_WIDTH) / BOT_GROUP_FACE_SLOT : slot,
+              height: slot
+            }
+      }
+      data-testid="bot-group-faces"
+    >
+      {/* Drawn first, so the faces cover the bars' ends and only the gaps show them. */}
+      {botGroupFaceLinks(faces).map((link) => (
+        <span
+          key={link.key}
+          className="absolute rounded-full bg-muted-foreground"
+          style={{ left: link.x, top: link.y, width: link.length, height: link.thickness }}
+        />
+      ))}
       {faces.map((face, index) => {
         const style = botGroupFaceStyle(face, faces.slice(index + 1))
         return 'member' in face.face ? (

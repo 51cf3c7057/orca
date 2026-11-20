@@ -5,50 +5,153 @@ import {
   usePrefersReducedMotion
 } from '@/hooks/theme/usePrefersReducedMotion'
 import type { Bot } from '../../../../shared/bot-types'
-import { botGroupFaces, type BotGroupFace } from '../../../../shared/bots/bot-group-face-layout'
+import {
+  BOT_GROUP_FACE_SLOT,
+  BOT_GROUP_FACE_WIDTH,
+  botGroupFaceLinks,
+  botGroupFaces,
+  type BotGroupFace,
+  type BotGroupFaceLink
+} from '../../../../shared/bots/bot-group-face-layout'
 import { BotAvatar, BotAvatarTile } from './BotAvatar'
 
-// The sidebar row's picture at four times its size.
+// The group picture at four times its size.
 const SCALE = 4
 const POP = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 const SETTLE_MS = 420
+const SETTLE = ['left', 'top', 'width', 'height']
+  .map((p) => `${p} ${SETTLE_MS}ms ${POP}`)
+  .join(', ')
+const FACE_FRAMES: Keyframe[] = [
+  { transform: 'scale(0.3)', opacity: 0 },
+  { transform: 'scale(1)', opacity: 1 }
+]
+// A link grows from its centre to full length.
+const LINK_FRAMES: Keyframe[] = [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }]
+const EMPTY_SIZE = 20
 
 type Face = BotGroupFace<Bot> | { key: 'empty'; face: null; x: number; y: number; size: number }
 
-/** The group's picture as the sidebar will draw it; faces pop in and out as members change. */
+const EMPTY: Face = {
+  key: 'empty',
+  face: null,
+  x: (BOT_GROUP_FACE_WIDTH - EMPTY_SIZE) / 2,
+  y: (BOT_GROUP_FACE_SLOT - EMPTY_SIZE) / 2,
+  size: EMPTY_SIZE
+}
+
+/** The group's picture as the sidebar will draw it; faces pop in and out and links grow and shrink
+ *  as members change. */
 export function BotGroupFaceCluster({ members }: { members: readonly Bot[] }): React.JSX.Element {
   const reduced = usePrefersReducedMotion()
-  const faces: Face[] =
-    members.length > 0
-      ? botGroupFaces(members, (bot) => bot.id)
-      : [{ key: 'empty', face: null, x: 4, y: 4, size: 20 }]
+  const layout = botGroupFaces(members, (bot) => bot.id)
+  const faces: Face[] = layout.length > 0 ? layout : [EMPTY]
+  const links = botGroupFaceLinks(layout)
   const signature = faces.map((face) => face.key).join(' ')
-  // Faces just dropped stay until they have shrunk away.
-  const [shown, setShown] = useState({ signature, faces })
-  const [leaving, setLeaving] = useState<Face[]>([])
+  // Faces and links just dropped stay until they have shrunk away.
+  const [shown, setShown] = useState({ signature, faces, links })
+  const [leavingFaces, setLeavingFaces] = useState<Face[]>([])
+  const [leavingLinks, setLeavingLinks] = useState<BotGroupFaceLink[]>([])
   if (shown.signature !== signature) {
-    const gone = shown.faces.filter((old) => !faces.some((face) => face.key === old.key))
-    setShown({ signature, faces })
-    setLeaving((current) => [
-      ...current.filter((old) => !faces.some((face) => face.key === old.key)),
-      ...(reduced ? [] : gone)
-    ])
+    setShown({ signature, faces, links })
+    setLeavingFaces((current) => stillLeaving(current, shown.faces, faces, reduced))
+    setLeavingLinks((current) => stillLeaving(current, shown.links, links, reduced))
   }
   return (
-    <span className="relative block size-28" aria-hidden>
-      {leaving.map((face) => (
+    <span
+      className="relative block"
+      style={{ width: BOT_GROUP_FACE_WIDTH * SCALE, height: BOT_GROUP_FACE_SLOT * SCALE }}
+      aria-hidden
+    >
+      {/* Links first, so every face covers their ends. */}
+      {leavingLinks.map((link) => (
+        <ClusterLink
+          key={`leaving-${link.key}`}
+          link={link}
+          reduced={reduced}
+          onLeft={() => setLeavingLinks((current) => current.filter((old) => old.key !== link.key))}
+        />
+      ))}
+      {links.map((link) => (
+        <ClusterLink key={link.key} link={link} reduced={reduced} />
+      ))}
+      {leavingFaces.map((face) => (
         <ClusterFace
           key={`leaving-${face.key}`}
           face={face}
           z={0}
           reduced={reduced}
-          onLeft={() => setLeaving((current) => current.filter((old) => old.key !== face.key))}
+          onLeft={() => setLeavingFaces((current) => current.filter((old) => old.key !== face.key))}
         />
       ))}
       {faces.map((face, index) => (
         <ClusterFace key={face.key} face={face} z={index + 1} reduced={reduced} />
       ))}
     </span>
+  )
+}
+
+/** What is still shrinking away: earlier leavers plus those just dropped, less any that came back. */
+function stillLeaving<T extends { key: string }>(
+  current: readonly T[],
+  before: readonly T[],
+  now: readonly T[],
+  reduced: boolean
+): T[] {
+  const kept = (old: T): boolean => !now.some((item) => item.key === old.key)
+  return [...current.filter(kept), ...(reduced ? [] : before.filter(kept))]
+}
+
+/** Plays `frames` on mount, or backwards then reports back when given onLeft; at once under reduced motion. */
+function useEnterOrLeave(
+  frames: Keyframe[],
+  onLeft: (() => void) | undefined
+): React.RefObject<HTMLSpanElement | null> {
+  const ref = useRef<HTMLSpanElement>(null)
+  const leftRef = useRef(onLeft)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || readPrefersReducedMotion()) {
+      leftRef.current?.()
+      return
+    }
+    if (!leftRef.current) {
+      el.animate(frames, { duration: SETTLE_MS, easing: POP })
+      return
+    }
+    const leave = el.animate(frames.toReversed(), {
+      duration: 220,
+      easing: 'cubic-bezier(0.4, 0, 1, 1)',
+      fill: 'forwards'
+    })
+    leave.onfinish = () => leftRef.current?.()
+  }, [frames])
+  return ref
+}
+
+/** One link bar behind the faces; it grows in on mount, or shrinks away and reports back when given onLeft. */
+function ClusterLink({
+  link,
+  reduced,
+  onLeft
+}: {
+  link: BotGroupFaceLink
+  reduced: boolean
+  onLeft?: () => void
+}): React.JSX.Element {
+  const ref = useEnterOrLeave(LINK_FRAMES, onLeft)
+  return (
+    <span
+      ref={ref}
+      className="absolute rounded-full bg-muted-foreground"
+      style={{
+        left: link.x * SCALE,
+        top: link.y * SCALE,
+        width: link.length * SCALE,
+        height: link.thickness * SCALE,
+        transition: reduced ? undefined : SETTLE
+      }}
+    />
   )
 }
 
@@ -64,35 +167,9 @@ function ClusterFace({
   reduced: boolean
   onLeft?: () => void
 }): React.JSX.Element {
-  const ref = useRef<HTMLSpanElement>(null)
-  const leftRef = useRef(onLeft)
+  const ref = useEnterOrLeave(FACE_FRAMES, onLeft)
   const more = face.face && 'more' in face.face ? face.face.more : null
   const lastMore = useRef(more)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || readPrefersReducedMotion()) {
-      leftRef.current?.()
-      return
-    }
-    if (!leftRef.current) {
-      el.animate(
-        [
-          { transform: 'scale(0.3)', opacity: 0 },
-          { transform: 'scale(1)', opacity: 1 }
-        ],
-        { duration: SETTLE_MS, easing: POP }
-      )
-      return
-    }
-    const leave = el.animate(
-      [
-        { transform: 'scale(1)', opacity: 1 },
-        { transform: 'scale(0.3)', opacity: 0 }
-      ],
-      { duration: 220, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
-    )
-    leave.onfinish = () => leftRef.current?.()
-  }, [])
   useEffect(() => {
     // "+N" bumps when N changes.
     if (more === lastMore.current) {
@@ -105,7 +182,7 @@ function ClusterFace({
         { duration: 260, easing: 'ease-out' }
       )
     }
-  }, [more])
+  }, [more, ref])
   return (
     <span
       ref={ref}
@@ -116,11 +193,7 @@ function ClusterFace({
         width: face.size * SCALE,
         height: face.size * SCALE,
         zIndex: z,
-        // A ring in the dialog's own colour parts overlapping faces.
-        boxShadow: face.face ? '0 0 0 4px var(--dialog-surface)' : undefined,
-        transition: reduced
-          ? undefined
-          : ['left', 'top', 'width', 'height'].map((p) => `${p} ${SETTLE_MS}ms ${POP}`).join(', ')
+        transition: reduced ? undefined : SETTLE
       }}
     >
       {face.face === null ? (
