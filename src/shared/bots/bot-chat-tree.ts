@@ -27,6 +27,8 @@ export type BotChatTreeWorker = {
 
 export type BotChatTreeChat = {
   chatId: string
+  /** The session the chat runs in now, where its name is saved; absent while that is `chatId`. */
+  sessionId?: string
   title: string
   origin: BotChatOrigin
   /** The thread's place or the automation's name, e.g. '#orca'. */
@@ -197,4 +199,12 @@ export function botOwnChatTree<T extends BotChatTreeRead>(tree: T): T {
     ),
     workspaceChats
   }
+}
+
+/** A chat's id, with the session it runs in now only when /clear has moved it past that id. */
+export function botChatIds(
+  chatId: string,
+  sessionId: string | undefined
+): Pick<BotChatTreeChat, 'chatId' | 'sessionId'> {
+  return sessionId && sessionId !== chatId ? { chatId, sessionId } : { chatId }
 }
