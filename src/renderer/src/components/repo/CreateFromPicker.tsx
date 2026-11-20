@@ -72,6 +72,7 @@ export function CreateFromPicker({
   value,
   triggerClassName,
   compact = false,
+  labelInTrigger = true,
   readOnly = false,
   onValueChange,
   onSetDefault
@@ -82,6 +83,8 @@ export function CreateFromPicker({
   value: string
   triggerClassName?: string
   compact?: boolean
+  /** False when a field label above the trigger already names it. */
+  labelInTrigger?: boolean
   readOnly?: boolean
   onValueChange: (baseBranch: string) => void
   onSetDefault?: (baseBranch: string) => void | Promise<void>
@@ -276,12 +279,22 @@ export function CreateFromPicker({
       variant="outline"
       role="combobox"
       aria-expanded={open}
+      aria-label={
+        labelInTrigger
+          ? undefined
+          : `${t('auto.components.automations.CreateFromPicker.dd3841b442', 'Branch from')}: ${selectedLabel}`
+      }
+      disabled={readOnly}
       className={cn('h-9 w-full justify-between px-3 text-sm font-normal', triggerClassName)}
     >
       <span className="flex min-w-0 items-center gap-1.5">
-        <span className="shrink-0 text-muted-foreground">
-          {t('auto.components.automations.CreateFromPicker.dd3841b442', 'Branch from')}
-        </span>
+        {labelInTrigger ? (
+          <span className="shrink-0 text-muted-foreground">
+            {t('auto.components.automations.CreateFromPicker.dd3841b442', 'Branch from')}
+          </span>
+        ) : (
+          <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
         <span className="truncate">{selectedLabel}</span>
       </span>
       <ChevronsUpDown className="size-4 opacity-50" />

@@ -27,6 +27,7 @@ import type { AddRepoDialogEntryRequest } from '@/components/sidebar/project-adm
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
 import { NewWorkspaceComposerAdvancedSection } from './NewWorkspaceComposerAdvancedSection'
 import { NewWorkspaceComposerAgentSection } from './NewWorkspaceComposerAgentSection'
+import { NewWorkspaceComposerBaseBranchSection } from './NewWorkspaceComposerBaseBranchSection'
 import { NewWorkspaceComposerFooter } from './NewWorkspaceComposerFooter'
 import { NewWorkspaceComposerNameSection } from './NewWorkspaceComposerNameSection'
 import { NewWorkspaceComposerProjectSection } from './NewWorkspaceComposerProjectSection'
@@ -106,6 +107,10 @@ export default function NewWorkspaceComposerCard(
   const branchNameInputId = React.useId()
   const projectDescriptionId = React.useId()
   const [sparseEditing, setSparseEditing] = React.useState(false)
+  // A name or source the dialog opened with stays in view; otherwise the field waits under Advanced.
+  const [nameSectionInMainFlow] = React.useState(
+    () => props.smartNameSelection !== null || props.name.trim() !== ''
+  )
   const [addRemoteHostMode, setAddRemoteHostMode] = React.useState<AddRemoteHostMode | null>(null)
   const remoteHostDialogOpenRef = React.useRef(false)
   const handleRemoteHostModeChange = React.useCallback(
@@ -294,6 +299,10 @@ export default function NewWorkspaceComposerCard(
         : 'workspace_creation_visible')
   )
 
+  const nameSection = (
+    <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
+  )
+
   return (
     <div
       ref={setComposerNode}
@@ -333,7 +342,8 @@ export default function NewWorkspaceComposerCard(
           connectButtonLabel={connectButtonLabel}
           selectedProjectName={selectedProjectName}
         />
-        <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
+        {nameSectionInMainFlow ? nameSection : null}
+        <NewWorkspaceComposerBaseBranchSection {...props} />
         <NewWorkspaceComposerAgentSection
           {...props}
           createDisabled={props.createDisabled || sparseEditing}
@@ -344,6 +354,7 @@ export default function NewWorkspaceComposerCard(
         />
         <NewWorkspaceComposerAdvancedSection
           {...props}
+          nameSection={nameSectionInMainFlow ? null : nameSection}
           onSparseEditingChange={setSparseEditing}
           sparseEditing={sparseEditing}
           branchNameInputId={branchNameInputId}

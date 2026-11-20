@@ -3,8 +3,6 @@ import { AlertTriangle } from 'lucide-react'
 import SmartWorkspaceNameField from '@/components/new-workspace/SmartWorkspaceNameField'
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
-import { shouldShowComposerBaseRefPicker } from '../branch-selection/base-ref-picker-visibility'
-import { ComposerBaseRefPicker } from '../branch-selection/ComposerBaseRefPicker'
 import { ComposerBranchChoice } from '../branch-selection/ComposerBranchChoice'
 import type { NewWorkspaceComposerCardProps } from './new-workspace-composer-card-props'
 
@@ -35,7 +33,6 @@ type NewWorkspaceComposerNameSectionProps = Pick<
   | 'allowSmartNameAddProject'
   | 'smartNameRepoSwitchTarget'
   | 'onSmartNameModeChange'
-  | 'smartNameMode'
   | 'forkPushWarning'
   | 'canReuseSelectedBranch'
   | 'reuseSelectedBranch'
@@ -44,9 +41,6 @@ type NewWorkspaceComposerNameSectionProps = Pick<
   | 'onBranchNameOverrideChange'
   | 'onReuseSelectedBranchChange'
   | 'onOpenSelectedBranchWorkspace'
-  | 'baseBranch'
-  | 'onBaseBranchChange'
-  | 'startFromResetHint'
 > & {
   onNamePlainEnter: () => void
 }
@@ -77,7 +71,6 @@ export function NewWorkspaceComposerNameSection({
   allowSmartNameAddProject = true,
   smartNameRepoSwitchTarget = 'project',
   onSmartNameModeChange,
-  smartNameMode,
   onNamePlainEnter,
   forkPushWarning,
   canReuseSelectedBranch,
@@ -86,41 +79,22 @@ export function NewWorkspaceComposerNameSection({
   branchNameOverride,
   onBranchNameOverrideChange,
   onReuseSelectedBranchChange,
-  onOpenSelectedBranchWorkspace,
-  baseBranch,
-  onBaseBranchChange,
-  startFromResetHint
+  onOpenSelectedBranchWorkspace
 }: NewWorkspaceComposerNameSectionProps): React.JSX.Element {
   const t = useTranslate()
-  const showBaseRefPicker =
-    Boolean(onBaseBranchChange) &&
-    shouldShowComposerBaseRefPicker({
-      selectedRepoIsGit,
-      branchesEnabled,
-      smartNameMode: smartNameMode ?? 'smart',
-      smartNameSelectionKind: smartNameSelection?.kind ?? null
-    })
   return (
     <div className="min-w-0 space-y-1" data-contextual-tour-target="workspace-creation-name">
-      <div className="flex items-center justify-between gap-2">
-        <label className="min-w-0 truncate text-xs font-medium text-muted-foreground">
-          {selectedRepoIsGit
-            ? t('auto.components.NewWorkspaceComposerCard.ac3748dcda', 'Create From')
-            : t('auto.components.NewWorkspaceComposerCard.0ee17638fe', 'Workspace name')}{' '}
-          <span className="text-muted-foreground/70">
-            {t('auto.components.NewWorkspaceComposerCard.0c5d6a479c', '[Optional]')}
-          </span>
-        </label>
-        {showBaseRefPicker && onBaseBranchChange ? (
-          <ComposerBaseRefPicker
-            repoId={repoId}
-            baseBranch={baseBranch}
-            onBaseBranchChange={onBaseBranchChange}
-            resetHint={startFromResetHint}
-            readOnly={selectedRepoRequiresConnection}
-          />
-        ) : null}
-      </div>
+      <label className="block min-w-0 truncate text-xs font-medium text-muted-foreground">
+        {selectedRepoIsGit
+          ? t(
+              'auto.components.NewWorkspaceComposerCard.nameOrExistingWork',
+              'Name or existing work'
+            )
+          : t('auto.components.NewWorkspaceComposerCard.0ee17638fe', 'Workspace name')}{' '}
+        <span className="text-muted-foreground/70">
+          {t('auto.components.NewWorkspaceComposerCard.0c5d6a479c', '[Optional]')}
+        </span>
+      </label>
       <SmartWorkspaceNameField
         inputRef={nameInputRef}
         repos={eligibleRepos}

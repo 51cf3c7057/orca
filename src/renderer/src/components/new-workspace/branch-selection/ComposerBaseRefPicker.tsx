@@ -15,7 +15,7 @@ type ComposerBaseRefPickerProps = {
   readOnly?: boolean
 }
 
-/** Own store subscriptions only while the picker is shown, leaving the name section presentational. */
+/** Own store subscriptions only while the picker is shown, leaving the composer sections presentational. */
 export function ComposerBaseRefPicker({
   repoId,
   baseBranch,
@@ -37,7 +37,7 @@ export function ComposerBaseRefPicker({
         repoMap={repoMap}
         worktrees={repoWorktrees}
         value={baseBranch ?? ''}
-        compact
+        labelInTrigger={false}
         readOnly={readOnly}
         onValueChange={(nextBaseBranch) => onBaseBranchChange(nextBaseBranch || undefined)}
         onSetDefault={
