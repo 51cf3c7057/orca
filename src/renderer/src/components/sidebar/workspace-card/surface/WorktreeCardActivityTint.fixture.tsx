@@ -1,6 +1,7 @@
 import React from 'react'
 import { useAppStore } from '@/store'
 import { defineFixture } from '../../../../component-fixtures/component-fixture'
+import type { WorktreeCardProperty } from '../../../../../../shared/ui-chrome/ui-chrome-types'
 import { composeWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import * as rows from '../../worktree-list/rows/indentation'
 import {
@@ -102,7 +103,9 @@ function Card({
   )
 }
 
-function setupFor(newCardStyle: boolean): () => void {
+const TINT_ON: WorktreeCardProperty[] = ['status', 'unread', 'inline-agents', 'status-tint']
+
+function setupFor(newCardStyle: boolean, cardProperties = TINT_ON): () => void {
   return () => {
     seedWorkspaces(SEEDS, now)
     useAppStore.setState((state) => ({
@@ -114,7 +117,7 @@ function setupFor(newCardStyle: boolean): () => void {
           }
         : null,
       repos: [FIXTURE_REPO],
-      worktreeCardProperties: ['status', 'unread', 'inline-agents', 'status-tint'],
+      worktreeCardProperties: cardProperties,
       worktreesByRepo: { [FIXTURE_REPO.id]: [...worktrees.values()] }
     }))
   }
@@ -142,3 +145,13 @@ const render = (): React.JSX.Element => (
 export const newCardStyle = defineFixture({ width: 320, setup: setupFor(true), render })
 
 export const classicCardStyle = defineFixture({ width: 320, setup: setupFor(false), render })
+
+// "Activity color" switched off in Show: today's untinted cards.
+export const tintOff = defineFixture({
+  width: 320,
+  setup: setupFor(
+    true,
+    TINT_ON.filter((property) => property !== 'status-tint')
+  ),
+  render
+})
