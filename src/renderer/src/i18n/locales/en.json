@@ -22205,7 +22205,10 @@
         "createdTookOverSome": "Created · took over {{taken}} of {{count}} workspaces",
         "deleted": "Created, then deleted",
         "does": "Does",
-        "willPropose": "Will propose"
+        "willPropose": "Will propose",
+        "cloneOf": "Clone of",
+        "soulLines_one": "Starts from a soul text of {{count}} line.",
+        "soulLines_other": "Starts from a soul text of {{count}} lines."
       },
       "usage": {
         "description": "Show usage for this chat’s Codex account",
@@ -26934,6 +26937,7 @@
       "waitingForUntil": "Waiting for {{label}} · until {{time}}",
       "waitingCount": "Waiting on {{count}} events",
       "settings": "Bot settings…",
+      "clone": "Clone bot…",
       "hostDisconnected": "{{host}} disconnected",
       "disconnected": "Disconnected"
     },
@@ -29215,6 +29219,27 @@
       "continuesShort": "Continues {{time}}",
       "hitShort": "Hit limit",
       "stoppedCount": "{{count}} stopped"
+    },
+    "clone": {
+      "title": "Clone {{name}}",
+      "description": "A new bot with {{name}}’s traits and none of its work.",
+      "cloneBot": "Clone bot",
+      "copiedHeading": "Copied",
+      "notCopiedHeading": "Not copied",
+      "copied": {
+        "0": "Soul",
+        "1": "Agent and model",
+        "2": "Skills",
+        "3": "Tools (sign in again)",
+        "4": "Schedules (turned off)"
+      },
+      "notCopied": {
+        "0": "Memory",
+        "1": "Chats and items",
+        "2": "Workspaces",
+        "3": "Connectors and sign-ins",
+        "4": "Picture"
+      }
     }
   },
   "plugins": {

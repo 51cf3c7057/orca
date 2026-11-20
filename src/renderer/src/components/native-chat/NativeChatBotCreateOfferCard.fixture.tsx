@@ -187,3 +187,71 @@ export const notNow = defineFixture({
   setup: stub([{ ...atlas, offerAnswers: [{ cardId: 'offer-0', dismissed: true }] }]),
   render: () => <Cards offers={[cutter]} />
 })
+
+const harbor = makeBot('harbor', 'Harbor', 1)
+const scoutSource = { ...makeBot('scout', 'Scout', 5, 'mascot:H1'), launch: { model: 'opus' } }
+
+// orca bot clone --offer: a clone of Scout, proposed by Harbor.
+const scoutClone: BotCreateOffer = {
+  botId: harbor.id,
+  offerId: 'offer-scout-clone',
+  offeredAt: 1000,
+  proposal: {
+    name: 'Scout 2',
+    purpose: 'A clone of Scout: its traits, none of its work.',
+    mascot: 'D1',
+    cloneFrom: { botId: scoutSource.id, name: scoutSource.name }
+  }
+}
+
+// orca bot create --offer --soul-file: no clone, a soul text of 3 lines.
+const harborDocs: BotCreateOffer = {
+  botId: harbor.id,
+  offerId: 'offer-harbor-docs',
+  offeredAt: 1000,
+  proposal: {
+    name: 'Harbor Docs',
+    purpose: 'Keeps the user guide in step with each release.',
+    watches: 'Merged pull requests that change a setting or a command',
+    mascot: 'B1',
+    soul: '# Harbor Docs\n\nKeeps the user guide in step with each release.\n'
+  }
+}
+
+export const cloneOpen = defineFixture({
+  width: 640,
+  setup: stub([harbor, scoutSource]),
+  render: () => <Cards offers={[scoutClone]} />,
+  interact: expand
+})
+
+export const cloneOpenPhone = defineFixture({
+  width: 380,
+  setup: stub([harbor, scoutSource]),
+  render: () => <Cards offers={[scoutClone]} />,
+  interact: expand
+})
+
+export const soulOpen = defineFixture({
+  width: 640,
+  setup: stub([harbor]),
+  render: () => <Cards offers={[harborDocs]} />,
+  interact: expand
+})
+
+// Edit on the clone card: the dialog in clone mode, with the card's name.
+export const cloneEdit = defineFixture({
+  width: 720,
+  setup: stub([harbor, scoutSource]),
+  render: () => (
+    <div className="h-[720px] bg-background">
+      <NewBotDialog
+        open
+        onOpenChange={() => {}}
+        proposal={scoutClone.proposal}
+        origin="Proposed by Harbor"
+        cloneFrom={{ ...scoutSource, hostId: 'local' }}
+      />
+    </div>
+  )
+})

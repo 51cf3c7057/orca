@@ -13,6 +13,7 @@ import { BotAvatar, BotAvatarTile } from '../bots/BotAvatar'
 import { BOT_MASCOT_URLS } from '../bots/bot-mascots'
 import { botErrorMessage } from '../bots/bot-presentation'
 import { NewBotDialog } from '../bots/NewBotDialog'
+import { botCloneLists, type NewBotCloneSource } from '../bots/NewBotCloneParts'
 import { isBotMascotId } from '../../../../shared/bot-avatar'
 import type { Bot } from '../../../../shared/bot-types'
 import {
@@ -115,17 +116,52 @@ export function ProposalAvatar({
   )
 }
 
-/** What a proposed bot would watch, do and report, under its card's Details. */
+/** How many lines a proposed soul text has, not counting trailing blank ones. */
+const soulLineCount = (soul: string): number => soul.replace(/\s+$/, '').split(/\r\n?|\n/).length
+
+/** What a proposed bot would watch, do and report, under its card's Details; for a clone, what it takes
+ *  from its source and what it leaves. */
 export function ProposalDetails({ proposal }: { proposal: BotProposal }): React.JSX.Element {
-  const say = sayWith(useTranslate())
+  const t = useTranslate()
+  const say = sayWith(t)
+  const clone = proposal.cloneFrom ? botCloneLists(t) : null
   return (
-    <dl className="mt-3 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 border-t border-border pt-3">
-      {botProposalDetails(proposal).map((detail) => (
-        <NativeChatCardFact key={detail.label} label={say(detail.label)}>
-          {detail.text}
-        </NativeChatCardFact>
-      ))}
-    </dl>
+    <div className="mt-3 border-t border-border pt-3">
+      <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
+        {botProposalDetails(proposal).map((detail) => (
+          <NativeChatCardFact key={detail.label} label={say(detail.label)}>
+            {detail.text}
+          </NativeChatCardFact>
+        ))}
+        {proposal.cloneFrom && clone ? (
+          <>
+            <NativeChatCardFact
+              label={t('components.native-chat.botCreateOffer.cloneOf', 'Clone of')}
+            >
+              {proposal.cloneFrom.name}
+            </NativeChatCardFact>
+            <NativeChatCardFact label={t('bots.clone.copiedHeading', 'Copied')}>
+              {clone.copied.join(' · ')}
+            </NativeChatCardFact>
+            <NativeChatCardFact label={t('bots.clone.notCopiedHeading', 'Not copied')}>
+              {clone.notCopied.join(' · ')}
+            </NativeChatCardFact>
+          </>
+        ) : null}
+      </dl>
+      {proposal.soul && !proposal.cloneFrom ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t(
+            'components.native-chat.botCreateOffer.soulLines',
+            'Starts from a soul text of {{count}} lines.',
+            {
+              count: soulLineCount(proposal.soul),
+              defaultValue_one: 'Starts from a soul text of {{count}} line.'
+            }
+          )}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -157,14 +193,28 @@ function OfferCard({
   const fromOffer = { botId: proposer.id, offerId: offer.offerId }
   const taken = useTakenOver(created, proposal.worktrees)
   const view = botCreateOfferView(offer, state, created, taken, say)
+  // A clone starts on its source's agent, whose model and permission then carry over; any other bot runs
+  // on the agent its proposer runs on, which the owner already uses.
+  const source = proposal.cloneFrom
+    ? bots.find((bot) => bot.id === proposal.cloneFrom?.botId)
+    : undefined
+  const cloneFrom: NewBotCloneSource | undefined = proposal.cloneFrom
+    ? {
+        id: proposal.cloneFrom.botId,
+        name: source?.name ?? proposal.cloneFrom.name,
+        hostId: proposer.hostId,
+        ...(source
+          ? { agent: source.agent, launch: source.launch, permissionMode: source.permissionMode }
+          : {})
+      }
+    : undefined
   const Chevron = open ? ChevronUp : ChevronDown
 
   const create = (): void => {
     setCreating(true)
-    // The new bot runs on the agent its proposer runs on, which the owner already uses.
     void createBot(
       proposer.hostId,
-      proposalCreateParams(proposal, proposer.agent, {
+      proposalCreateParams(proposal, source?.agent ?? proposer.agent, {
         templatePackages: botHostHas(proposer.hostId, BOTS_TEMPLATES_RUNTIME_CAPABILITY),
         fromOffer
       })
@@ -268,6 +318,7 @@ function OfferCard({
           fromOffer={fromOffer}
           offerHostId={proposer.hostId}
           origin={botCreateOfferOrigin(proposal, proposer.name, say)}
+          cloneFrom={cloneFrom}
         />
       ) : null}
     </div>

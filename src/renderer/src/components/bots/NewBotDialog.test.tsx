@@ -12,14 +12,15 @@ const mocks = vi.hoisted(() => ({
   uploadBotAvatar: vi.fn(),
   openBotHomeTab: vi.fn(async () => true),
   agentChoices: vi.fn((): string[] => ['claude', 'codex']),
-  squareAvatarPng: vi.fn(async (_blob: Blob) => 'UE5H')
+  squareAvatarPng: vi.fn(async (_blob: Blob) => 'UE5H'),
+  hostBots: new Array<{ name: string }>()
 }))
 vi.mock('@/lib/bot-catalog', () => ({
   createBot: mocks.createBot,
   uploadBotAvatar: mocks.uploadBotAvatar,
   openBotHomeTab: mocks.openBotHomeTab,
   readBotAvatarPng: vi.fn(async () => null),
-  useHostBots: () => []
+  useHostBots: () => mocks.hostBots
 }))
 vi.mock('./bot-avatar-upload', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -58,6 +59,7 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   mocks.squareAvatarPng.mockImplementation(async () => 'UE5H')
+  mocks.hostBots = []
 })
 
 const created: Bot = {
@@ -358,5 +360,47 @@ describe('NewBotDialog purpose', () => {
     mocks.createBot.mockClear()
     await renderDialog().submit()
     expect(mocks.createBot.mock.calls[0]?.[1]).not.toHaveProperty('seed')
+  })
+})
+
+describe('NewBotDialog clone mode', () => {
+  it('names the clone past the names in use and clones on the source bot’s agent setup', async () => {
+    mocks.agentChoices.mockReturnValue(['claude', 'codex'])
+    mocks.hostBots = [{ name: 'Scout' }, { name: 'scout 2' }]
+    mocks.createBot.mockResolvedValue(created)
+    render(
+      <TooltipProvider>
+        <NewBotDialog
+          open
+          onOpenChange={vi.fn()}
+          cloneFrom={{
+            id: 'scout',
+            name: 'Scout',
+            hostId: 'local',
+            agent: 'codex',
+            launch: { model: 'gpt-5' },
+            permissionMode: 'full-access'
+          }}
+        />
+      </TooltipProvider>
+    )
+    const name = screen.getByLabelText<HTMLInputElement>('Name')
+    expect(name.value).toBe('Scout 3')
+    // Selected, so typing replaces the suggestion.
+    await waitFor(() => expect([name.selectionStart, name.selectionEnd]).toEqual([0, 7]))
+    expect(screen.queryByLabelText('Purpose')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clone bot' }))
+    await waitFor(() => expect(mocks.createBot).toHaveBeenCalledTimes(1))
+    const [hostId, params] = mocks.createBot.mock.calls[0] ?? []
+    expect(hostId).toBe('local')
+    expect(params).toMatchObject({
+      name: 'Scout 3',
+      cloneFrom: { botId: 'scout' },
+      agent: 'codex',
+      launch: { model: 'gpt-5' },
+      permissionMode: 'full-access'
+    })
+    expect(params).not.toHaveProperty('seed')
   })
 })
