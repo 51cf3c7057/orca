@@ -15,7 +15,7 @@ export function BotLineAgentLogos({
   ringColor = colors.bgBase
 }: {
   agent: BotWorkspaceLineAgent
-  /** The row's surface, which the gap between logos shows, as MobileBotFaceStack does. */
+  /** The row's surface, which the gap between logos shows. */
   ringColor?: string
 }) {
   useMobileColorScheme()
