@@ -833,7 +833,9 @@
       "markUnread": "Mark Unread",
       "muteNotifications": "Mute Notifications",
       "unmuteNotifications": "Unmute Notifications",
-      "moveToStatus": "Move to Status"
+      "moveToStatus": "Move to Status",
+      "restoreFromArchived": "Restore",
+      "moveToArchived": "Move to Archived"
     },
     "workspaceRenameSheet": {
       "title": "Rename Workspace",
@@ -1095,7 +1097,8 @@
       "inReview": "In review",
       "inProgress": "In progress",
       "closed": "Closed",
-      "done": "Done"
+      "done": "Done",
+      "archived": "Archived"
     }
   },
   "components": {

@@ -30,6 +30,7 @@ import {
   type MobileViewState
 } from '../../worktree/workspace-list/workspace-view-settings'
 import type { HiddenProjects } from '../../../../src/shared/project/catalog/hidden-projects'
+import { translate } from '../../i18n/mobile-i18n'
 
 export type HostFeedListSources = {
   rows: readonly HostSectionRow[]
@@ -266,7 +267,7 @@ export function buildHostFeedSections(sources: HostFeedListSources): Section[] {
       case 'archived-section':
         push({
           ...hostSectionKeys(row.key, sectionHostId),
-          title: 'Archived',
+          title: translate('worktree.workspaceListSections.archived', 'Archived'),
           count: row.count,
           ...(row.repo ? { repo: row.repo } : {}),
           ...(row.groupDepth ? { projectGroupDepth: row.groupDepth } : {}),

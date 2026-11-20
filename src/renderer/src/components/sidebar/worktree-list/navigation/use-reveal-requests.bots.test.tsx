@@ -164,6 +164,7 @@ beforeEach(() => {
     unifiedTabsByWorktree: {},
     folderWorkspaces: [home],
     worktreesByRepo: { [repo.id]: [worker, projectRow] },
+    hostedReviewCache: {},
     settings: { ...getDefaultSettings('/home/me'), botsEnabled: true },
     hideBotCreatedWorkspaces: true,
     botSidebarView: { sortBy: 'manual', hidePausedBots: false, hideSleepingWorkers: false }

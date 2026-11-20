@@ -104,7 +104,9 @@ export function groupPhoneArchivedByProject(
 }
 
 type PhoneOccurrencePlan = WorktreeOccurrencePlan<Worktree> & {
-  sections: ReadonlyArray<{ key: string; data: Worktree[]; items?: unknown; placement?: string }>
+  sections: ReadonlyArray<
+    Omit<Section, 'data'> & { data: Worktree[]; items?: unknown; placement?: string }
+  >
 }
 
 export function renderPhoneSectionsWithArchived(
@@ -118,7 +120,7 @@ export function renderPhoneSectionsWithArchived(
     const { items: _items, placement: _placement, data: _data, ...rest } = section
     const placed = placeInProjectGroupTree(
       {
-        ...(rest as Omit<Section, 'data'>),
+        ...rest,
         data: getMobileOccurrenceRows(plan, section.key, collapsed, hostContextOf)
       },
       placements.get(section.key),
