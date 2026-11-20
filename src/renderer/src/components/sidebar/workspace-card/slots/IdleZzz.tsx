@@ -5,13 +5,21 @@ import './idle-zzz.css'
 export function IdleZzz({ label }: { label: string }): React.JSX.Element {
   return (
     <span data-idle-zzz="" className="mr-1 inline-flex items-end">
-      <span aria-hidden="true" className="idle-zzz-1 inline-block scale-75 translate-y-px">
+      <span
+        aria-hidden="true"
+        data-idle-zzz-letter="1"
+        className="inline-block scale-75 translate-y-px"
+      >
         z
       </span>
-      <span aria-hidden="true" className="idle-zzz-2 inline-block scale-90 -translate-y-px">
+      <span
+        aria-hidden="true"
+        data-idle-zzz-letter="2"
+        className="inline-block scale-90 -translate-y-px"
+      >
         z
       </span>
-      <span aria-hidden="true" className="idle-zzz-3 inline-block -translate-y-[3px]">
+      <span aria-hidden="true" data-idle-zzz-letter="3" className="inline-block -translate-y-[3px]">
         z
       </span>
       <span className="sr-only">{label}</span>

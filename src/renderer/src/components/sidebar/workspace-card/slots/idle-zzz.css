@@ -1,21 +1,19 @@
 /* One keyframe set per letter on a shared duration, so the letters never drift apart. */
-.idle-zzz-1,
-.idle-zzz-2,
-.idle-zzz-3 {
+[data-idle-zzz] > [data-idle-zzz-letter] {
   animation-duration: 2.4s;
   animation-timing-function: ease-out;
   animation-iteration-count: infinite;
 }
 
-.idle-zzz-1 {
+[data-idle-zzz] > [data-idle-zzz-letter='1'] {
   animation-name: idle-zzz-1;
 }
 
-.idle-zzz-2 {
+[data-idle-zzz] > [data-idle-zzz-letter='2'] {
   animation-name: idle-zzz-2;
 }
 
-.idle-zzz-3 {
+[data-idle-zzz] > [data-idle-zzz-letter='3'] {
   animation-name: idle-zzz-3;
 }
 
@@ -64,9 +62,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .idle-zzz-1,
-  .idle-zzz-2,
-  .idle-zzz-3 {
+  [data-idle-zzz] > [data-idle-zzz-letter] {
     animation: none;
   }
 }
