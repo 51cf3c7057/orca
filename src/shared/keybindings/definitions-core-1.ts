@@ -200,7 +200,12 @@ export const KEYBINDING_DEFINITION_CORE_1: readonly KeybindingDefinition[] = [
     group: 'Global',
     scope: 'global',
     searchKeywords: ['shortcut', 'sidebar', 'right'],
-    defaultBindings: platformBindings(['Mod+L'])
+    // Why: Mod+L belongs to Add selection to chat.
+    defaultBindings: {
+      darwin: ['Cmd+Ctrl+ArrowRight'],
+      linux: ['Mod+Shift+L'],
+      win32: ['Mod+Shift+L']
+    }
   },
   {
     id: 'sidebar.explorer.toggle',
