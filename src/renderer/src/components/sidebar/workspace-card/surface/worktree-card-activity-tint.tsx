@@ -5,8 +5,7 @@ import type { WorktreeStatus } from '../../../../../../shared/worktree/row-displ
 import { useWorktreeActivityStatus } from '../activity/use-worktree-activity-status'
 import type { SlotException } from '../slots/worktree-card-slot-signal'
 import { useWorktreeCardLineageExceptions } from './worktree-card-title-status'
-
-type ActivityTint = 'waiting' | 'working' | 'merged' | 'ready'
+import { ActivityTintContext, type ActivityTint } from './worktree-card-activity-tint-context'
 
 /** Needs you, then any agent still working (a failed one never hides it), then a merged PR, then ready for input. */
 export function activityTint(
@@ -46,12 +45,14 @@ export function WorktreeCardActivityTint({
   worktreeId,
   prMerged,
   surfacePaddingLeft,
-  hasExpandedChildren
+  hasExpandedChildren,
+  children
 }: {
   worktreeId: string
   prMerged: boolean
   surfacePaddingLeft: string | undefined
   hasExpandedChildren: boolean
+  children: React.ReactNode
 }): React.JSX.Element {
   const tint = activityTint(
     useWorktreeActivityStatus(worktreeId, { ignoreFailed: true }),
@@ -59,16 +60,19 @@ export function WorktreeCardActivityTint({
     prMerged
   )
   return (
-    <span
-      aria-hidden="true"
-      data-worktree-activity-tint={tint}
-      className={cn(
-        'pointer-events-none absolute -top-4 -z-10 border-l-[3px] transition-colors duration-200',
-        // With children it ends inside the card, so it matches the surface's pr-1.5 to round both corners.
-        hasExpandedChildren ? '-right-1.5 -bottom-1 rounded-b-lg' : '-right-4 -bottom-4',
-        TINT_CLASS_NAMES[tint]
-      )}
-      style={{ left: surfacePaddingLeft ? `calc(-1 * ${surfacePaddingLeft})` : 0 }}
-    />
+    <div className="relative">
+      <span
+        aria-hidden="true"
+        data-worktree-activity-tint={tint}
+        className={cn(
+          'pointer-events-none absolute -top-4 -z-10 border-l-[3px] transition-colors duration-200',
+          // With children it ends inside the card, so it matches the surface's pr-1.5 to round both corners.
+          hasExpandedChildren ? '-right-1.5 -bottom-1 rounded-b-lg' : '-right-4 -bottom-4',
+          TINT_CLASS_NAMES[tint]
+        )}
+        style={{ left: surfacePaddingLeft ? `calc(-1 * ${surfacePaddingLeft})` : 0 }}
+      />
+      <ActivityTintContext.Provider value={tint}>{children}</ActivityTintContext.Provider>
+    </div>
   )
 }
