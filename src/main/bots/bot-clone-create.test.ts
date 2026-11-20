@@ -14,6 +14,7 @@ import { botsRootFolder, localBotHomeFilesystem } from './bot-home'
 import { useBotToolCredentialsRoot } from './bot-tool-credentials'
 import { changeBotToolServers } from './bot-tools-file'
 import { squarePng } from './sharing/bot-share-received.test-fixture'
+import { readBotShareable } from './sharing/bot-share-sources'
 
 const osHome = vi.hoisted(() => ({ dir: '' }))
 vi.mock('node:os', async (importOriginal) => ({
@@ -87,7 +88,8 @@ function deps(failOn?: string) {
     bots,
     filesystem: localBotHomeFilesystem,
     botsRoot: () => botsRootFolder(),
-    automations: () => store.listAutomations(),
+    readShareable: (bot: Bot) =>
+      readBotShareable({ bot, home: homeOf(bot), automations: store.listAutomations() }),
     createPausedSchedule: async (bot: Bot, schedule: { name: string }) => {
       if (schedule.name === failOn) {
         throw new Error('automation store unavailable')

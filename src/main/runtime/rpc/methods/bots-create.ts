@@ -18,12 +18,12 @@ import {
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import { defineMethod, InvalidArgumentError } from '../core'
 
-/** A clone reads the source the way Share bot does: its record, home and own automations. */
+/** A clone reads the source through the same runtime read Share bot uses. */
 function botCloneCreateDeps(runtime: OrcaRuntimeService): BotCloneCreateDeps {
   return {
     ...botShareCreateDeps(runtime),
     bots: runtime.bots,
-    automations: () => runtime.listAutomationsForScope().automations
+    readShareable: (bot) => runtime.readBotShareableOf(bot)
   }
 }
 

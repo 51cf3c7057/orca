@@ -2,7 +2,6 @@
 // Share bot reads it and turned into the files a share package carries; then the bot is made the normal
 // way and the package applied, so any failure deletes the new bot. The source is only read.
 import { join } from 'node:path'
-import type { Automation } from '../../shared/automations/automation-definition'
 import type { Bot } from '../../shared/bot-types'
 import { soulForName } from '../../shared/bots/bot-clone'
 import { BOT_PACKAGE_SOUL_PATH, planBotFromPackage } from '../../shared/bots/bot-package'
@@ -19,7 +18,7 @@ import {
 import { buildBotPackageContent } from './sharing/bot-package-content'
 import { sharerRawFiles } from './sharing/bot-package-content-files'
 import { botPackageFor } from './sharing/bot-package-export'
-import { readBotShareable } from './sharing/bot-share-sources'
+import type { BotShareable } from './sharing/bot-share-sources'
 
 export type BotCloneCreateParams = BotCreateParams & {
   cloneFrom: NonNullable<BotCreateParams['cloneFrom']>
@@ -27,8 +26,9 @@ export type BotCloneCreateParams = BotCreateParams & {
 
 export type BotCloneCreateDeps = BotPackageApplyDeps & {
   bots: Pick<BotController, 'list' | 'create' | 'delete' | 'update'>
-  /** Every automation on this host; the source's own become the clone's schedules. */
-  automations: () => readonly Automation[]
+  /** The source as Share bot reads it (record, home, its own automations), from the runtime that
+   *  already does that read for Share. */
+  readShareable: (bot: Bot) => Promise<BotShareable>
 }
 
 export const BOT_CLONE_ERRORS = {
@@ -98,11 +98,7 @@ export async function botCloneCreation(
     assertSoulHoldsNoSecret(givenSoul)
   }
   const sourceHome = botHomeFolder(source, deps.botsRoot())
-  const shareable = await readBotShareable({
-    bot: source,
-    home: sourceHome,
-    automations: deps.automations()
-  })
+  const shareable = await deps.readShareable(source)
   // Everything Share bot would offer, memory never: the same package value, so the same parts stay out.
   const declared = botPackageFor(source, shareable, { memory: [] })
   const content = buildBotPackageContent({
