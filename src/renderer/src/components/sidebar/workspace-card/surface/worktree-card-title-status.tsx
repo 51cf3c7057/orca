@@ -53,6 +53,8 @@ type TitleStatus = {
   unread: boolean
   /** The lane status collapsed descendants claim (needs you, failed, working); null when quiet. */
   lineageStatus: WorktreeStatus | null
+  /** Every status collapsed descendants report, before the lane picks one. */
+  lineageExceptions: readonly SlotException[]
   at: number | null
   resolveTargets: (kind: SlotException['kind']) => SlotTarget[]
 }
@@ -154,8 +156,16 @@ export function WorktreeCardTitleStatusProvider({
   const unread = titleRowUnread({ lines: signals.allSignals, collapsedLineage, workspaceUnread })
   const lineageStatus = lineageLaneStatus(collapsedLineage)
   const value = useMemo<TitleStatus>(
-    () => ({ offline, exceptions, unread, lineageStatus, at, resolveTargets }),
-    [at, exceptions, lineageStatus, offline, resolveTargets, unread]
+    () => ({
+      offline,
+      exceptions,
+      unread,
+      lineageStatus,
+      lineageExceptions: collapsedLineage,
+      at,
+      resolveTargets
+    }),
+    [at, collapsedLineage, exceptions, lineageStatus, offline, resolveTargets, unread]
   )
   return <TitleStatusContext.Provider value={value}>{children}</TitleStatusContext.Provider>
 }
@@ -168,6 +178,11 @@ export function useWorktreeCardRolledUpUnread(): boolean {
 /** What collapsed child workspaces claim for the lane, so a running child shows on its parent. */
 export function useWorktreeCardLineageLaneStatus(): WorktreeStatus | null {
   return useContext(TitleStatusContext)?.lineageStatus ?? null
+}
+
+/** Everything collapsed child workspaces report, for surfaces that rank statuses their own way. */
+export function useWorktreeCardLineageExceptions(): readonly SlotException[] {
+  return useContext(TitleStatusContext)?.lineageExceptions ?? NO_EXCEPTIONS
 }
 
 /** The title row's right edge: a pill per loud status the card speaks for, then the time. */

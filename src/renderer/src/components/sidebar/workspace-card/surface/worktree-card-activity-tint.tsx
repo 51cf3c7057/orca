@@ -3,17 +3,24 @@ import React from 'react'
 import { cn } from '@/lib/class-names'
 import type { WorktreeStatus } from '../../../../../../shared/worktree/row-display/worktree-status-rollup'
 import { useWorktreeActivityStatus } from '../activity/use-worktree-activity-status'
-import { laneStatusWithLineage } from './worktree-card-lineage-lane-status'
-import { useWorktreeCardLineageLaneStatus } from './worktree-card-title-status'
+import type { SlotException } from '../slots/worktree-card-slot-signal'
+import { useWorktreeCardLineageExceptions } from './worktree-card-title-status'
 
 type ActivityTint = 'waiting' | 'working' | 'idle'
 
-// Needs you outranks working, which outranks everything quiet (done, failed, stopped, no agents).
-function activityTint(status: WorktreeStatus): ActivityTint {
-  if (status === 'permission') {
+/** Needs you, then any agent still working (a failed one never hides it), then quiet. */
+export function activityTint(
+  own: WorktreeStatus,
+  collapsedLineage: readonly SlotException[]
+): ActivityTint {
+  if (own === 'permission' || collapsedLineage.some((e) => e.kind === 'needs')) {
     return 'waiting'
   }
-  return status === 'working' || status === 'monitoring' ? 'working' : 'idle'
+  return own === 'working' ||
+    own === 'monitoring' ||
+    collapsedLineage.some((e) => e.kind === 'working')
+    ? 'working'
+    : 'idle'
 }
 
 const TINT_CLASS_NAMES: Record<ActivityTint, string> = {
@@ -30,12 +37,10 @@ export function WorktreeCardActivityTint({
 }: {
   worktreeId: string
 }): React.JSX.Element {
-  // Same roll-up as the status lane, so a collapsed child that needs you tints its parent too.
-  const status = laneStatusWithLineage(
-    useWorktreeActivityStatus(worktreeId),
-    useWorktreeCardLineageLaneStatus()
+  const tint = activityTint(
+    useWorktreeActivityStatus(worktreeId, { ignoreFailed: true }),
+    useWorktreeCardLineageExceptions()
   )
-  const tint = activityTint(status)
   return (
     <span
       aria-hidden="true"
