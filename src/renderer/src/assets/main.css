@@ -299,9 +299,9 @@
   --unread: var(--color-blue-500);
   /* The unread dot on an inverted surface (tips): blue-500 keeps 3:1 on both the near-black and near-white inverse. */
   --unread-inverse: var(--color-blue-500);
-  /* Workspace card tint ("Activity color"): an agent needs you, an agent is working, nothing to do. */
-  --workspace-activity-waiting: var(--color-blue-500);
-  --workspace-activity-working: var(--color-orange-500);
+  /* Workspace card tint ("Activity color"): the agent glyphs' needs-you and working hues, else violet. */
+  --workspace-activity-waiting: var(--agent-question);
+  --workspace-activity-working: var(--agent-working);
   --workspace-activity-idle: var(--color-violet-500);
   /* Keep PR-state hues stable across theme changes. */
   --workspace-status-done: #c7a594;
@@ -426,8 +426,8 @@
   --question-card-border-mix: 16%;
   --question-option-border-mix: 12%;
   --unread: var(--color-blue-400);
-  --workspace-activity-waiting: var(--color-blue-400);
-  --workspace-activity-working: var(--color-orange-400);
+  --workspace-activity-waiting: var(--agent-question);
+  --workspace-activity-working: var(--agent-working);
   --workspace-activity-idle: var(--color-violet-400);
   --workspace-status-done: #c7a594;
   --workspace-status-review: #16a34a;
