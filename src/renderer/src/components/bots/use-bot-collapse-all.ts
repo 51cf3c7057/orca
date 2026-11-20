@@ -14,14 +14,21 @@ export type BotCollapseAll = {
   toggle: () => void
 }
 
-type BotEntry = { kind: 'bot'; id: string; home: { id: string } } | { kind: 'group' }
+type BotEntry =
+  | { kind: 'bot'; id: string; home: { id: string } }
+  | { kind: 'group'; home: { id: string }; group: { threads?: readonly unknown[] } }
+
+function entryFoldKey(entry: BotEntry): string {
+  return getLineageGroupKey(folderWorkspaceKey(entry.home.id))
+}
 
 function botFoldKeys(entries: readonly BotEntry[]): Set<string> {
-  return new Set(
-    entries.flatMap((entry) =>
-      entry.kind === 'bot' ? [getLineageGroupKey(folderWorkspaceKey(entry.home.id))] : []
-    )
-  )
+  return new Set(entries.map(entryFoldKey))
+}
+
+/** A bot with chats or workspaces, or a team with threads, has lines under its row. */
+function hasLines(entry: BotEntry, hasChildren: (id: string) => boolean): boolean {
+  return entry.kind === 'bot' ? hasChildren(entry.id) : (entry.group.threads?.length ?? 0) > 0
 }
 
 /** How many of `keys` are folded, walking whichever set is smaller. */
@@ -71,8 +78,8 @@ function createFoldState(
 }
 
 /**
- * Folds every listed bot with chats or workspaces, as each bot's own chevron does; unfolds every
- * bot folded, listed or hidden. Null when no listed bot can fold and no saved bot is folded.
+ * Folds every listed bot with chats or workspaces and team with threads, as each row's own chevron
+ * does; unfolds every one folded, listed or hidden. Null when none listed can fold and none saved is folded.
  */
 export function useBotCollapseAll(
   entries: readonly BotEntry[],
@@ -80,15 +87,10 @@ export function useBotCollapseAll(
 ): BotCollapseAll | null {
   const hasChildren = useBotSidebarChildren()
   const saved = useMemo(() => botFoldKeys(savedEntries), [savedEntries])
-  // Groups have nothing under their row to fold.
   const withChildren = useMemo(
     () =>
       new Set(
-        entries.flatMap((entry) =>
-          entry.kind === 'bot' && hasChildren(entry.id)
-            ? [getLineageGroupKey(folderWorkspaceKey(entry.home.id))]
-            : []
-        )
+        entries.flatMap((entry) => (hasLines(entry, hasChildren) ? [entryFoldKey(entry)] : []))
       ),
     [entries, hasChildren]
   )

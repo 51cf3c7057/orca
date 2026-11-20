@@ -40,7 +40,7 @@ import { useBotsRevealSettle } from './bots-sidebar-reveal-context'
 // The bot row's status lane and gap, so a line's status glyph lands under the bot's avatar.
 export const BOT_WORKSPACE_LINE_INDENT = 21
 // The new card style's wider lane; the line itself is always a Compact card.
-const BOT_WORKSPACE_LINE_INDENT_NEW_CARD_STYLE = 29
+export const BOT_WORKSPACE_LINE_INDENT_NEW_CARD_STYLE = 29
 
 /** A bot's row with the workspaces its workers made, one Compact line each under the bot's avatar. */
 /** The Bots section's reorder, which measures each entry, workspaces included, by these attributes. */
