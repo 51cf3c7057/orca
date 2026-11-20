@@ -32,9 +32,9 @@ const PAIR: Spot[] = [
   { x: 26, y: 5, size: 18, font: 10 }
 ]
 const TRIO: Spot[] = [
-  { x: 0, y: 7.5, size: 13, font: 8 },
-  { x: 15.5, y: 7.5, size: 13, font: 8 },
-  { x: 31, y: 7.5, size: 13, font: 8 }
+  { x: 0, y: 8, size: 12, font: 8 },
+  { x: 16, y: 8, size: 12, font: 8 },
+  { x: 32, y: 8, size: 12, font: 8 }
 ]
 
 /** A group's circles in one row, left to right in member order, none overlapping: every member up to
