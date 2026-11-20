@@ -64,6 +64,28 @@ describe('a proposed bot', () => {
     expect(old.seed?.templateId).toBe('support')
   })
 
+  it('makes a clone card into one clone request, keeping its soul text', () => {
+    const params = proposalCreateParams(
+      {
+        name: 'Scout 2',
+        purpose: 'A clone of Scout: its traits, none of its work.',
+        cloneFrom: { botId: 'b-scout', name: 'Scout' },
+        soul: '# Scout\nWatches releases.\n'
+      },
+      'claude',
+      { templatePackages: true, fromOffer: { botId: 'b-scout', offerId: 'offer-1' } }
+    )
+    expect(params).toEqual({
+      name: 'Scout 2',
+      agent: 'claude',
+      seed: { purpose: 'A clone of Scout: its traits, none of its work.' },
+      cloneFrom: { botId: 'b-scout' },
+      soul: '# Scout\nWatches releases.\n',
+      fromOffer: { botId: 'b-scout', offerId: 'offer-1' }
+    })
+    expect(BotCreate.safeParse(params).success).toBe(true)
+  })
+
   it('keeps every card it accepted, however many, so an old card never opens again', () => {
     let proposer: { acceptedOffers?: { offerId: string; botId: string }[] } = {}
     for (let index = 1; index <= 150; index++) {

@@ -76,12 +76,19 @@ export function botImportKickoff(from: BotImportedFrom, botName: string): string
   ].join('\n\n')
 }
 
+/** Orca's first turn to a bot cloned from another: it names what in its soul is the source's. */
+export function botCloneKickoff(sourceName: string): string {
+  return `${BOT_CREATED_KICKOFF} You were made as a clone of ${sourceName}. You have its SOUL.md, skills and settings, and none of its memory, chats or work. Read SOUL.md now. Then greet your owner in two or three sentences: say what you are for, and list anything in SOUL.md that names a project, a person, a path or a past decision that belongs to ${sourceName} and not to you. Change nothing in SOUL.md until your owner says which of those to cut.`
+}
+
 /** Orca's first turn to a new bot, sent again by Try again: an import's for a bot made from another
- *  app's, a link's for one made from a shared link, a template's for one made from a template. */
+ *  app's, a link's for one made from a shared link, a clone's for one cloned from another bot, a
+ *  template's for one made from a template. */
 export function botFirstKickoff(bot: {
   name: string
   importedFrom?: BotImportedFrom
   sharedFrom?: Pick<BotSharedFrom, 'sharedBy'>
+  clonedFrom?: { name: string }
   templateId?: string
 }): string {
   if (bot.importedFrom) {
@@ -89,6 +96,9 @@ export function botFirstKickoff(bot: {
   }
   if (bot.sharedFrom) {
     return botShareKickoff(bot.sharedFrom)
+  }
+  if (bot.clonedFrom) {
+    return botCloneKickoff(bot.clonedFrom.name)
   }
   const template = botTemplate(bot.templateId)
   return template ? botTemplateKickoff(template) : BOT_CREATED_KICKOFF

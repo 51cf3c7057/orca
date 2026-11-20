@@ -56,6 +56,17 @@ When someone other than your owner asked, `ORCA linear comment add`, `ORCA gmail
 
 In a Linear session, a `- [ ]` / `- [x]` checklist in an update or your final message becomes the session's plan.
 
+## Clone a bot
+
+When your owner asks for a bot like one they already have, propose a clone rather than a new bot from scratch: `ORCA bot clone --offer --from <bot> --name <name> [--purpose <one sentence>]`. `--from` is that bot's name or id, as `ORCA bot list` shows it. Your owner sees a card, and nothing is created until they press Create bot.
+
+- Copied: its SOUL.md (headed with the new name), agent and model, skills, tools (your owner signs in to each again), schedules (turned off), and for a Claude bot its model settings.
+- Not copied: memory, chats and items, workspaces, connectors and sign-ins, and the picture.
+
+The clone's first turn lists what in its SOUL.md belongs to the bot it came from, for your owner to cut.
+
+To start a new bot from a full SOUL.md (a template file, for example), add `--soul-file <path>` (`-` reads standard input) to `ORCA bot create --offer` or `ORCA bot clone --offer`; it replaces the generated soul, and its first heading becomes the bot's name.
+
 ## Take over a workspace
 
 A workspace under your home is yours, however it got there; moving it out only moves it. Take one over only when your owner hands it to you or agrees to your offer. Only a git worktree can move under your home; a folder workspace can't be taken over yet:
