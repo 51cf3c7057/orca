@@ -56,6 +56,7 @@ type NewWorkspaceComposerAdvancedSectionProps = Pick<
   | 'canUseSparseCheckout'
 > & {
   nameSection?: React.ReactNode
+  agentIssueSection?: React.ReactNode
   sparseEditing?: boolean
   onSparseEditingChange: (editing: boolean) => void
   branchNameInputId: string
@@ -67,6 +68,7 @@ export function NewWorkspaceComposerAdvancedSection({
   setupChoiceRevealRequest,
   onSetupChoiceRevealed,
   nameSection,
+  agentIssueSection,
   sparseEditing,
   onSparseEditingChange,
   smartNameSelection,
@@ -174,6 +176,8 @@ export function NewWorkspaceComposerAdvancedSection({
               />
             </div>
           ) : null}
+
+          {agentIssueSection}
 
           {selectedRepoIsGit &&
           branchesEnabled &&

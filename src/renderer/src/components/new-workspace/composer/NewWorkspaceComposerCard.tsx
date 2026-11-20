@@ -26,6 +26,7 @@ import type { RuntimeStatus } from '../../../../../shared/remote-runtime/session
 import type { AddRepoDialogEntryRequest } from '@/components/sidebar/project-admission/dialog/add-repo-dialog-types'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
 import { NewWorkspaceComposerAdvancedSection } from './NewWorkspaceComposerAdvancedSection'
+import { NewWorkspaceComposerAgentIssueSection } from './NewWorkspaceComposerAgentIssueSection'
 import { NewWorkspaceComposerAgentSection } from './NewWorkspaceComposerAgentSection'
 import { NewWorkspaceComposerBaseBranchSection } from './NewWorkspaceComposerBaseBranchSection'
 import { NewWorkspaceComposerFooter } from './NewWorkspaceComposerFooter'
@@ -299,6 +300,7 @@ export default function NewWorkspaceComposerCard(
         : 'workspace_creation_visible')
   )
 
+  const agentIssueChosen = props.smartNameSelection?.kind === 'github-issue'
   const nameSection = (
     <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
   )
@@ -354,7 +356,9 @@ export default function NewWorkspaceComposerCard(
         />
         <NewWorkspaceComposerAdvancedSection
           {...props}
-          nameSection={nameSectionInMainFlow ? null : nameSection}
+          // A chosen issue shows in its own field, with Advanced's plain Name input for the name.
+          nameSection={nameSectionInMainFlow || agentIssueChosen ? null : nameSection}
+          agentIssueSection={<NewWorkspaceComposerAgentIssueSection {...props} />}
           onSparseEditingChange={setSparseEditing}
           sparseEditing={sparseEditing}
           branchNameInputId={branchNameInputId}
