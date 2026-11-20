@@ -10,7 +10,6 @@ type NewWorkspaceComposerBaseBranchSectionProps = Pick<
   | 'selectedRepoIsGit'
   | 'selectedRepoRequiresConnection'
   | 'branchesEnabled'
-  | 'smartNameMode'
   | 'smartNameSelection'
   | 'baseBranch'
   | 'onBaseBranchChange'
@@ -22,7 +21,6 @@ export function NewWorkspaceComposerBaseBranchSection({
   selectedRepoIsGit,
   selectedRepoRequiresConnection,
   branchesEnabled = true,
-  smartNameMode,
   smartNameSelection,
   baseBranch,
   onBaseBranchChange,
@@ -34,7 +32,6 @@ export function NewWorkspaceComposerBaseBranchSection({
     !shouldShowComposerBaseRefPicker({
       selectedRepoIsGit,
       branchesEnabled,
-      smartNameMode: smartNameMode ?? 'smart',
       smartNameSelectionKind: smartNameSelection?.kind ?? null
     })
   ) {
