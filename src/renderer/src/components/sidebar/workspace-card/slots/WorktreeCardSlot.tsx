@@ -7,6 +7,7 @@ import { cn } from '@/lib/class-names'
 import type { SlotException, SlotSignal } from './worktree-card-slot-signal'
 import type { SlotTarget } from './worktree-card-slot-targets'
 import { SlotJumpTrigger } from './worktree-card-slot-jump'
+import { IdleZzz } from './IdleZzz'
 
 function formatSlotTime(at: number | null, now: number): string {
   return at === null ? '' : formatShortTimeAgo(at, now)
@@ -32,24 +33,6 @@ function slotLabel(signal: SlotSignal, t: Translate): string | undefined {
     case 'quiet':
       return undefined
   }
-}
-
-/** Sleeping "zzz", each z a step smaller and lower, for a card nothing is working on. */
-function IdleMark({ label }: { label: string }): React.JSX.Element {
-  return (
-    <span data-worktree-card-idle="" className="mr-1 inline-flex items-end">
-      <span aria-hidden="true" className="inline-block scale-75 translate-y-px">
-        z
-      </span>
-      <span aria-hidden="true" className="inline-block scale-90 -translate-y-px">
-        z
-      </span>
-      <span aria-hidden="true" className="inline-block -translate-y-[3px]">
-        z
-      </span>
-      <span className="sr-only">{label}</span>
-    </span>
-  )
 }
 
 /** The title's time, or its host's offline state. */
@@ -83,7 +66,7 @@ export function WorktreeCardSlot({
               : 'text-muted-foreground/70'
       )}
     >
-      {showIdle ? <IdleMark label={idleLabel} /> : null}
+      {showIdle ? <IdleZzz label={idleLabel} /> : null}
       {signal.kind === 'offline'
         ? t('sidebar.cardSlot.offline', 'offline')
         : formatSlotTime(signal.at, now)}
