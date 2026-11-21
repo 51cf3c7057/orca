@@ -4,7 +4,7 @@ import {
   structuredAgentSessionPaneKey,
   structuredAgentSessionTabId
 } from '../agent-session/view/structured-agent-session-projection'
-import { botGroupStatus } from './bot-group-status'
+import { botGroupStatus, botTeamSleeping } from './bot-group-status'
 
 const group = {
   members: [
@@ -94,5 +94,50 @@ describe('botGroupStatus with threads', () => {
     statuses.set(...entry('bot-group-member-1', { state: 'working' }))
     statuses.set(...entry('bot-group-member-t1', { state: 'blocked' }))
     expect(botGroupStatus(threaded, statuses, 2)).toBe('permission')
+  })
+})
+
+describe('botTeamSleeping', () => {
+  const quiet = {
+    roomStatus: null,
+    memberCount: 2,
+    memberStatuses: ['active', 'inactive'],
+    workerCounts: { permission: 0, working: 0, failed: 1 },
+    offline: false
+  } as const
+
+  it('sleeps when the room, every member and every worker are idle, a failed worker included', () => {
+    expect(botTeamSleeping(quiet)).toBe(true)
+  })
+
+  it('stays awake while the host is offline', () => {
+    expect(botTeamSleeping({ ...quiet, offline: true })).toBe(false)
+  })
+
+  it('stays awake while the room works or needs you', () => {
+    expect(botTeamSleeping({ ...quiet, roomStatus: 'working' })).toBe(false)
+    expect(botTeamSleeping({ ...quiet, roomStatus: 'permission' })).toBe(false)
+  })
+
+  it('stays awake with no members', () => {
+    expect(botTeamSleeping({ ...quiet, memberCount: 0, memberStatuses: [] })).toBe(false)
+  })
+
+  it("stays awake while a member's home hasn't loaded", () => {
+    expect(botTeamSleeping({ ...quiet, memberStatuses: ['active'] })).toBe(false)
+  })
+
+  it('stays awake while a member works or needs you', () => {
+    expect(botTeamSleeping({ ...quiet, memberStatuses: ['active', 'working'] })).toBe(false)
+    expect(botTeamSleeping({ ...quiet, memberStatuses: ['permission', 'active'] })).toBe(false)
+  })
+
+  it("stays awake while a member's worker workspace works or needs you", () => {
+    expect(
+      botTeamSleeping({ ...quiet, workerCounts: { permission: 0, working: 1, failed: 0 } })
+    ).toBe(false)
+    expect(
+      botTeamSleeping({ ...quiet, workerCounts: { permission: 1, working: 0, failed: 0 } })
+    ).toBe(false)
   })
 })
