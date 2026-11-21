@@ -30,6 +30,7 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import type { ExecutionHostId } from '../../../../shared/execution-host/execution-host'
 import type { BotGroup } from '../../../../shared/bots/bot-group'
 import { botGroupStatus } from '../../../../shared/bots/bot-group-status'
+import { groupedBotIds } from '../../../../shared/bots/bot-group-membership'
 import { foldBotStatus } from '../../../../shared/bots/bot-row-status'
 import { botGroupMemberBots, botGroupRowLine } from '../../../../shared/bots/bot-sidebar-entries'
 import {
@@ -82,13 +83,18 @@ export function useBotPaletteSource({
     readOfflineHostKey,
     readOfflineHostKey
   )
-  const entries = useMemo(
+  const allEntries = useMemo(
     () => getHostKeyedBotSidebarEntries(bots, groups, folderWorkspaces),
     [bots, groups, folderWorkspaces]
   )
+  // A team's members are reached through its row, as in the sidebar.
+  const entries = useMemo(() => {
+    const grouped = groupedBotIds(groups)
+    return allEntries.filter((entry) => entry.kind === 'group' || !grouped.has(entry.bot.id))
+  }, [allEntries, groups])
   const homeIdentities = useMemo(
-    () => new Set(entries.map((entry) => getFolderWorkspaceHostIdentity(entry.home))),
-    [entries]
+    () => new Set(allEntries.map((entry) => getFolderWorkspaceHostIdentity(entry.home))),
+    [allEntries]
   )
   // A home is listed as its owner, never as a workspace; its chats stay in Open Tabs and recents.
   // Stable across queries, so open tabs aren't recomputed by a keystroke that only changes bot results.

@@ -34,6 +34,7 @@ import {
 import { useBotOwnChatTree } from './use-bot-chat-tree'
 import { isBotGroupMemberSession } from '../../../../shared/bots/bot-group'
 import { useBotHostLabel } from './use-bot-host-label'
+import { useBotTeams } from './use-bot-teams'
 
 /** Whether the computer the chat's agent runs on reads chat picks; an unknown one doesn't. */
 function hostReadsChatPicks(hostId: ExecutionHostId): boolean {
@@ -74,6 +75,8 @@ export function useBotChatPicker(
   )
   useBotMentionChatsWatch(watched, caller)
   const tree = useBotOwnChatTree(viewed)
+  // A team member's own chats are listed only in its team; the bot itself can still be picked.
+  const viewedTeams = useBotTeams(viewed?.id ?? null)
   const title = useBotChatMentionTitle(hostId)
   const selfId = self && capable ? self.id : null
 
@@ -100,32 +103,40 @@ export function useBotChatPicker(
     }
     const read = reads(viewed)
     const chats: NativeChatMentionChatsView =
-      read === null || read.status === 'loading'
-        ? { status: 'loading' }
-        : read.status === 'error'
-          ? {
-              status: 'error',
-              message: hostLabel
-                ? t(
-                    'bots.chat.mentionChatsLoadFailedOn',
-                    "Couldn't load chats: {{host}} isn't connected",
-                    {
-                      host: hostLabel
-                    }
-                  )
-                : t('bots.chat.mentionChatsLoadFailed', "Couldn't load chats")
-            }
-          : {
-              status: 'ready',
-              chats: mailableChats(read.rows, tree.chats, viewed, viewed.id === self?.id, t)
-            }
+      viewedTeams.length > 0
+        ? {
+            status: 'error',
+            message: t('bots.chats.inTeamPicker', "{{name}}'s chats show only in {{team}}.", {
+              name: viewed.name,
+              team: viewedTeams.map((team) => team.name).join(', ')
+            })
+          }
+        : read === null || read.status === 'loading'
+          ? { status: 'loading' }
+          : read.status === 'error'
+            ? {
+                status: 'error',
+                message: hostLabel
+                  ? t(
+                      'bots.chat.mentionChatsLoadFailedOn',
+                      "Couldn't load chats: {{host}} isn't connected",
+                      {
+                        host: hostLabel
+                      }
+                    )
+                  : t('bots.chat.mentionChatsLoadFailed', "Couldn't load chats")
+              }
+            : {
+                status: 'ready',
+                chats: mailableChats(read.rows, tree.chats, viewed, viewed.id === self?.id, t)
+              }
     return {
       botId: viewed.id,
       name: viewed.name,
       avatar: <BotAvatar bot={viewed} className="size-4 rounded-sm text-3xs" />,
       chats
     }
-  }, [viewed, reads, tree.chats, self, hostLabel, t])
+  }, [viewed, viewedTeams, reads, tree.chats, self, hostLabel, t])
 
   const pick = useCallback(
     (botId: string, chatId: string): NativeChatBotChatPick => {
@@ -190,7 +201,7 @@ export function useBotChatPicker(
       view: setViewing,
       shown,
       retry: () => {
-        if (viewed) {
+        if (viewed && viewedTeams.length === 0) {
           requestBotMentionChats(viewed, caller)
         }
       },
@@ -198,7 +209,20 @@ export function useBotChatPicker(
       pick,
       title
     }
-  }, [capable, hostId, botOf, selfId, watch, reads, caller, shown, viewed, pick, title])
+  }, [
+    capable,
+    hostId,
+    botOf,
+    selfId,
+    watch,
+    reads,
+    caller,
+    shown,
+    viewed,
+    viewedTeams,
+    pick,
+    title
+  ])
 }
 
 function tokenOf(bot: Bot | undefined, chat: NativeChatMentionChat | null, self: boolean): string {

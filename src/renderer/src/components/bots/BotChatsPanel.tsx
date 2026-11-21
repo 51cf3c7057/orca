@@ -1,7 +1,7 @@
 // A bot page's Chats tab: search and New chat on top, then every chat as one folded row, its workers behind a chevron.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search } from 'lucide-react'
+import { MessagesSquare, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTranslate } from '@/i18n/use-translate'
@@ -11,6 +11,8 @@ import { useBotHostOffline } from '@/lib/bot-host-views'
 import { callBotRpc } from '@/lib/bot-hosts'
 import { useAppStore } from '@/store'
 import type { Bot } from '../../../../shared/bot-types'
+import type { BotGroup } from '../../../../shared/bots/bot-group'
+import { openBotGroup } from '@/lib/bot-group-catalog'
 import {
   botChatListView,
   botChatMoreMatchesNote,
@@ -39,6 +41,8 @@ import { useBotNeedsYouCount, useBotNow } from './use-bot-now'
 import { updateBotReporting } from './bot-update-reporting'
 import { useBotPictureSetting } from '../settings/bots/use-bot-picture-setting'
 import { BotChatsSkeleton } from './BotChatsSkeleton'
+import { useBotTeams } from './use-bot-teams'
+import { useBotGroupDetach } from './BotGroupDetachMenuItem'
 
 const useBotChatSearch = createBotChatSearchHook({ useCallback, useEffect, useMemo, useState })
 
@@ -71,7 +75,70 @@ function ChatsReadNote({ retry }: { retry: () => void }): React.JSX.Element {
 export default function BotChatsPanel(): React.JSX.Element | null {
   const workspaceId = useAppStore((s) => s.activeWorktreeId)
   const bot = useBotForWorkspace(workspaceId)
-  return bot ? <BotChatsTab key={bot.id} bot={bot} /> : null
+  const teams = useBotTeams(bot?.id ?? null)
+  if (!bot) {
+    return null
+  }
+  return teams.length > 0 ? (
+    <BotChatsInTeam bot={bot} teams={teams} />
+  ) : (
+    <BotChatsTab key={bot.id} bot={bot} />
+  )
+}
+
+/** A team member's chats are listed only in its team; to work with it alone, detach it. */
+function BotChatsInTeam({
+  bot,
+  teams
+}: {
+  bot: Bot
+  teams: readonly BotGroup[]
+}): React.JSX.Element {
+  const t = useTranslate()
+  return (
+    <div className="flex flex-col gap-2 px-2 pt-2">
+      <p className="text-xs text-muted-foreground">
+        {t(
+          'bots.chats.inTeamNotice',
+          "{{name}} is in a team, so its chats show only in the team's chat. Detach it to work with it alone.",
+          { name: bot.name }
+        )}
+      </p>
+      {teams.map((team) => (
+        <BotChatsTeamRow key={team.id} bot={bot} team={team} />
+      ))}
+    </div>
+  )
+}
+
+function BotChatsTeamRow({ bot, team }: { bot: Bot; team: BotGroup }): React.JSX.Element {
+  const t = useTranslate()
+  const { detach, disabled } = useBotGroupDetach(team, bot)
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="truncate text-xs font-medium">{team.name}</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            openBotGroup(team).catch((error: unknown) => toast.error(botErrorMessage(error)))
+          }}
+        >
+          <MessagesSquare />
+          {t('bots.chats.openTeamChat', 'Open team chat')}
+        </Button>
+        <Button variant="ghost" size="xs" disabled={disabled} onClick={detach}>
+          {t('bots.groups.detach.menu', 'Detach from team')}
+        </Button>
+        {disabled ? (
+          <span className="text-2xs text-muted-foreground">
+            {t('bots.groups.detach.onlyMember', 'A team needs at least one member')}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 function BotChatsTab({ bot }: { bot: Bot }): React.JSX.Element {
