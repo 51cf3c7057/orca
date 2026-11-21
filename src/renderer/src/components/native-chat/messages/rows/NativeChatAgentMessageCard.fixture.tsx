@@ -14,6 +14,9 @@ import { orchestrationMailFixture } from '../../../../../../shared/agent-session
 import { NativeChatWorkersContext } from '../../native-chat-workers-context'
 import type { OrchestrationSessionWorker } from '../../../../../../shared/orchestration-session-workers'
 import { nativeChatEventPlan } from '../../../../../../shared/native-chat/transcript/events/native-chat-event-plan'
+import { publishBots } from '@/lib/bot-catalog-snapshot'
+import type { RuntimeFileOperationArgs } from '@/runtime/files/runtime-file-client-types'
+import type { Bot } from '../../../../../../shared/bot-types'
 
 const workspace = 'agent-message-fixture'
 const image =
@@ -199,53 +202,79 @@ export const expanded = defineFixture({
     }
   }
 })
-// Mail from a paired computer: an agent there by its carried avatar, and a terminal agent, each with its host pill.
-export const fromAnotherComputer = defineFixture({
-  width: 440,
-  render: () => (
+const mailMessage: Omit<NativeChatMessage, 'id' | 'from'> = {
+  role: 'user',
+  source: 'transcript',
+  blocks: [{ type: 'text', text: 'Where is the install guide?' }],
+  timestamp: 1_800_000_000_000
+}
+// One mail card per sender, each addressed by its name.
+function mailCards(
+  senders: readonly Omit<AgentMessageSource['senders'][number], 'party'>[],
+  address: (name: string) => string,
+  runtimeContext?: RuntimeFileOperationArgs
+) {
+  return (
     <div className="space-y-4 bg-chat-pane p-4">
-      {[
-        { name: 'Release helper', bot: true as const, botAvatar: 'mascot:A1', agent: 'claude' },
-        { name: 'Release check', agent: 'codex' }
-      ].map((sender) => {
+      {senders.map((sender) => {
+        const name = sender.name ?? ''
+        const party = { address: address(name), terminalHandle: null, orcaSessionId: null }
         const from: AgentMessageSource = {
           kind: 'agent',
-          senders: [
-            {
-              party: {
-                address: `${sender.name} on Alice's Mac`,
-                terminalHandle: null,
-                orcaSessionId: null
-              },
-              host: "Alice's Mac",
-              ...sender
-            }
-          ],
+          senders: [{ party, ...sender }],
           orchestration: {
             message: 'mail-notice',
-            mailbox: 'term_recipient',
+            mailbox: 'term_9',
             dispatchId: null,
             messages: []
           }
         }
         return (
           <NativeChatAgentMessageCard
-            key={sender.name}
-            message={{
-              id: sender.name,
-              role: 'user',
-              source: 'transcript',
-              blocks: [{ type: 'text', text: 'Where is the install guide?' }],
-              timestamp: 1_800_000_000_000,
-              from
-            }}
+            key={name}
+            message={{ ...mailMessage, id: name, from }}
             from={from}
+            runtimeContext={runtimeContext}
             onRefolded={() => {}}
           />
         )
       })}
     </div>
   )
+}
+const alice = "Alice's Mac"
+// Mail from a paired computer: an agent there by its carried avatar, and a terminal agent, each with its host pill.
+export const fromAnotherComputer = defineFixture({
+  width: 440,
+  render: () =>
+    mailCards(
+      [
+        { name: 'Release helper', bot: true, botAvatar: 'mascot:A1', agent: 'claude', host: alice },
+        { name: 'Release check', agent: 'codex', host: alice }
+      ],
+      (name) => `${name} on ${alice}`
+    )
+})
+// Mail from this Orca's bot whose chat is not open: its catalog picture by its recorded name.
+export const localBotNotOpen = defineFixture({
+  width: 440,
+  setup: () => {
+    // Only what the catalog and the picture read; the host is stamped on publish.
+    const bots = [{ id: 'architect', name: 'Architect#4', avatar: 'mascot:A1' } as Bot]
+    publishBots(bots)
+    // The catalog lists bots again as it mounts; answer as this Orca with its one bot.
+    const runtime = window.api.runtime
+    const answer = { ok: true, result: { bots } }
+    const call = (args: Parameters<typeof runtime.call>[0]) =>
+      args.method === 'bots.list' ? Promise.resolve(answer) : runtime.call(args)
+    Reflect.set(window.api, 'runtime', { ...runtime, call })
+  },
+  render: () =>
+    mailCards(
+      [{ name: 'Architect#4', bot: true, agent: 'claude' }],
+      (name) => `orca_session_id:${name}`,
+      { worktreeId: workspace, worktreePath: null, target: { kind: 'local' } }
+    )
 })
 
 function sessionWorker(
