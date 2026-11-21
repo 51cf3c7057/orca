@@ -102,7 +102,7 @@ describe('botTeamSleeping', () => {
     roomStatus: null,
     memberCount: 2,
     memberStatuses: ['active', 'inactive'],
-    workerCounts: { permission: 0, working: 0, failed: 1 },
+    workerCounts: { permission: 0, working: 0, ready: 0, failed: 1 },
     offline: false
   } as const
 
@@ -134,10 +134,16 @@ describe('botTeamSleeping', () => {
 
   it("stays awake while a member's worker workspace works or needs you", () => {
     expect(
-      botTeamSleeping({ ...quiet, workerCounts: { permission: 0, working: 1, failed: 0 } })
+      botTeamSleeping({
+        ...quiet,
+        workerCounts: { permission: 0, working: 1, ready: 0, failed: 0 }
+      })
     ).toBe(false)
     expect(
-      botTeamSleeping({ ...quiet, workerCounts: { permission: 1, working: 0, failed: 0 } })
+      botTeamSleeping({
+        ...quiet,
+        workerCounts: { permission: 1, working: 0, ready: 0, failed: 0 }
+      })
     ).toBe(false)
   })
 })

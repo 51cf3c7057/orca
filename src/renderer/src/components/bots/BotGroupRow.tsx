@@ -29,7 +29,7 @@ import { BotGroupMemberRows } from './BotGroupMemberRows'
 import { useBotTeamSleeping } from './use-bot-team-sleeping'
 
 // A folded team's strip counts its members; their own rows carry their status.
-const NO_LIVE_COUNTS: BotWorkspaceLiveCounts = { permission: 0, working: 0, failed: 0 }
+const NO_LIVE_COUNTS: BotWorkspaceLiveCounts = { permission: 0, working: 0, ready: 0, failed: 0 }
 
 /** A group in the Bots section: its members' faces and the room's newest post, then its members, then its threads. */
 export function BotGroupRow({

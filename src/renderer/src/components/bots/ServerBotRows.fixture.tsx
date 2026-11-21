@@ -292,8 +292,7 @@ function Sidebar({ width, m4Down = false, expanded = NONE, active }: Scene) {
                 lines.length > 0
                   ? {
                       folded: !open,
-                      total: lines.length,
-                      counts: { permission: 0, working: live, failed: 0 },
+                      counts: { permission: 0, working: live, ready: 0, failed: 0 },
                       onToggle: () => {}
                     }
                   : null

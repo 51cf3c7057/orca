@@ -7,10 +7,18 @@ import {
 } from './bot-sidebar-workspaces'
 
 describe('countLiveBotWorkspaces', () => {
-  it('counts needs-you, working (monitoring too) and failed, and nothing else', () => {
+  it('counts needs-you, working (monitoring too), ready (done) and failed, and nothing else', () => {
     expect(
-      countLiveBotWorkspaces(['permission', 'working', 'monitoring', 'failed', 'done', 'inactive'])
-    ).toEqual({ permission: 1, working: 2, failed: 1 })
+      countLiveBotWorkspaces([
+        'permission',
+        'working',
+        'monitoring',
+        'failed',
+        'done',
+        'done',
+        'inactive'
+      ])
+    ).toEqual({ permission: 1, working: 2, ready: 2, failed: 1 })
   })
 })
 
@@ -23,7 +31,7 @@ describe('botWorkerWorkspaceStatus', () => {
         botWorkerWorkspaceStatus('permission', true),
         botWorkerWorkspaceStatus('working', false)
       ])
-    ).toEqual({ permission: 1, working: 1, failed: 0 })
+    ).toEqual({ permission: 1, working: 1, ready: 0, failed: 0 })
   })
 })
 

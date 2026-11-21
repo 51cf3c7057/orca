@@ -85,7 +85,7 @@ describe('bot row facts', () => {
   })
 
   it('shows a folded row its most urgent live workspace', () => {
-    expect(botFoldLiveStatus({ permission: 0, working: 2, failed: 1 })).toBe('working')
-    expect(botFoldLiveStatus({ permission: 0, working: 0, failed: 0 })).toBeNull()
+    expect(botFoldLiveStatus({ permission: 0, working: 2, ready: 0, failed: 1 })).toBe('working')
+    expect(botFoldLiveStatus({ permission: 0, working: 0, ready: 0, failed: 0 })).toBeNull()
   })
 })

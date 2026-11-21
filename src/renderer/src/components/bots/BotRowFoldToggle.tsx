@@ -1,17 +1,22 @@
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
 import StatusIndicator from '@/components/sidebar/workspace-card/surface/StatusIndicator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
 import type { BotWorkspaceLiveCounts } from '../../../../shared/bots/bot-sidebar-workspaces'
 import { FOLD_TOGGLE_CLASS } from './BotChatRowControls'
+import { BotLiveDot, type BotLiveDotKind } from './BotLiveDot'
 
 export type BotRowFold = {
   folded: boolean
-  total: number
   counts: BotWorkspaceLiveCounts
+  /** A team's member count; bot rows show their live counts alone. */
+  total?: number
   onToggle: () => void
 }
+
+const LIVE_KINDS: readonly BotLiveDotKind[] = ['permission', 'working', 'ready']
 
 /** The fold strip at a sidebar row's right edge, for a bot or a team. */
 export function BotRowFoldToggle({
@@ -22,12 +27,26 @@ export function BotRowFoldToggle({
   fold: BotRowFold
 }): React.JSX.Element {
   const t = useTranslate()
-  const { folded, total, counts } = fold
+  const { folded, total = 0, counts } = fold
   const failed = counts.failed > 0
-  const label = folded
+  const live = folded ? LIVE_KINDS.filter((kind) => counts[kind] > 0) : []
+  const toggleLabel = folded
     ? t('bots.chats.unfold', 'Unfold {{name}}', { name })
     : t('bots.chats.fold', 'Fold {{name}}', { name })
-  return (
+  const liveWords = live.map((kind) => {
+    const count = counts[kind]
+    if (kind === 'permission') {
+      return t('bots.panel.needYou', '{{count}} need you', {
+        count,
+        defaultValue_one: '{{count}} needs you'
+      })
+    }
+    return kind === 'working'
+      ? t('bots.panel.working', '{{count}} working', { count })
+      : t('bots.panel.ready', '{{count}} ready', { count })
+  })
+  const label = liveWords.length > 0 ? `${toggleLabel}: ${liveWords.join(', ')}` : toggleLabel
+  const toggle = (
     // The row's whole right edge, top to bottom, so it is easy to hit; a folded summary widens it
     // leftward.
     <button
@@ -55,10 +74,16 @@ export function BotRowFoldToggle({
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {folded && (failed || total > 0) ? (
-        // A failed workspace, then how many it has in all; working and needs you show on the picture.
-        <span className="flex items-center gap-0.5">
+      {folded && (failed || live.length > 0 || total > 0) ? (
+        // A failed workspace first, then how many need you, work or are ready; a team adds its member count.
+        <span className="flex items-center gap-1.5">
           {failed ? <StatusIndicator status="failed" showTooltip={false} /> : null}
+          {live.map((kind) => (
+            <span key={kind} className="flex items-center gap-0.5">
+              <BotLiveDot kind={kind} />
+              {counts[kind]}
+            </span>
+          ))}
           {total > 0 ? total : null}
         </span>
       ) : null}
@@ -73,5 +98,14 @@ export function BotRowFoldToggle({
         />
       </span>
     </button>
+  )
+  if (liveWords.length === 0) {
+    return toggle
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{toggle}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   )
 }
