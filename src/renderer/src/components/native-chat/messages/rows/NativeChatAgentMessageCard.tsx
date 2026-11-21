@@ -250,8 +250,8 @@ function AgentMessageAvatar({
   const bot = useAgentMessageSenderBot(sender, worktreeId, target, dispatchId)
   return bot ? (
     <BotAvatar bot={bot} className={BOT_TILE} />
-  ) : sender?.bot && sender.host ? (
-    // A paired computer's agent, which this computer's catalog doesn't hold.
+  ) : sender?.bot ? (
+    // A paired computer's bot, or one this catalog no longer matches by name: its recorded picture.
     <CarriedBotAvatar
       name={sender.name ?? ''}
       avatar={sender.botAvatar ?? null}

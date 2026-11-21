@@ -28,6 +28,7 @@ import type { RuntimeClientTarget } from '../../../../../../shared/remote-runtim
 import type { AgentMessageSender } from '../../../../../../shared/agent-session/journal/agent-session-message-source'
 import type { Tab } from '../../../../../../shared/workspace-layout/tab-groups/tab-types'
 import { useBotForWorkspace } from '@/components/bots/bot-workspace'
+import { useBots, useBotsEnabled } from '@/lib/bot-catalog'
 import type { Bot } from '../../../../../../shared/bot-types'
 
 export function unnamedSenderLabel(t: Translate = translate): string {
@@ -105,7 +106,14 @@ export function agentMessageSenderOwner(
       : null
 }
 
-type LabelSource = { host: string | null; tab?: Tab; sessionId?: string; worktreeId: string | null }
+type LabelSource = {
+  host: string | null
+  /** The receiving chat's execution host. */
+  owner: string | null
+  tab?: Tab
+  sessionId?: string
+  worktreeId: string | null
+}
 const NO_ROWS: readonly [] = []
 
 /** The chat a label names its sender by; the same object until its host, tab or session moves. */
@@ -117,7 +125,7 @@ function labelSourceSelector(
 ): (state: AppState) => LabelSource {
   const identity = party ? { party, name: null } : undefined
   const { address, orcaSessionId } = party ?? {}
-  let previous: LabelSource = { host: null, worktreeId: null }
+  let previous: LabelSource = { host: null, owner: null, worktreeId: null }
   return (state) => {
     const owner = agentMessageSenderOwner(state, chatWorktreeId, target)
     const association =
@@ -135,12 +143,14 @@ function labelSourceSelector(
     const sessionId = association?.sessionId ?? legacyTab?.entityId
     const next = {
       host: association?.host ?? owner,
+      owner,
       tab: association?.tab ?? legacyTab,
       sessionId,
       worktreeId: sessionId ? (association?.worktreeId ?? legacyTab?.worktreeId ?? null) : null
     }
     if (
       next.host !== previous.host ||
+      next.owner !== previous.owner ||
       next.tab !== previous.tab ||
       next.sessionId !== previous.sessionId ||
       next.worktreeId !== previous.worktreeId
@@ -178,16 +188,26 @@ function useAgentMessageSenderChat(
   return useLeasedSenderSelector(NO_ROWS, select)
 }
 
-/** The bot whose home the sender's chat is in; null for any other sender. */
+/** The bot whose home the sender's chat is in, else this Orca's one bot on the chat's host by the
+ *  sender's recorded bot name; null for any other sender. */
 export function useAgentMessageSenderBot(
   sender: AgentMessageSender | undefined,
   chatWorktreeId: string | null,
   target?: RuntimeClientTarget,
   dispatchId?: string
 ): Bot | null {
-  return useBotForWorkspace(
-    useAgentMessageSenderChat(sender, chatWorktreeId, target, dispatchId).worktreeId
-  )
+  const chat = useAgentMessageSenderChat(sender, chatWorktreeId, target, dispatchId)
+  const located = useBotForWorkspace(chat.worktreeId)
+  // A paired computer's bot is never in this catalog, so only this Orca's senders are looked up.
+  const recordedName = !located && sender?.bot && !sender.host ? sender.name : null
+  const bots = useBots(useBotsEnabled() && recordedName !== null)
+  return located ?? (recordedName === null ? null : botNamedOnHost(bots, recordedName, chat.owner))
+}
+
+/** Two bots with the same name on one host give no answer rather than a guess. */
+function botNamedOnHost(bots: readonly Bot[], name: string, host: string | null): Bot | null {
+  const matches = bots.filter((bot) => bot.hostId === host && bot.name === name)
+  return matches.length === 1 ? matches[0] : null
 }
 
 /** Live chat names follow the sender's chat on the receiving chat's host; CLI names stay as recorded. */
