@@ -12,21 +12,32 @@ import { MessageRow } from './messages/rows/NativeChatMessageRow'
 import { readAgentMessageSource } from '../../../../shared/agent-session/journal/agent-session-message-source'
 import type { Bot } from '../../../../shared/bot-types'
 
-const bots = vi.hoisted(() => [
+const bots = vi.hoisted((): Bot[] => [
   {
     id: 'architect-4',
     name: 'Architect#4',
     hostId: 'local',
+    folder: 'architect-4',
+    folderWorkspaceId: 'folder:architect-4-home',
+    agent: 'claude',
     avatar: 'mascot:A1',
-    folderWorkspaceId: 'folder:architect-4-home'
+    paused: false,
+    notifications: { needsPermission: true, taskComplete: true, couldNotFinish: true },
+    members: [],
+    slack: null,
+    linear: null,
+    github: null,
+    chatSessionId: null,
+    createdAt: 1,
+    updatedAt: 1
   }
 ])
 
 vi.mock('@/lib/bot-catalog', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  readBots: () => bots as unknown as Bot[],
+  readBots: () => bots,
   readBotsEnabled: () => true,
-  useBots: () => bots as unknown as Bot[],
+  useBots: () => bots,
   useBotsEnabled: () => true
 }))
 

@@ -15,8 +15,8 @@ import { NativeChatWorkersContext } from '../../native-chat-workers-context'
 import type { OrchestrationSessionWorker } from '../../../../../../shared/orchestration-session-workers'
 import { nativeChatEventPlan } from '../../../../../../shared/native-chat/transcript/events/native-chat-event-plan'
 import { publishBots } from '@/lib/bot-catalog-snapshot'
+import { fixtureCos } from '../../../../component-fixtures/fixture-bot-panel'
 import type { RuntimeFileOperationArgs } from '@/runtime/files/runtime-file-client-types'
-import type { Bot } from '../../../../../../shared/bot-types'
 
 const workspace = 'agent-message-fixture'
 const image =
@@ -255,12 +255,12 @@ export const fromAnotherComputer = defineFixture({
       (name) => `${name} on ${alice}`
     )
 })
+const architect = { ...fixtureCos, id: 'architect', name: 'Architect#4', avatar: 'mascot:A1' }
 // Mail from this Orca's bot whose chat is not open: its catalog picture by its recorded name.
 export const localBotNotOpen = defineFixture({
   width: 440,
   setup: () => {
-    // Only what the catalog and the picture read; the host is stamped on publish.
-    const bots = [{ id: 'architect', name: 'Architect#4', avatar: 'mascot:A1' } as Bot]
+    const bots = [architect]
     publishBots(bots)
     // The catalog lists bots again as it mounts; answer as this Orca with its one bot.
     const runtime = window.api.runtime
