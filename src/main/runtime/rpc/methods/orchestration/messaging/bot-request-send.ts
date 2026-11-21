@@ -166,8 +166,10 @@ async function admitBotRequestMail(
     return { bot, purpose: params.type }
   }
   const { bot: target, purpose } = check()
-  const groupScope = isBotGroupMemberSession(acting.sessionId)
-    ? await runtimeBotGroups(runtime).peerScope(acting.sessionId, target.id, acting.turn.rootItemId)
+  // A member's --chat new to its own bot opens an ordinary chat of that bot, outside the room.
+  const roomSession = receiving.newChat && target.id === acting.bot?.id ? null : acting.sessionId
+  const groupScope = isBotGroupMemberSession(roomSession)
+    ? await runtimeBotGroups(runtime).peerScope(roomSession, target.id, acting.turn.rootItemId)
     : null
   if (groupScope && receiving.newChat) {
     throw new OrchestrationError(

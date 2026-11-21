@@ -38,9 +38,9 @@ async function room(posts: number) {
       })
     })
   }
-  const notice = (operationId: string, ids: readonly string[]) =>
+  const notice = (operationId: string, ids: readonly string[], to = target.sessionId) =>
     ({
-      sessionId: target.sessionId,
+      sessionId: to,
       dispatchId: null,
       operationId,
       expectedRuntimeFence: 1,
@@ -54,7 +54,7 @@ async function room(posts: number) {
           senders: [],
           orchestration: {
             message: 'mail-notice',
-            mailbox: target.sessionId,
+            mailbox: to,
             dispatchId: null,
             messages: ids.map((messageId) => ({ messageId, runId: 'run', from: source.sessionId }))
           }
@@ -172,5 +172,58 @@ describe('group mail roots', () => {
     const { groups, target, row } = await room(1)
     const early = { ...row('early'), from_handle: 'dispatch:w1' }
     expect(groups.narrowMailBatch(target.sessionId, [early])).toEqual({ messages: [], ended: [] })
+  })
+
+  it('delivers a report from a tied worker whose dispatch already completed', async () => {
+    const { groups, mails, dispatches, source, roots, notice } = await room(1)
+    groups.store.bindWorker('ctx_A', roots[0].turns[0].operationId)
+    dispatches.set('ctx_A', {
+      id: 'ctx_A',
+      task_id: 'task_A',
+      status: 'completed',
+      assignee_handle: 'structworker_X',
+      assignee_pane_key: null
+    })
+    const report = {
+      id: 'report',
+      thread_id: null,
+      from_handle: 'structworker_X',
+      type: 'worker_done',
+      payload: JSON.stringify({ dispatchId: 'ctx_A', taskId: 'task_A', outcome: 'succeeded' })
+    }
+    mails.set('report', report)
+    expect(ids(groups.narrowMailBatch(source.sessionId, [report]))).toEqual(['report'])
+    groups.reserveMailTurn(notice('report-turn', ['report'], source.sessionId))
+    expect(groups.store.message('mail:report-turn')).toMatchObject({
+      rootRequestId: roots[0].id,
+      text: 'Scout followed up'
+    })
+  })
+
+  it("delivers Orca's item mail under the member's latest live request", async () => {
+    const { groups, mails, source, roots, notice } = await room(2)
+    const item = { id: 'item', thread_id: null, from_handle: 'orca:items' }
+    mails.set('item', item)
+    expect(ids(groups.narrowMailBatch(source.sessionId, [item]))).toEqual(['item'])
+    groups.reserveMailTurn(notice('item-turn', ['item'], source.sessionId))
+    expect(groups.store.message('mail:item-turn')?.rootRequestId).toBe(roots[1].id)
+  })
+
+  it("delivers the answer from the member's own new chat under its latest live request", async () => {
+    const { groups, mails, requests, source, roots, notice } = await room(1)
+    mails.set('handoff', {
+      id: 'handoff',
+      thread_id: null,
+      from_handle: `orca_session_id:${source.sessionId}`
+    })
+    requests.set('handoff', {
+      message_id: 'handoff',
+      record: JSON.stringify({ purpose: 'handoff' })
+    })
+    const answer = { id: 'answer', thread_id: 'handoff', from_handle: 'orca_session_id:chat' }
+    mails.set('answer', answer)
+    expect(ids(groups.narrowMailBatch(source.sessionId, [answer]))).toEqual(['answer'])
+    groups.reserveMailTurn(notice('answer-turn', ['answer'], source.sessionId))
+    expect(groups.store.message('mail:answer-turn')?.rootRequestId).toBe(roots[0].id)
   })
 })
