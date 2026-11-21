@@ -1,7 +1,7 @@
 import { defineFixture } from '../../component-fixtures/component-fixture'
 import type { Bot } from '../../../../shared/bot-types'
 import { mascotAvatar, type BotMascotId } from '../../../../shared/bot-avatar'
-import { botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
+import { BOT_GROUP_FACE_SLOT, botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
 import { BotAvatar } from './BotAvatar'
 import { BotGroupFaceCluster } from './BotGroupFaceCluster'
 import { BotGroupFaces } from './BotGroupFaces'
@@ -30,6 +30,9 @@ const BOTS: Bot[] = MASCOTS.map((mascot, index) => ({
 
 const COUNTS = [1, 2, 3, 5]
 
+// The panel header's picture slot, as BotGroupPanelHeader sizes it.
+const HEADER_PICTURE = 36
+
 /** Group rows as the sidebar draws them, under a bot row so the names can be compared. */
 export const sidebarRows = defineFixture({
   width: 320,
@@ -44,7 +47,11 @@ export const sidebarRows = defineFixture({
       {COUNTS.map((count) => (
         <div key={count} className="flex items-center">
           <span className="mr-2 flex shrink-0">
-            <BotGroupFaces faces={botGroupFaces(BOTS.slice(0, count), (bot) => bot.id)} slot={36} />
+            <BotGroupFaces
+              faces={botGroupFaces(BOTS.slice(0, count), (bot) => bot.id)}
+              className="size-9"
+              slot={36}
+            />
           </span>
           <span className="text-[13px]">Group of {count}</span>
         </div>
@@ -63,9 +70,16 @@ export const panelHeader = defineFixture({
         <div key={count} className="flex items-center gap-2.5">
           <button
             type="button"
-            className="relative h-9 shrink-0 rounded-[9px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:ring-1 data-[state=open]:ring-ring"
+            className="relative size-9 shrink-0 rounded-[9px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:ring-1 data-[state=open]:ring-ring"
           >
-            <BotGroupFaces faces={botGroupFaces(BOTS.slice(0, count), (bot) => bot.id)} slot={36} />
+            <BotGroupFaces
+              faces={botGroupFaces(
+                BOTS.slice(0, count),
+                (bot) => bot.id,
+                HEADER_PICTURE / BOT_GROUP_FACE_SLOT
+              )}
+              className="size-9"
+            />
           </button>
           <span className="text-sm font-semibold">Team 0, {count} members</span>
         </div>

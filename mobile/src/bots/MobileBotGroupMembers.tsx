@@ -162,6 +162,7 @@ export function MobileBotGroupMembers({
         {picked.length > 0 ? (
           <MobileBotFaceStack
             slot={96}
+            ringColor={colors.sheetSurface}
             faces={picked.map((bot) => ({
               id: bot.id,
               avatar: mobileBotAvatarSource(bot, undefined)
