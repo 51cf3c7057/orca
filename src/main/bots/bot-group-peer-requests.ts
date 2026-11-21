@@ -2,10 +2,13 @@ import {
   botGroupTurnOperation,
   isBotGroupMemberSession,
   type BotGroup,
-  type BotGroupMember
+  type BotGroupMember,
+  type BotGroupMessage
 } from '../../shared/bots/bot-group'
 import { BotGroupPeerScopeSchema, type BotGroupPeerScope } from '../../shared/bots/bot-group-schema'
+import { BOT_ITEM_MAIL_SENDER } from '../../shared/bots/bot-item-note-runs'
 import type { MessageRow } from '../runtime/orchestration/db/orchestration-records'
+import { completionReportDispatchId } from '../runtime/orchestration/workers/reports/report-follow-up-action'
 import type { StructuredMailboxPointerHost } from '../runtime/orchestration/mailbox/structured-pointer/structured-mailbox-pointer-host-contract'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { requireStructuredHost } from './bot-chat-session'
@@ -29,6 +32,41 @@ const rootOf = (message: {
   rootRequestId: message.rootRequestId ?? message.id,
   rootSequence: message.rootSequence ?? message.sequence
 })
+
+/** A group request the member continues on its own, so it is at both ends. */
+const ownScope = (message: BotGroupMessage, sessionId: string): BotGroupPeerScope => ({
+  id: message.groupId,
+  ...rootOf(message),
+  sourceSessionId: sessionId,
+  targetSessionId: sessionId
+})
+
+const ROOM_PAGE = 40
+
+/** The member's newest room message with a turn of its own, read newest first, while its request is
+ *  live: the request a mail or worker that names no group request of its own continues. */
+function latestLiveRequest(
+  groups: BotGroupRuntime,
+  sessionId: string
+): { root: BotGroupPeerScope; operationId: string } | null {
+  const found = groups.store.memberOf(sessionId)
+  for (let before = Number.MAX_SAFE_INTEGER; found;) {
+    const page = groups.store.roomMessages(found.group.id, found.threadId, ROOM_PAGE, before)
+    for (const message of page.toReversed()) {
+      const turn = message.turns.find((turn) => turn.sessionId === sessionId)
+      if (turn) {
+        return activeAt(found.group, sessionId, rootOf(message).rootSequence)
+          ? { root: ownScope(message, sessionId), operationId: turn.operationId }
+          : null
+      }
+    }
+    if (page.length < ROOM_PAGE) {
+      return null
+    }
+    before = page[0].sequence
+  }
+  return null
+}
 
 /** The human request a member's running turn serves, for a peer question it asks another member. */
 export async function groupPeerScope(
@@ -86,12 +124,15 @@ export function assertGroupPeerScope(groups: BotGroupRuntime, scope: GroupPeerSc
   }
 }
 
-/** The group request a mail to this member continues: a member's peer request, or a report from
- *  a worker one of this member's turns started. */
+type GroupMail = Pick<MessageRow, 'id' | 'thread_id' | 'from_handle'> & Partial<MessageRow>
+const fullRow = (mail: GroupMail): mail is MessageRow => 'type' in mail && 'payload' in mail
+
+/** The group request a mail to this member continues: a member's peer request, a report from a
+ *  worker one of this member's turns started, or Orca's own mail to it, which continues its latest. */
 function mailRoot(
   groups: BotGroupRuntime,
   member: BotGroupMember,
-  mail: Pick<MessageRow, 'id' | 'thread_id' | 'from_handle'>
+  mail: GroupMail
 ): BotGroupPeerScope | null {
   const db = groups.runtime.getOrchestrationDb()
   const request =
@@ -101,24 +142,29 @@ function mailRoot(
     const scope = BotGroupPeerScopeSchema.safeParse(
       typeof parsed === 'object' && parsed !== null && 'group' in parsed ? parsed.group : null
     )
-    return scope.success ? scope.data : null
+    if (scope.success) {
+      return scope.data
+    }
+    // A request this member sent outside the room, such as to its own bot's new chat.
+    const own =
+      db.getMessageById(request.message_id)?.from_handle === `orca_session_id:${member.sessionId}`
+    return own ? (latestLiveRequest(groups, member.sessionId)?.root ?? null) : null
   }
+  if (mail.from_handle === BOT_ITEM_MAIL_SENDER) {
+    return latestLiveRequest(groups, member.sessionId)?.root ?? null
+  }
+  const row = fullRow(mail) ? mail : db.getMessageById(mail.id)
+  // A worker_done the lifecycle accepted names its dispatch, which is settled by the time it is read.
   const dispatch = mail.from_handle.startsWith('dispatch:')
     ? mail.from_handle.slice('dispatch:'.length)
-    : db.getActiveDispatchForIdentity(mail.from_handle)?.id
+    : ((row ? completionReportDispatchId(db, row) : undefined) ??
+      db.getActiveDispatchForIdentity(mail.from_handle)?.id)
   const operationId = dispatch ? groups.store.workerOperation(dispatch) : null
   const message = operationId ? groups.store.operationMessage(operationId) : null
   const owned = message?.turns.some(
     (turn) => turn.operationId === operationId && turn.sessionId === member.sessionId
   )
-  return message && owned
-    ? {
-        id: message.groupId,
-        ...rootOf(message),
-        sourceSessionId: member.sessionId,
-        targetSessionId: member.sessionId
-      }
-    : null
+  return message && owned ? ownScope(message, member.sessionId) : null
 }
 
 const rootActive = (group: BotGroup, member: BotGroupMember, root: BotGroupPeerScope) =>
@@ -245,15 +291,17 @@ export function reserveGroupMailTurn(
   groups.changed()
 }
 
-/** The group operation a member is running as it starts a worker, read from its live turn. */
+/** The group operation a member is running as it starts a worker, read from its live turn; a turn
+ *  the group did not start (a reminder, a task notice) binds it to the member's latest live request. */
 export async function captureGroupWorkerOperation(
   groups: BotGroupRuntime,
   sessionId: string
 ): Promise<string | null> {
+  const latest = () => latestLiveRequest(groups, sessionId)?.operationId ?? null
   const host = getStructuredAgentSessionHost()
   const turnItemId = (await host?.currentWork(sessionId))?.activeTurn()?.item.itemId
   if (!host || !turnItemId || !groups.store.memberOf(sessionId)) {
-    return null
+    return latest()
   }
   const { snapshot } = await (
     await host.journalReads(sessionId)
@@ -264,7 +312,7 @@ export async function captureGroupWorkerOperation(
         .operationMessage(operationId)
         ?.turns.some((turn) => turn.operationId === operationId && turn.sessionId === sessionId)
     : false
-  return owned ? operationId : null
+  return owned ? operationId : latest()
 }
 
 export async function recordGroupWorker(

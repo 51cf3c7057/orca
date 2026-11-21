@@ -59,9 +59,25 @@ export function fixture() {
   )
   const mails = new Map<
     string,
-    { id: string; from_handle: string; thread_id: string | null; type?: string }
+    {
+      id: string
+      from_handle: string
+      thread_id: string | null
+      type?: string
+      payload?: string | null
+    }
   >()
-  const requests = new Map<string, { record: string }>()
+  const requests = new Map<string, { record: string; message_id?: string }>()
+  const dispatches = new Map<
+    string,
+    {
+      id: string
+      task_id: string
+      status: string
+      assignee_handle: string
+      assignee_pane_key: null
+    }
+  >()
   const markAsDelivered = vi.fn<(ids: string[], handle: string) => void>()
   let homeCount = 0
   const homes = {
@@ -78,6 +94,7 @@ export function fixture() {
       getMessageById: (id: string) => mails.get(id),
       getBotRequest: (id: string) => requests.get(id),
       getActiveDispatchForIdentity: () => undefined,
+      getDispatchContextById: (id: string) => dispatches.get(id),
       markAsDelivered
     }),
     bots: {
@@ -88,7 +105,8 @@ export function fixture() {
     },
     deleteFolderWorkspace: homes.remove,
     updateFolderWorkspace: homes.update,
-    notifyBotGroupsChanged: vi.fn()
+    notifyBotGroupsChanged: vi.fn(),
+    notifyMessageArrived: vi.fn()
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: native adapters are mocked and this fixture supplies every runtime member reached by the group service.
   const runtime = partialRuntime as unknown as OrcaRuntimeService
@@ -98,6 +116,7 @@ export function fixture() {
     bots,
     mails,
     requests,
+    dispatches,
     markAsDelivered,
     homes,
     groups: new BotGroupRuntime(runtime)
