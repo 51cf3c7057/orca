@@ -95,4 +95,15 @@ describe("a team member's own chats in Session History", () => {
       'worker'
     ])
   })
+
+  it('matches a home whatever its trailing slash or Windows separators', () => {
+    const rows = [
+      at('slash', 'bot-home-chat', '/bots/a/'),
+      at('windows', 'bot-home-chat', 'C:\\bots\\b\\'),
+      at('sibling', 'bot-home-chat', '/bots/ab')
+    ]
+    expect(
+      dropBotTeamMemberRows(rows, new Set(['/bots/a', 'C:/bots/b'])).map((entry) => entry.id)
+    ).toEqual(['sibling'])
+  })
 })
