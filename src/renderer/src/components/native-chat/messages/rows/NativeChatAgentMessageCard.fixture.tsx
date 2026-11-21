@@ -14,8 +14,8 @@ import { orchestrationMailFixture } from '../../../../../../shared/agent-session
 import { NativeChatWorkersContext } from '../../native-chat-workers-context'
 import type { OrchestrationSessionWorker } from '../../../../../../shared/orchestration-session-workers'
 import { nativeChatEventPlan } from '../../../../../../shared/native-chat/transcript/events/native-chat-event-plan'
-import { publishBots } from '@/lib/bot-catalog-snapshot'
 import { fixtureCos } from '../../../../component-fixtures/fixture-bot-panel'
+import { stubBots } from '../../../../component-fixtures/fixture-bots'
 import type { RuntimeFileOperationArgs } from '@/runtime/files/runtime-file-client-types'
 
 const workspace = 'agent-message-fixture'
@@ -259,16 +259,7 @@ const architect = { ...fixtureCos, id: 'architect', name: 'Architect#4', avatar:
 // Mail from this Orca's bot whose chat is not open: its catalog picture by its recorded name.
 export const localBotNotOpen = defineFixture({
   width: 440,
-  setup: () => {
-    const bots = [architect]
-    publishBots(bots)
-    // The catalog lists bots again as it mounts; answer as this Orca with its one bot.
-    const runtime = window.api.runtime
-    const answer = { ok: true, result: { bots } }
-    const call = (args: Parameters<typeof runtime.call>[0]) =>
-      args.method === 'bots.list' ? Promise.resolve(answer) : runtime.call(args)
-    Reflect.set(window.api, 'runtime', { ...runtime, call })
-  },
+  setup: () => stubBots([architect]),
   render: () =>
     mailCards(
       [{ name: 'Architect#4', bot: true, agent: 'claude' }],
