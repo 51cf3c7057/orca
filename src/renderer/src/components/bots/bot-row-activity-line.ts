@@ -5,6 +5,9 @@ import {
   getCompactAgentStatus,
   getCompactAgentTimestamp
 } from '@/components/sidebar/workspace-card/activity/worktree-card-compact-agent-row'
+import { translate } from '@/i18n/i18n'
+import { formatAgentToolPreview } from '../../../../shared/agent-status/presentation/agent-row-tool-preview'
+import { botRowStepText } from '../../../../shared/bots/bot-row-step-text'
 import {
   selectBotRowLine as selectSharedBotRowLine,
   type BotRowLine,
@@ -22,7 +25,13 @@ const DESKTOP_ROWS: BotRowLineReader<DashboardAgentRow> = {
   live: (row) => row.state === 'working' || row.state === 'blocked' || row.state === 'waiting',
   needsYou: (row) => row.state === 'blocked' || row.state === 'waiting',
   updatedAt: (row) => row.entry.updatedAt,
-  status: (row, now) => getCompactAgentStatus(row, now),
+  status: (row, now) => {
+    const status = getCompactAgentStatus(row, now)
+    // A raw "Tool: input" line reads as a plain step; questions, verdicts and messages stay as said.
+    return status && status === formatAgentToolPreview(row.entry, row.state)
+      ? (botRowStepText(row.entry, translate) ?? status)
+      : status
+  },
   at: (row) => getCompactAgentTimestamp(row)
 }
 

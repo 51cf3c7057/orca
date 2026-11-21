@@ -102,8 +102,8 @@ const sessions = [
   session(triage, 'chat-triage', {
     state: 'working',
     updatedAt: now - 10_000,
-    toolName: 'Read',
-    toolInput: 'ENG-42 comments'
+    toolName: 'Bash',
+    toolInput: 'cd ~/.claude/projects/-Users-me-code-orca && ls -la sessions/2026-11-21'
   }),
   session(release, 'chat-release', {
     state: 'done',
@@ -233,7 +233,7 @@ const releaseRow = row(release, {
 
 const CASES: [string, number, React.ReactNode][] = [
   ['Idle bot', 280, row(disk)],
-  ['Working in its Chat', 280, row(triage, { isActive: true })],
+  ['Working in its Chat: a shell command', 280, row(triage, { isActive: true })],
   ['3 threads, one unread', 280, releaseRow],
   [
     'Slack thread, latest turn typed in Orca',
