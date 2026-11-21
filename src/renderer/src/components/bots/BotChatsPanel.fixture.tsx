@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react'
 import { defineFixture } from '../../component-fixtures/component-fixture'
+import { publishBotGroups } from '@/lib/bot-group-catalog-snapshot'
 import {
   BotPanelFrame,
   botPanelPage,
@@ -7,8 +9,11 @@ import {
   stubBotPanel
 } from '../../component-fixtures/fixture-bot-panel'
 import type { BotActivity } from '../../../../shared/bots/bot-activity-model'
+import type { BotGroup } from '../../../../shared/bots/bot-group'
 import type { BotChatTreeWorker } from '../../../../shared/bots/bot-chat-tree'
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
+import { NativeChatMentionChatList } from '../native-chat/composer/pickers/NativeChatMentionChatList'
+import { useBotChatPicker } from './use-bot-chat-picker'
 import { stubUsageLimitFeed } from '../../component-fixtures/fixture-usage-limit-feed'
 
 const now = Date.now()
@@ -220,6 +225,14 @@ const ACTIVITY: BotActivity = {
   upNext: { state: { running: false, seenAt: 1 }, items: [] }
 }
 
+// The page is reused across fixtures, so a team published by one mustn't reach the next.
+const soloPanel =
+  (...args: Parameters<typeof stubBotPanel>) =>
+  (): void => {
+    stubBotPanel(...args)()
+    publishBotGroups([])
+  }
+
 const click = (frame: HTMLElement, label: string): void => {
   const button = [...frame.querySelectorAll('button')].find(
     (entry) => entry.textContent?.trim() === label
@@ -230,7 +243,7 @@ const click = (frame: HTMLElement, label: string): void => {
 export const normalDay = defineFixture({
   width: 350,
   store: chatsTab('working'),
-  setup: stubBotPanel(ACTIVITY, bot, CHATS),
+  setup: soloPanel(ACTIVITY, bot, CHATS),
   render: () => <BotPanelFrame />
 })
 
@@ -238,7 +251,7 @@ export const normalDay = defineFixture({
 export const unfolded = defineFixture({
   width: 350,
   store: chatsTab('working'),
-  setup: stubBotPanel(ACTIVITY, bot, CHATS),
+  setup: soloPanel(ACTIVITY, bot, CHATS),
   render: () => <BotPanelFrame />,
   interact: async (frame) => {
     await new Promise((resolve) => setTimeout(resolve, 300))
@@ -250,7 +263,7 @@ export const unfolded = defineFixture({
 export const olderChats = defineFixture({
   width: 350,
   store: chatsTab('working'),
-  setup: stubBotPanel(ACTIVITY, bot, CHATS),
+  setup: soloPanel(ACTIVITY, bot, CHATS),
   render: () => <BotPanelFrame />,
   interact: async (frame) => {
     await new Promise((resolve) => setTimeout(resolve, 300))
@@ -261,7 +274,7 @@ export const olderChats = defineFixture({
 export const searchRelay = defineFixture({
   width: 350,
   store: chatsTab('working'),
-  setup: stubBotPanel(ACTIVITY, bot, CHATS),
+  setup: soloPanel(ACTIVITY, bot, CHATS),
   render: () => <BotPanelFrame />,
   interact: async (frame) => {
     await new Promise((resolve) => setTimeout(resolve, 300))
@@ -278,14 +291,14 @@ export const searchRelay = defineFixture({
 export const narrow = defineFixture({
   width: 220,
   store: chatsTab('working'),
-  setup: stubBotPanel(ACTIVITY, bot, CHATS),
+  setup: soloPanel(ACTIVITY, bot, CHATS),
   render: () => <BotPanelFrame />
 })
 
 export const newBot = defineFixture({
   width: 350,
   store: chatsTab(null),
-  setup: stubBotPanel(ACTIVITY, bot, [
+  setup: soloPanel(ACTIVITY, bot, [
     chat('home', 'Home Chat', { origin: 'home', lastActiveAt: now })
   ]),
   render: () => <BotPanelFrame />
@@ -306,7 +319,7 @@ function usageLimitFixture(auto: boolean) {
     width: 350,
     store: chatsTab('working'),
     setup: () => {
-      stubBotPanel(ACTIVITY, bot, LIMIT_CHATS)()
+      soloPanel(ACTIVITY, bot, LIMIT_CHATS)()
       stubUsageLimitFeed([
         { sessionId: 'phone-worker', workspaceId: 'wt-phone-bots', resetsAt: RESET, auto },
         {
@@ -327,3 +340,78 @@ function usageLimitFixture(auto: boolean) {
 
 export const usageLimitWaiting = usageLimitFixture(false)
 export const usageLimitContinues = usageLimitFixture(true)
+
+function teamOf(id: string, name: string, botIds: readonly string[]): BotGroup {
+  return {
+    id,
+    name,
+    hostId: 'local',
+    revision: 1,
+    folder: id,
+    folderWorkspaceId: `fw-${id}`,
+    createdAt: 1,
+    members: botIds.map((botId) => ({ botId, sessionId: `s-${id}-${botId}` })),
+    replyMode: { kind: 'all' }
+  }
+}
+
+// In two teams: one it shares, so Detach works, and one it is alone in, so Detach is off.
+const TEAMS = [
+  teamOf('team-0', 'Team 0', [bot.id, 'bot-reviewer']),
+  teamOf('team-solo', 'Night shift', [bot.id])
+]
+
+// The bot's panel with its teams published, and a groups reload that keeps them.
+function inTeams(): void {
+  stubBotPanel(ACTIVITY, bot, CHATS)()
+  publishBotGroups(TEAMS)
+  const runtime = window.api.runtime
+  Reflect.set(window.api, 'runtime', {
+    ...runtime,
+    call: async (request: Parameters<typeof runtime.call>[0]) =>
+      request.method === 'bots.groups.list'
+        ? { ok: true, result: { groups: TEAMS } }
+        : runtime.call(request)
+  })
+}
+
+/** QA, S3: a team member's Chats tab is only the notice: no search, no New chat, no chats; each
+ *  team offers Open team chat and Detach. */
+export const inTeam = defineFixture({
+  width: 350,
+  store: chatsTab('working'),
+  setup: inTeams,
+  render: () => <BotPanelFrame />
+})
+
+/** The `@` list drilled into one bot's chats, read through the real picker hook. */
+function PickerProbe({ botId }: { botId: string }): React.JSX.Element {
+  const picker = useBotChatPicker('local', [bot], null, 'caller-session')
+  const activeItemRef = useRef<HTMLButtonElement | null>(null)
+  const { view } = picker
+  useEffect(() => view(botId), [view, botId])
+  return (
+    <div className="w-[340px] rounded-md border border-border bg-popover p-1 text-popover-foreground">
+      {picker.shown ? (
+        <NativeChatMentionChatList
+          shown={picker.shown}
+          filter=""
+          activeIndex={0}
+          listboxId="qa-picker"
+          activeItemRef={activeItemRef}
+          onPick={() => {}}
+          onBack={() => {}}
+          onRetry={() => {}}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+/** QA, S2: drilling into a team member in the `@` list shows why its chats aren't listed, and no
+ *  chats and no Retry. */
+export const pickerInTeam = defineFixture({
+  width: 360,
+  setup: inTeams,
+  render: () => <PickerProbe botId={bot.id} />
+})
