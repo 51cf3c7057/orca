@@ -5,6 +5,7 @@ import {
   type BotGroup
 } from '../../../shared/bots/bot-group'
 import { botGroupRoomLabel } from './bot-group-room-label'
+import { normalizeRuntimePathForComparison } from '../../../shared/file-access/cross-platform-path'
 
 /** The group room a history row's native session belongs to, if it is a current member's. */
 export function botGroupRoomOfRow(
@@ -68,4 +69,24 @@ export function collapseBotGroupRoomRows<
   }
   const shown = new Set(newest.values())
   return sessions.filter((session) => !botGroupRoomOfRow(groups, session) || shown.has(session))
+}
+
+/** A team member's own chats list only in its team: rows run in its home are dropped, its
+ *  team-room sessions kept. Paths match exactly once normalized, so a trailing slash or a Windows
+ *  separator can't let a row through. */
+export function dropBotTeamMemberRows<
+  T extends Pick<AiVaultSession, 'structuredSession' | 'cwd' | 'cwdAliases'>
+>(sessions: readonly T[], memberHomePaths: ReadonlySet<string>): readonly T[] {
+  if (memberHomePaths.size === 0) {
+    return sessions
+  }
+  const homes = new Set([...memberHomePaths].map(normalizeRuntimePathForComparison))
+  const isHome = (path: string) => homes.has(normalizeRuntimePathForComparison(path))
+  const inMemberHome = (session: T) =>
+    (session.cwd !== null && isHome(session.cwd)) || (session.cwdAliases ?? []).some(isHome)
+  const kept = sessions.filter((session) => {
+    const sessionId = session.structuredSession?.sessionId
+    return (sessionId && isBotGroupMemberSession(sessionId)) || !inMemberHome(session)
+  })
+  return kept.length === sessions.length ? sessions : kept
 }

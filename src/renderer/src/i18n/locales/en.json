@@ -27956,6 +27956,12 @@
         "members": "Members",
         "membersCount": "Members {{count}}",
         "noMembers": "No bots in this group"
+      },
+      "detach": {
+        "menu": "Detach from team",
+        "onlyMember": "A team needs at least one member",
+        "done": "{{bot}} left {{team}}. It's listed on its own again.",
+        "doneMentions": "{{bot}} left {{team}}. It's listed on its own again. Replies are now Only when mentioned."
       }
     },
     "google": {
@@ -28912,7 +28918,10 @@
       "workers": "Workers",
       "waitingCount": "{{count}} waiting",
       "loading": "Loading chats…",
-      "readFailed": "Couldn't read this bot's chats."
+      "readFailed": "Couldn't read this bot's chats.",
+      "inTeamPicker": "{{name}}'s chats show only in {{team}}.",
+      "inTeamNotice": "{{name}} is in a team, so its chats show only in the team's chat. Detach it to work with it alone.",
+      "openTeamChat": "Open team chat"
     },
     "cloudSignIn": {
       "automationScheduledOnly": "Runs on its schedule only: its events are paused while signed out of Orca",
