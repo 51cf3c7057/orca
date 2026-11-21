@@ -316,7 +316,7 @@ describe('SidebarBotsSection', () => {
     mocks.bots = mocks.bots.map((entry, index) =>
       index === 0 ? entry : { ...entry, sidebarOrder: index * 2 }
     )
-    mocks.groups = [group({ sidebarOrder: 1 })]
+    mocks.groups = [group({ sidebarOrder: 1, members: [] })]
     useAppStore.setState({
       folderWorkspaces: [home(), home({ id: 'fw-2' }), home({ id: 'fw-3' }), home({ id: 'fw-g' })]
     })
