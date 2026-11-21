@@ -45,9 +45,9 @@ export type BotSidebarRowProps = {
   expanded?: boolean
   onOpen: (event: { detail: number; target: EventTarget; repeat?: boolean }) => void
   onRename: (name: string) => Promise<void>
-  /** How long ago its newest line happened. */
+  /** How long ago its newest line happened; shown only in the sleep pill. */
   age: string | null
-  /** Doing nothing: a sleeping "zzz" before the time. */
+  /** Doing nothing: a purple pill after the name with a sleeping "zzz" and the age. */
   idle?: boolean
   /** The second line, under the name. */
   line: React.ReactNode
@@ -164,9 +164,10 @@ export function BotSidebarRow({
                       beginEditing={renameRequested}
                       onBeginEditingConsumed={() => setRenameRequested(false)}
                     />
-                    {age || idle ? (
-                      <span className="ml-auto flex shrink-0 items-center text-xs leading-4 text-muted-foreground tabular-nums">
-                        {idle ? <IdleZzz label={t('bots.row.idle', 'Idle')} /> : null}
+                    {/* Asleep: the zzz and how long since its newest activity, in a pill by the name. */}
+                    {idle ? (
+                      <span className="inline-flex h-4 shrink-0 items-center gap-1 rounded-full bg-bot-sleep px-1.5 text-2xs leading-4 font-medium text-bot-sleep-foreground tabular-nums">
+                        <IdleZzz label={t('bots.row.idle', 'Idle')} trailingGap={false} />
                         {age}
                       </span>
                     ) : null}
