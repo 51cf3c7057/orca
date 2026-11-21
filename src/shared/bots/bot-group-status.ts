@@ -11,6 +11,8 @@ import {
 } from '../agent-session/view/structured-agent-session-projection'
 import type { BotGroup } from './bot-group-schema'
 import { botGroupRoomMembers } from './bot-group'
+import type { BotRowStatus } from './bot-row-status'
+import type { BotWorkspaceLiveCounts } from './bot-sidebar-workspaces'
 
 type BotGroupDot = Extract<WorktreeStatus, 'permission' | 'working'> | null
 type MemberStatus = Parameters<typeof applyAgentPaneActivityFlags>[1]
@@ -47,4 +49,25 @@ export function botGroupStatusOf(
     return 'permission'
   }
   return flags.hasLiveWorking || flags.hasLiveMonitoring ? 'working' : null
+}
+
+/** A team sleeps only when its room is quiet, its host is up, and every member and member
+ *  workspace is idle; a member whose home hasn't loaded can't be confirmed idle. */
+export function botTeamSleeping(input: {
+  roomStatus: BotGroupDot
+  memberCount: number
+  memberStatuses: readonly BotRowStatus[]
+  workerCounts: BotWorkspaceLiveCounts
+  offline: boolean
+}): boolean {
+  const { roomStatus, memberCount, memberStatuses, workerCounts, offline } = input
+  return (
+    !offline &&
+    roomStatus === null &&
+    memberCount > 0 &&
+    memberStatuses.length === memberCount &&
+    memberStatuses.every((status) => status === 'active' || status === 'inactive') &&
+    workerCounts.working === 0 &&
+    workerCounts.permission === 0
+  )
 }

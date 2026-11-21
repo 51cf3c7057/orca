@@ -258,3 +258,67 @@ export const groupRevealFolded = defineFixture({
   ...groupReveal,
   store: { ...groupReveal.store, collapsedGroups: new Set(['bots']) }
 })
+
+const triageBot = (id: string, name: string, sidebarOrder: number): Bot => ({
+  ...waitingBot,
+  id,
+  name,
+  folder: id,
+  folderWorkspaceId: `fw-${id}`,
+  chatSessionId: `chat-${id}`,
+  sidebarOrder
+})
+const TRIAGE_BOTS = [
+  triageBot('triage-lead', 'Triage lead', 0),
+  triageBot('triage-reviewer', 'Triage reviewer', 1),
+  triageBot('triage-solo', 'Triage solo', 2)
+]
+const triageTeam = {
+  ...council,
+  id: 'triage-team',
+  name: 'Triage team',
+  folder: 'triage-team',
+  folderWorkspaceId: 'fw-triage-team',
+  members: TRIAGE_BOTS.slice(0, 2).map((bot) => ({ botId: bot.id, sessionId: `s-${bot.id}` }))
+}
+
+/** QA, S1: "triage" matches four names, but the team's two members are reached only through the
+ *  team's row: the palette lists Triage team and Triage solo. */
+export const teamMembersHidden = defineFixture({
+  width: 900,
+  store: {
+    activeModal: 'worktree-palette',
+    folderWorkspaces: [...TRIAGE_BOTS, triageTeam].map((owner) =>
+      makeFolderWorkspace({
+        id: owner.folderWorkspaceId,
+        name: owner.name,
+        folderPath: `/preview/${owner.folder}`
+      })
+    )
+  },
+  setup: () => {
+    setBotHostListing({ hosts: [{ hostId: 'local', state: 'live' }], updateNeeded: [] })
+    stubBots(TRIAGE_BOTS)
+    publishBotGroups([triageTeam])
+    const runtime = window.api.runtime
+    Reflect.set(window.api, 'runtime', {
+      ...runtime,
+      call: async (request: Parameters<typeof runtime.call>[0]) =>
+        request.method === 'bots.groups.list'
+          ? { ok: true, result: { groups: [triageTeam] } }
+          : runtime.call(request)
+    })
+    useAppStore.setState({ fetchFolderWorkspaces: async () => {} })
+  },
+  render: () => <WorktreeJumpPalette />,
+  interact: async (root) => {
+    const doc = root.ownerDocument
+    for (let attempt = 0; attempt < 60 && !doc.querySelector('[cmdk-input]'); attempt += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    }
+    const input = doc.querySelector<HTMLInputElement>('[cmdk-input]')!
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'triage')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+})

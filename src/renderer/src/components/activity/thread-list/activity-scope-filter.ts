@@ -18,6 +18,8 @@ export type ActivityScopeFilter = {
   pairedDeviceIdsByEnvironment: ReadonlyMap<string, string>
   hideAutomationGeneratedWorkspaces: boolean
   hideCliCreatedWorkspaces: boolean
+  /** Workspaces whose threads are listed elsewhere, such as a team member's home. */
+  hiddenWorkspaceIds: ReadonlySet<string>
 }
 
 function isActivityScopeActive(scope: ActivityScopeFilter): boolean {
@@ -26,7 +28,8 @@ function isActivityScopeActive(scope: ActivityScopeFilter): boolean {
     scope.filterRepoIds.length > 0 ||
     scope.hideWorkspacesFromOtherDevices ||
     scope.hideAutomationGeneratedWorkspaces ||
-    scope.hideCliCreatedWorkspaces
+    scope.hideCliCreatedWorkspaces ||
+    scope.hiddenWorkspaceIds.size > 0
   )
 }
 
@@ -75,6 +78,9 @@ export function threadMatchesActivityScope(
   thread: AgentPaneThread,
   scope: ActivityScopeFilter
 ): boolean {
+  if (scope.hiddenWorkspaceIds.has(thread.worktree.id)) {
+    return false
+  }
   if (scope.visibleHostIds) {
     const hostId = getWorktreeExecutionHostId(
       thread.worktree,

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { BotGroup } from '../../../shared/bots/bot-group'
-import { botGroupRoomOfRow, collapseBotGroupRoomRows } from './bot-group-room-history'
+import {
+  botGroupRoomOfRow,
+  collapseBotGroupRoomRows,
+  dropBotTeamMemberRows
+} from './bot-group-room-history'
 
 const group: BotGroup = {
   id: 'group-1',
@@ -65,5 +69,41 @@ describe('group rooms in Session History', () => {
       label: 'triage team'
     })
     expect(botGroupRoomOfRow([group], row('s', 'bot-side-chat', 'x'))).toBeNull()
+  })
+})
+
+describe("a team member's own chats in Session History", () => {
+  const at = (id: string, sessionId: string | null, cwd: string, cwdAliases?: string[]) => ({
+    id,
+    cwd,
+    cwdAliases,
+    structuredSession: sessionId ? { sessionId, workspaceId: 'fw-bot' } : undefined
+  })
+
+  it("drops rows run in a member's home and keeps its team-room rows and every other row", () => {
+    const rows = [
+      at('home-chat', 'bot-home-chat', '/bots/a'),
+      at('side-chat', 'bot-side-chat', '/bots/a'),
+      at('aliased', null, '/elsewhere', ['/bots/a']),
+      at('room', 'bot-group-member-a', '/bots/a'),
+      at('solo-bot', 'bot-home-chat-c', '/bots/c'),
+      at('worker', 'bot-worker', '/bots/a/workers/one')
+    ]
+    expect(dropBotTeamMemberRows(rows, new Set(['/bots/a'])).map((entry) => entry.id)).toEqual([
+      'room',
+      'solo-bot',
+      'worker'
+    ])
+  })
+
+  it('matches a home whatever its trailing slash or Windows separators', () => {
+    const rows = [
+      at('slash', 'bot-home-chat', '/bots/a/'),
+      at('windows', 'bot-home-chat', 'C:\\bots\\b\\'),
+      at('sibling', 'bot-home-chat', '/bots/ab')
+    ]
+    expect(
+      dropBotTeamMemberRows(rows, new Set(['/bots/a', 'C:/bots/b'])).map((entry) => entry.id)
+    ).toEqual(['sibling'])
   })
 })

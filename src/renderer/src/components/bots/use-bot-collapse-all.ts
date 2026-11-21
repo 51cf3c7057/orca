@@ -16,7 +16,7 @@ export type BotCollapseAll = {
 
 type BotEntry =
   | { kind: 'bot'; id: string; home: { id: string } }
-  | { kind: 'group'; home: { id: string }; group: { threads?: readonly unknown[] } }
+  | { kind: 'group'; home: { id: string }; group: { members: readonly unknown[] } }
 
 function entryFoldKey(entry: BotEntry): string {
   return getLineageGroupKey(folderWorkspaceKey(entry.home.id))
@@ -26,9 +26,9 @@ function botFoldKeys(entries: readonly BotEntry[]): Set<string> {
   return new Set(entries.map(entryFoldKey))
 }
 
-/** A bot with chats or workspaces, or a team with threads, has lines under its row. */
+/** A bot with chats or workspaces, or a team with members, has rows that fold under its row. */
 function hasLines(entry: BotEntry, hasChildren: (id: string) => boolean): boolean {
-  return entry.kind === 'bot' ? hasChildren(entry.id) : (entry.group.threads?.length ?? 0) > 0
+  return entry.kind === 'bot' ? hasChildren(entry.id) : entry.group.members.length > 0
 }
 
 /** How many of `keys` are folded, walking whichever set is smaller. */
@@ -78,7 +78,7 @@ function createFoldState(
 }
 
 /**
- * Folds every listed bot with chats or workspaces and team with threads, as each row's own chevron
+ * Folds every listed bot with chats or workspaces and team with members, as each row's own chevron
  * does; unfolds every one folded, listed or hidden. Null when none listed can fold and none saved is folded.
  */
 export function useBotCollapseAll(
