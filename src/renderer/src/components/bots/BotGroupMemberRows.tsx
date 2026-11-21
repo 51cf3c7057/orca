@@ -3,6 +3,7 @@ import { Settings } from 'lucide-react'
 import { ContextMenuItem } from '@/components/ui/context-menu'
 import { useWorktreeActivityStatus } from '@/components/sidebar/workspace-card/activity/use-worktree-activity-status'
 import { useTranslate } from '@/i18n/use-translate'
+import { useBotHostOffline } from '@/lib/bot-host-views'
 import { useAppStore } from '@/store'
 import { selectDrawsNewWorktreeCards } from '@/store/appearance/worktree-card-style'
 import type { Bot } from '../../../../shared/bot-types'
@@ -11,6 +12,7 @@ import { groupedBotIds } from '../../../../shared/bots/bot-group-membership'
 import type { BotSidebarEntry } from '../../../../shared/bots/bot-sidebar-entries'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
 import { foldBotStatus } from '../../../../shared/bots/bot-row-status'
+import { rollUpBotStatus } from '../../../../shared/bots/bot-sidebar-workspaces'
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import { BotAvatar } from './BotAvatar'
 import { openBotSettings } from './bot-settings-open'
@@ -20,6 +22,7 @@ import {
   BOT_WORKSPACE_LINE_INDENT,
   BOT_WORKSPACE_LINE_INDENT_NEW_CARD_STYLE
 } from './BotSidebarEntry'
+import { useBotWorkerWorkspaces, useLiveWorkspaceStatuses } from './use-bot-worker-statuses'
 
 type BotGroupMember = { bot: Bot; home: FolderWorkspace }
 type Entry = BotSidebarEntry<Bot, BotGroup, FolderWorkspace>
@@ -84,17 +87,25 @@ function BotGroupMemberRow({
 }: BotGroupMember & { group: BotGroup }): React.JSX.Element {
   const t = useTranslate()
   const workspaceId = folderWorkspaceKey(home.id)
-  const status = foldBotStatus(useWorktreeActivityStatus(workspaceId), bot.paused)
+  // BotRow's badge: its own turn rolled up with its live workers; blank and dimmed while its host is down.
+  const { childWorktrees } = useBotWorkerWorkspaces(home)
+  const workerIds = useMemo(() => childWorktrees.map((worktree) => worktree.id), [childWorktrees])
+  const workers = useLiveWorkspaceStatuses(workerIds)
+  const status = foldBotStatus(
+    rollUpBotStatus(useWorktreeActivityStatus(workspaceId), workers),
+    bot.paused
+  )
+  const offline = useBotHostOffline(bot.hostId)
   return (
     <BotSidebarRow
       avatar={<BotAvatar bot={bot} className="size-7 rounded-md text-xs" />}
       name={bot.name}
       workspaceId={workspaceId}
       hostId={bot.hostId}
-      status={status}
+      status={offline ? null : status}
       isUnread={false}
       isActive={false}
-      dimmed={bot.paused}
+      dimmed={bot.paused || offline}
       // A member opens nothing; its team's room is where it talks.
       onOpen={doNothing}
       onRename={doNothingAsync}
