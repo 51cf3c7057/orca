@@ -106,6 +106,8 @@ export function useBotChatPicker(
       viewedTeams.length > 0
         ? {
             status: 'error',
+            // Reading again can't change it; Detach from team does.
+            retryable: false,
             message: t('bots.chats.inTeamPicker', "{{name}}'s chats show only in {{team}}.", {
               name: viewed.name,
               team: viewedTeams.map((team) => team.name).join(', ')

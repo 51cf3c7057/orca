@@ -16,7 +16,8 @@ export type NativeChatMentionChat = {
 
 export type NativeChatMentionChatsView =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
+  /** `retryable` false: the reason won't change by reading again, so no Retry shows. Default true. */
+  | { status: 'error'; message: string; retryable?: boolean }
   | { status: 'ready'; chats: readonly NativeChatMentionChat[] }
 
 /** A picked chat as Send may carry it: still being checked, fine, or not, with why in a sentence. */

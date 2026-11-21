@@ -105,15 +105,17 @@ export function NativeChatMentionChatList({
       {chats.status === 'error' ? (
         <PickerStatus>
           <span className="min-w-0 flex-1">{chats.message}</span>
-          <button
-            type="button"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={onRetry}
-            className="flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-foreground hover:bg-accent hover:text-accent-foreground"
-          >
-            <RotateCcw className="size-3" />
-            {t('components.native-chat.composer.retryChats', 'Retry')}
-          </button>
+          {chats.retryable === false ? null : (
+            <button
+              type="button"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={onRetry}
+              className="flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <RotateCcw className="size-3" />
+              {t('components.native-chat.composer.retryChats', 'Retry')}
+            </button>
+          )}
         </PickerStatus>
       ) : null}
       {options.map((chat, index) => (
