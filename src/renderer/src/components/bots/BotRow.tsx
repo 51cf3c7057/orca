@@ -19,6 +19,7 @@ import { getAgentRowPrimaryText } from '../../../../shared/agent-status/presenta
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import { botErrorMessage, botFolderDisplay } from './bot-presentation'
 import { foldBotStatus, type BotRowStatus } from '../../../../shared/bots/bot-row-status'
+import { botFoldLiveStatus, rollUpBotStatus } from '../../../../shared/bots/bot-sidebar-workspaces'
 import { BotAvatar } from './BotAvatar'
 import { BotRowFoldToggle, type BotRowFold } from './BotRowFoldToggle'
 import { useBotSoulDescription } from './bot-soul-description'
@@ -60,8 +61,12 @@ export function BotRow({
 }: BotRowProps): React.JSX.Element {
   const t = useTranslate()
   const workspaceId = folderWorkspaceKey(home.id)
-  // The bot's own turn only; its workspaces' work shows in the fold's count.
-  const status = foldBotStatus(useWorktreeActivityStatus(workspaceId), bot.paused)
+  // Its own turn and its live workers in one badge; a failed worker shows only on the fold strip.
+  const workers = fold ? botFoldLiveStatus(fold.counts) : null
+  const status = foldBotStatus(
+    rollUpBotStatus(useWorktreeActivityStatus(workspaceId), workers ? [workers] : []),
+    bot.paused
+  )
   const hostLabel = useBotHostLabel(bot.hostId)
   // Its server is down: the row stays from the last read, dimmed, with its actions off.
   const offline = useBotHostOffline(bot.hostId)
@@ -69,12 +74,8 @@ export function BotRow({
   const upNextNew = useBotUpNextUnseen(bot)
   const { line, limit, now } = useBotRowLine(bot, home)
   const age = offline ? null : botRowLineAge(line, now)
-  // Doing nothing: its own turn is quiet and none of its workspaces works or waits on you.
-  const idle =
-    !offline &&
-    (status === 'active' || status === 'inactive') &&
-    !fold?.counts.working &&
-    !fold?.counts.permission
+  // Doing nothing: neither its own turn nor any of its workspaces works or waits on you.
+  const idle = !offline && (status === 'active' || status === 'inactive')
   const hostPill = hostLabel ? <WorktreeHostContextBadge label={hostLabel} /> : null
   // With no recent activity the line falls back to what the bot is for, so the row never shows a blank line.
   const description = useBotSoulDescription({ bot, folderPath: home.folderPath })
@@ -244,7 +245,7 @@ function BotHoverDetails({
   bot: Bot
   home: FolderWorkspace
   workspaceId: string
-  /** The row's dot, rolled up from its workspaces. */
+  /** The row's badge: the bot's own turn rolled up with its live workers. */
   status: BotRowStatus
   /** Its paired server's name; null for this computer. */
   hostLabel: string | null
