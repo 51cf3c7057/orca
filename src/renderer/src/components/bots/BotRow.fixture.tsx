@@ -210,10 +210,11 @@ function home(owner: Bot, fields: Parameters<typeof makeFolderWorkspace>[0] = {}
   })
 }
 
-const fold = (folded: boolean) => ({
+// One live worker in that state, or none.
+const fold = (folded: boolean, live: 'working' | 'permission' | 'failed' | null = 'working') => ({
   folded,
   total: 2,
-  counts: { permission: 0, working: 1, failed: 0 },
+  counts: { permission: 0, working: 0, failed: 0, ...(live ? { [live]: 1 } : {}) },
   onToggle: () => {}
 })
 
@@ -257,7 +258,7 @@ const CASES: [string, number, React.ReactNode][] = [
     })
   ],
   ['Waiting on something', 280, row(waiting)],
-  ['No activity, says its purpose', 280, row(cos, { fold: fold(false) })],
+  ['No activity, says its purpose', 280, row(cos, { fold: fold(false, null) })],
   ['Long name, no activity', 280, row(quiet)],
   [
     'Unread, workers folded, 3 new in Suggestions',
@@ -297,6 +298,15 @@ const CASES: [string, number, React.ReactNode][] = [
       </div>
     </>
   ],
+  [
+    'Own chat quiet, folded: a worker working, needing you, failed',
+    280,
+    <>
+      {row(builder, { fold: fold(true) })}
+      {row(builder, { fold: fold(true, 'permission') })}
+      {row(builder, { fold: fold(true, 'failed') })}
+    </>
+  ],
   ['Paused', 280, row(paused)],
   [
     'GitHub thread',
@@ -322,7 +332,7 @@ const CASES: [string, number, React.ReactNode][] = [
     <>
       {releaseRow}
       {row(builder, { fold: fold(true) })}
-      {row(cos, { fold: fold(false) })}
+      {row(cos, { fold: fold(false, null) })}
     </>
   ]
 ]

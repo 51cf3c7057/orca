@@ -3,10 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import StatusIndicator from '@/components/sidebar/workspace-card/surface/StatusIndicator'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
-import {
-  botFoldLiveStatus,
-  type BotWorkspaceLiveCounts
-} from '../../../../shared/bots/bot-sidebar-workspaces'
+import type { BotWorkspaceLiveCounts } from '../../../../shared/bots/bot-sidebar-workspaces'
 import { FOLD_TOGGLE_CLASS } from './BotChatRowControls'
 
 export type BotRowFold = {
@@ -26,7 +23,7 @@ export function BotRowFoldToggle({
 }): React.JSX.Element {
   const t = useTranslate()
   const { folded, total, counts } = fold
-  const live = botFoldLiveStatus(counts)
+  const failed = counts.failed > 0
   const label = folded
     ? t('bots.chats.unfold', 'Unfold {{name}}', { name })
     : t('bots.chats.fold', 'Fold {{name}}', { name })
@@ -58,10 +55,10 @@ export function BotRowFoldToggle({
       }}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {folded && (live || total > 0) ? (
-        // The status of its most urgent live workspace, then how many it has in all.
+      {folded && (failed || total > 0) ? (
+        // A failed workspace, then how many it has in all; working and needs you show on the picture.
         <span className="flex items-center gap-0.5">
-          {live ? <StatusIndicator status={live} showTooltip={false} /> : null}
+          {failed ? <StatusIndicator status="failed" showTooltip={false} /> : null}
           {total > 0 ? total : null}
         </span>
       ) : null}

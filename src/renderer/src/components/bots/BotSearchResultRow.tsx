@@ -1,4 +1,4 @@
-import React, { memo } from 'react'
+import React, { memo, useMemo } from 'react'
 import { useWorktreeActivityStatus } from '@/components/sidebar/workspace-card/activity/use-worktree-activity-status'
 import { WORKTREE_CARD_SURFACE_CLASS_NAME } from '@/components/sidebar/workspace-card/surface/worktree-card-surface'
 import { useTranslate } from '@/i18n/use-translate'
@@ -9,6 +9,7 @@ import type { BotGroup } from '../../../../shared/bots/bot-group'
 import { botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
 import { foldBotStatus } from '../../../../shared/bots/bot-row-status'
 import { botGroupMemberBots } from '../../../../shared/bots/bot-sidebar-entries'
+import { rollUpBotStatus } from '../../../../shared/bots/bot-sidebar-workspaces'
 import {
   botPurposeSnippet,
   splitBotSearchText,
@@ -24,6 +25,7 @@ import {
 } from './bot-avatar-status-badge'
 import { BotAvatar } from './BotAvatar'
 import { BotGroupFaces } from './BotGroupFaces'
+import { useBotWorkerWorkspaces, useLiveWorkspaceStatuses } from './use-bot-worker-statuses'
 
 export type BotSearchEntry =
   | { kind: 'bot'; id: string; bot: Bot; home: FolderWorkspace }
@@ -146,7 +148,14 @@ export const BotSearchResultRow = memo(function BotSearchResultRow({
 
 function BotResultPicture({ bot, home }: { bot: Bot; home: FolderWorkspace }): React.JSX.Element {
   const offline = useBotHostOffline(bot.hostId)
-  const status = foldBotStatus(useWorktreeActivityStatus(folderWorkspaceKey(home.id)), bot.paused)
+  // The sidebar row's badge rule: its own turn rolled up with its live workers.
+  const { childWorktrees } = useBotWorkerWorkspaces(home)
+  const workerIds = useMemo(() => childWorktrees.map((worktree) => worktree.id), [childWorktrees])
+  const workers = useLiveWorkspaceStatuses(workerIds)
+  const status = foldBotStatus(
+    rollUpBotStatus(useWorktreeActivityStatus(folderWorkspaceKey(home.id)), workers),
+    bot.paused
+  )
   const badge = {
     status: offline || status === 'inactive' ? null : status,
     sleeping: useBotAvatarBadgeSleeping(folderWorkspaceKey(home.id), status)
