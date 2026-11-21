@@ -30,6 +30,8 @@ import type {
   ThreadReadFilter
 } from '../../../../../shared/agent-status/presentation/agents-view-thread-filters'
 import type { ActivityThreadGroup, AgentPaneThread } from './activity-thread-types'
+import { useTeamMemberBots } from '@/components/bots/use-bot-teams'
+import { folderWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 
 const EMPTY_PANE_KEYS: ReadonlySet<string> = new Set()
 const EMPTY_THREADS: AgentPaneThread[] = []
@@ -168,6 +170,12 @@ export function useAgentPaneThreads(args: {
         : EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
     [runtimeEnvironments, runtimeStatusByEnvironmentId]
   )
+  // A team member's own chats are listed only in its team.
+  const teamMemberBots = useTeamMemberBots()
+  const hiddenWorkspaceIds = useMemo(
+    () => new Set(teamMemberBots.map((bot) => folderWorkspaceKey(bot.folderWorkspaceId))),
+    [teamMemberBots]
+  )
   const { storeData: unscopedStoreData, allThreads } = useAllAgentPaneThreads({ badgeOnly })
   const defaultHostId = useAgentPaneThreadsDefaultHostId()
   const storeData = useMemo(
@@ -192,7 +200,8 @@ export function useAgentPaneThreads(args: {
           hideWorkspacesFromOtherDevices,
           pairedDeviceIdsByEnvironment,
           hideAutomationGeneratedWorkspaces,
-          hideCliCreatedWorkspaces
+          hideCliCreatedWorkspaces,
+          hiddenWorkspaceIds
         },
         exemptPaneKey: effectiveSelectedPaneKey
       }),
@@ -206,6 +215,7 @@ export function useAgentPaneThreads(args: {
       pairedDeviceIdsByEnvironment,
       hideAutomationGeneratedWorkspaces,
       hideCliCreatedWorkspaces,
+      hiddenWorkspaceIds,
       effectiveSelectedPaneKey
     ]
   )
