@@ -3,7 +3,6 @@ import { Settings } from 'lucide-react'
 import { ContextMenuItem } from '@/components/ui/context-menu'
 import { useWorktreeActivityStatus } from '@/components/sidebar/workspace-card/activity/use-worktree-activity-status'
 import { useTranslate } from '@/i18n/use-translate'
-import { updateBot } from '@/lib/bot-catalog'
 import { useAppStore } from '@/store'
 import { selectDrawsNewWorktreeCards } from '@/store/appearance/worktree-card-style'
 import type { Bot } from '../../../../shared/bot-types'
@@ -15,7 +14,7 @@ import { foldBotStatus } from '../../../../shared/bots/bot-row-status'
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import { BotAvatar } from './BotAvatar'
 import { openBotSettings } from './bot-settings-open'
-import { botErrorMessage } from './bot-presentation'
+import { BotGroupDetachMenuItem } from './BotGroupDetachMenuItem'
 import { BotSidebarRow } from './BotSidebarRow'
 import {
   BOT_WORKSPACE_LINE_INDENT,
@@ -49,8 +48,10 @@ export function useBotGroupMemberSplit(
 
 /** A team's members under its row, joined by a line down their left edge. */
 export function BotGroupMemberRows({
+  group,
   members
 }: {
+  group: BotGroup
   members: readonly BotGroupMember[]
 }): React.JSX.Element | null {
   const newCardStyle = useAppStore(selectDrawsNewWorktreeCards)
@@ -67,15 +68,20 @@ export function BotGroupMemberRows({
       }}
     >
       {members.map(({ bot, home }) => (
-        <BotGroupMemberRow key={bot.id} bot={bot} home={home} />
+        <BotGroupMemberRow key={bot.id} group={group} bot={bot} home={home} />
       ))}
     </div>
   )
 }
 
 const doNothing = (): void => {}
+const doNothingAsync = async (): Promise<void> => {}
 
-function BotGroupMemberRow({ bot, home }: BotGroupMember): React.JSX.Element {
+function BotGroupMemberRow({
+  group,
+  bot,
+  home
+}: BotGroupMember & { group: BotGroup }): React.JSX.Element {
   const t = useTranslate()
   const workspaceId = folderWorkspaceKey(home.id)
   const status = foldBotStatus(useWorktreeActivityStatus(workspaceId), bot.paused)
@@ -91,14 +97,11 @@ function BotGroupMemberRow({ bot, home }: BotGroupMember): React.JSX.Element {
       dimmed={bot.paused}
       // A member opens nothing; its team's room is where it talks.
       onOpen={doNothing}
-      // The shared row always offers Rename, so it renames the bot rather than dropping the edit.
-      onRename={async (name) => {
-        try {
-          await updateBot(bot, { name })
-        } catch (error) {
-          throw new Error(botErrorMessage(error))
-        }
-      }}
+      onRename={doNothingAsync}
+      // A member's sleep shows only as its team's; its working and needs-you badges stay.
+      sleepBadge={false}
+      renamable={false}
+      readToggle={false}
       age={null}
       line={null}
       hoverDetails={() => (
@@ -108,10 +111,13 @@ function BotGroupMemberRow({ bot, home }: BotGroupMember): React.JSX.Element {
         </div>
       )}
       menuItems={
-        <ContextMenuItem onSelect={() => openBotSettings(bot.id)}>
-          <Settings className="size-3.5" />
-          {t('bots.row.settings', 'Bot settings…')}
-        </ContextMenuItem>
+        <>
+          <ContextMenuItem onSelect={() => openBotSettings(bot.id)}>
+            <Settings className="size-3.5" />
+            {t('bots.row.settings', 'Bot settings…')}
+          </ContextMenuItem>
+          <BotGroupDetachMenuItem group={group} bot={bot} />
+        </>
       }
       menuFooter={null}
     />

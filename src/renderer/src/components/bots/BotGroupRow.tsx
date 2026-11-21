@@ -26,6 +26,7 @@ import { BotGroupFaces } from './BotGroupFaces'
 import { BotRowFoldToggle, type BotRowFold } from './BotRowFoldToggle'
 import { BotGroupThreadLines } from './BotGroupThreadLines'
 import { BotGroupMemberRows } from './BotGroupMemberRows'
+import { useBotTeamSleeping } from './use-bot-team-sleeping'
 
 // A folded team's strip counts its members; their own rows carry their status.
 const NO_LIVE_COUNTS: BotWorkspaceLiveCounts = { permission: 0, working: 0, failed: 0 }
@@ -81,6 +82,7 @@ export function BotGroupRow({
   const status = useAppStore((state) =>
     botGroupStatus(group, state.agentStatusByPaneKey, Date.now())
   )
+  const sleeping = useBotTeamSleeping(group, memberRows)
   const line: BotRowLine = {
     kind: 'activity',
     place: null,
@@ -115,7 +117,7 @@ export function BotGroupRow({
           }
         }}
         age={botRowLineAge(line, now)}
-        idle={status === null}
+        idle={sleeping}
         line={<BotRowLineView line={line} unread={home.isUnread} now={now} />}
         trailing={fold ? <BotRowFoldToggle name={group.name} fold={fold} /> : null}
         hoverDetails={() => (
@@ -141,7 +143,7 @@ export function BotGroupRow({
           </>
         }
       />
-      {fold && !fold.folded ? <BotGroupMemberRows members={memberRows} /> : null}
+      {fold && !fold.folded ? <BotGroupMemberRows group={group} members={memberRows} /> : null}
       <BotGroupThreadLines group={group} />
     </>
   )

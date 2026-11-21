@@ -8,11 +8,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
-import { openBotHomeTab } from '@/lib/bot-catalog'
 import { useAppStore } from '@/store'
 import { selectFolderWorkspaceOnHost } from '@/store/folder-workspaces/folder-workspace-record-index'
 import type { Bot } from '../../../../shared/bot-types'
@@ -21,6 +23,8 @@ import { botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
 import { BotAvatar } from './BotAvatar'
 import { BotGroupFaces } from './BotGroupFaces'
 import { BotGroupMembersDialog } from './BotGroupMembersDialog'
+import { BotGroupDetachDropdownItem } from './BotGroupDetachMenuItem'
+import { openBotSettings } from './bot-settings-open'
 import { botQuietLine } from './BotPanelHeader'
 import { BotRowLineText, useBotRowLine } from './BotRowActivityLine'
 import { useBotGroupDelete } from './use-bot-group-delete'
@@ -32,20 +36,31 @@ const MENU_ROWS = 6
 /** Names the picture's label lists before "and N more". */
 const NAMED = 3
 
-function MemberRow({ bot }: { bot: Bot }): React.JSX.Element {
+/** A member's entry; its own Home stays closed while it is in the team, so it offers only these. */
+function MemberRow({ group, bot }: { group: BotGroup; bot: Bot }): React.JSX.Element {
+  const t = useTranslate()
   const home = useAppStore((state) =>
     selectFolderWorkspaceOnHost(state, bot.folderWorkspaceId, bot.hostId)
   )
   return (
-    <DropdownMenuItem onSelect={() => void openBotHomeTab(bot)}>
-      <BotAvatar bot={bot} className="size-7 shrink-0 rounded-full text-sm" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] leading-5">{bot.name}</span>
-        <span className="block truncate text-xs leading-4 text-muted-foreground">
-          {home ? <MemberLine bot={bot} home={home} /> : null}
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <BotAvatar bot={bot} className="size-7 shrink-0 rounded-full text-sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] leading-5">{bot.name}</span>
+          <span className="block truncate text-xs leading-4 text-muted-foreground">
+            {home ? <MemberLine bot={bot} home={home} /> : null}
+          </span>
         </span>
-      </span>
-    </DropdownMenuItem>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        <DropdownMenuItem onSelect={() => openBotSettings(bot.id)}>
+          <Settings />
+          {t('bots.row.settings', 'Bot settings…')}
+        </DropdownMenuItem>
+        <BotGroupDetachDropdownItem group={group} bot={bot} />
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   )
 }
 
@@ -165,7 +180,7 @@ export function BotGroupPanelHeader({
             style={{ maxHeight: `${MENU_ROWS * 2.75}rem` }}
           >
             {members.map((bot) => (
-              <MemberRow key={bot.id} bot={bot} />
+              <MemberRow key={bot.id} group={group} bot={bot} />
             ))}
           </div>
         </DropdownMenuContent>

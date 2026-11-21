@@ -27956,6 +27956,12 @@
         "members": "Members",
         "membersCount": "Members {{count}}",
         "noMembers": "No bots in this group"
+      },
+      "detach": {
+        "menu": "Detach from team",
+        "onlyMember": "A team needs at least one member",
+        "done": "{{bot}} left {{team}}. It's listed on its own again.",
+        "doneMentions": "{{bot}} left {{team}}. It's listed on its own again. Replies are now Only when mentioned."
       }
     },
     "google": {
