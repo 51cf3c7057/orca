@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Settings } from 'lucide-react'
 import { ContextMenuItem } from '@/components/ui/context-menu'
 import { useWorktreeActivityStatus } from '@/components/sidebar/workspace-card/activity/use-worktree-activity-status'
@@ -7,6 +7,9 @@ import { updateBot } from '@/lib/bot-catalog'
 import { useAppStore } from '@/store'
 import { selectDrawsNewWorktreeCards } from '@/store/appearance/worktree-card-style'
 import type { Bot } from '../../../../shared/bot-types'
+import type { BotGroup } from '../../../../shared/bots/bot-group'
+import { groupedBotIds } from '../../../../shared/bots/bot-group-membership'
+import type { BotSidebarEntry } from '../../../../shared/bots/bot-sidebar-entries'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
 import { foldBotStatus } from '../../../../shared/bots/bot-row-status'
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
@@ -20,6 +23,29 @@ import {
 } from './BotSidebarEntry'
 
 type BotGroupMember = { bot: Bot; home: FolderWorkspace }
+type Entry = BotSidebarEntry<Bot, BotGroup, FolderWorkspace>
+
+/**
+ * A team's members draw under its row, not as rows: drops them from the saved and arranged lists,
+ * and maps every listed bot to its home for those member rows.
+ */
+export function useBotGroupMemberSplit(
+  groups: readonly BotGroup[],
+  saved: readonly Entry[],
+  arranged: readonly Entry[]
+): { savedEntries: Entry[]; entries: Entry[]; botHomes: ReadonlyMap<string, FolderWorkspace> } {
+  return useMemo(() => {
+    const grouped = groupedBotIds(groups)
+    const shown = (e: Entry): boolean => e.kind === 'group' || !grouped.has(e.bot.id)
+    return {
+      savedEntries: saved.filter(shown),
+      entries: arranged.filter(shown),
+      botHomes: new Map(
+        saved.flatMap((e) => (e.kind === 'bot' ? [[e.bot.id, e.home] as const] : []))
+      )
+    }
+  }, [groups, saved, arranged])
+}
 
 /** A team's members under its row, joined by a line down their left edge. */
 export function BotGroupMemberRows({

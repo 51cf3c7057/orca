@@ -34,11 +34,11 @@ import {
 } from '../../../../shared/workspace/identity/workspace-scope'
 import type { Bot } from '../../../../shared/bot-types'
 import { botGroupMemberBots } from '../../../../shared/bots/bot-sidebar-entries'
-import { groupedBotIds } from '../../../../shared/bots/bot-group-membership'
 import { getHostKeyedBotSidebarEntries } from './bot-sidebar-entry-keys'
 import { readBotHostState } from '@/lib/bot-catalog-snapshot'
 import { BotSidebarDragFrame, BotSidebarEntry, type BotSidebarEntryDrag } from './BotSidebarEntry'
 import { BotGroupRow } from './BotGroupRow'
+import { useBotGroupMemberSplit } from './BotGroupMemberRows'
 import { BotGroupMembersDialog } from './BotGroupMembersDialog'
 import { useBotGroupDelete } from './use-bot-group-delete'
 import { findBotGroupRoom, type BotGroup } from '../../../../shared/bots/bot-group'
@@ -91,27 +91,25 @@ export function SidebarBotsSection({ onOpenBot }: { onOpenBot: () => void }): Re
   const [importOpen, setImportOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<BotGroup | 'new' | null>(null)
   // Bots and groups share one list and one order; the folded header shows bots only.
-  // A team's members list under its row, not as rows of their own; their homes go to that row.
-  const { savedEntries, botHomes } = useMemo(() => {
-    const all = getHostKeyedBotSidebarEntries(bots, groups, folderWorkspaces)
-    const grouped = groupedBotIds(groups)
-    return {
-      savedEntries: all.filter((entry) => entry.kind === 'group' || !grouped.has(entry.bot.id)),
-      botHomes: new Map(all.flatMap((e) => (e.kind === 'bot' ? [[e.bot.id, e.home] as const] : [])))
-    }
-  }, [bots, groups, folderWorkspaces])
-  const entries = useBotSidebarArrangement(savedEntries)
+  const allEntries = useMemo(
+    () => getHostKeyedBotSidebarEntries(bots, groups, folderWorkspaces),
+    [bots, groups, folderWorkspaces]
+  )
+  const allArranged = useBotSidebarArrangement(allEntries)
+  // A team's members draw under its row, not as rows; search and the folded header still list them.
+  const { savedEntries, entries, botHomes } = useBotGroupMemberSplit(
+    groups,
+    allEntries,
+    allArranged
+  )
+  const rows = useMemo(() => allArranged.filter((e) => e.kind === 'bot'), [allArranged])
   const listRef = useRef<HTMLDivElement>(null)
   // Search shows the list in place and nothing drags while it is open. Its toggle lives only in the
   // unfolded header, so a search always starts unfolded.
-  const search = useBotSidebarSearch({ listRef, savedEntries, onOpenBot })
+  const search = useBotSidebarSearch({ listRef, savedEntries: allEntries, onOpenBot })
   const searchOpen = search.open
   // Only the saved order can be dragged, as for workspaces.
   const draggable = useAppStore((s) => s.botSidebarView.sortBy === 'manual') && !searchOpen
-  const rows = useMemo(
-    () => entries.flatMap((entry) => (entry.kind === 'bot' ? [entry] : [])),
-    [entries]
-  )
   const hasEntries = savedEntries.length > 0
   // Folds even while empty, so the onboarding card can be put away. A fold landing mid-search
   // (another writer) still leaves the results showing until the search ends.
@@ -323,8 +321,8 @@ export function SidebarBotsSection({ onOpenBot }: { onOpenBot: () => void }): Re
         open={searchOpen}
         regionRef={search.regionRef}
         panel={{
-          entries,
-          allEntries: savedEntries,
+          entries: allArranged,
+          allEntries,
           bots,
           onSelect: search.select,
           onSupersede: search.supersede,
