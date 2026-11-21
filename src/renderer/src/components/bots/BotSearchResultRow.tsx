@@ -117,6 +117,7 @@ export const BotSearchResultRow = memo(function BotSearchResultRow({
         <span className="mr-2 shrink-0">
           <BotGroupFaces
             faces={botGroupFaces(botGroupMemberBots(entry.group, botsById), (bot) => bot.id)}
+            className="size-9"
             slot={36}
           />
         </span>
