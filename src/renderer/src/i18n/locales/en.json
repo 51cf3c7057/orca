@@ -26939,7 +26939,26 @@
       "settings": "Bot settings…",
       "clone": "Clone bot…",
       "hostDisconnected": "{{host}} disconnected",
-      "disconnected": "Disconnected"
+      "disconnected": "Disconnected",
+      "step": {
+        "command": "Running a command",
+        "readFile": "Reading {{file}}",
+        "readAny": "Reading a file",
+        "editFile": "Editing {{file}}",
+        "editAny": "Editing a file",
+        "writeFile": "Writing {{file}}",
+        "writeAny": "Writing a file",
+        "searchCode": "Searching the code",
+        "searchWebFor": "Searching the web for {{query}}",
+        "searchWeb": "Searching the web",
+        "readSite": "Reading {{site}}",
+        "readPage": "Reading a web page",
+        "helper": "Working with a helper agent",
+        "question": "Asking you a question",
+        "todo": "Updating its to-do list",
+        "useServer": "Using {{server}}",
+        "useTool": "Using {{tool}}"
+      }
     },
     "new": {
       "agentClaude": "Claude Code",
@@ -28689,6 +28708,9 @@
       "more": "More",
       "needYou_one": "{{count}} needs you",
       "needYou_other": "{{count}} need you",
+      "ready_one": "{{count}} ready",
+      "ready_other": "{{count}} ready",
+      "ready": "{{count}} ready",
       "showNeedYou_one": "Show panel · {{count}} needs you",
       "showNeedYou_other": "Show panel · {{count}} need you",
       "working_one": "{{count}} working",

@@ -19,18 +19,25 @@ export function botWorkerWorkspaceStatus(
   return status === 'permission' && !agentAsks ? 'active' : status
 }
 
-export type BotWorkspaceLiveCounts = { permission: number; working: number; failed: number }
+export type BotWorkspaceLiveCounts = {
+  permission: number
+  working: number
+  ready: number
+  failed: number
+}
 
-/** What a folded bot row shows: how many of its workspaces need you, are working, or failed. */
+/** What a folded bot row shows: how many of its workspaces need you, are working, are ready for input, or failed. */
 export function countLiveBotWorkspaces(
   statuses: readonly WorktreeStatus[]
 ): BotWorkspaceLiveCounts {
-  const counts: BotWorkspaceLiveCounts = { permission: 0, working: 0, failed: 0 }
+  const counts: BotWorkspaceLiveCounts = { permission: 0, working: 0, ready: 0, failed: 0 }
   for (const status of statuses) {
     if (status === 'permission') {
       counts.permission += 1
     } else if (status === 'working' || status === 'monitoring') {
       counts.working += 1
+    } else if (status === 'done') {
+      counts.ready += 1
     } else if (status === 'failed') {
       counts.failed += 1
     }

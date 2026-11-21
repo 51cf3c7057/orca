@@ -22,11 +22,18 @@ function handleIdleZzzAnimationStart(event: React.AnimationEvent<HTMLSpanElement
 }
 
 /** Sleeping "zzz" before a row's time; the letters appear one by one, rising and growing, in the time's size and tone. */
-export function IdleZzz({ label }: { label: string }): React.JSX.Element {
+export function IdleZzz({
+  label,
+  trailingGap = true
+}: {
+  label: string
+  /** False when its container spaces it, as the bots' sleep pill does. */
+  trailingGap?: boolean
+}): React.JSX.Element {
   return (
     <span
       data-idle-zzz=""
-      className="mr-1 inline-flex items-end"
+      className={trailingGap ? 'mr-1 inline-flex items-end' : 'inline-flex items-end'}
       onAnimationStart={handleIdleZzzAnimationStart}
     >
       <span

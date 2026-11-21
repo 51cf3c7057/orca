@@ -114,6 +114,8 @@
   --color-workspace-activity-working: var(--workspace-activity-working);
   --color-workspace-activity-merged: var(--workspace-activity-merged);
   --color-workspace-activity-ready: var(--workspace-activity-ready);
+  --color-bot-sleep: var(--bot-sleep);
+  --color-bot-sleep-foreground: var(--bot-sleep-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -305,6 +307,9 @@
   --workspace-activity-working: var(--agent-working);
   --workspace-activity-merged: var(--color-violet-500);
   --workspace-activity-ready: var(--color-emerald-500);
+  /* The sleep pill after an idle bot's name; white letters on violet-600 keep 5.9:1. */
+  --bot-sleep: var(--color-violet-600);
+  --bot-sleep-foreground: #fff;
   /* Keep PR-state hues stable across theme changes. */
   --workspace-status-done: #c7a594;
   --workspace-status-review: #16a34a;
@@ -432,6 +437,9 @@
   --workspace-activity-working: var(--agent-working);
   --workspace-activity-merged: var(--color-violet-400);
   --workspace-activity-ready: var(--color-emerald-500);
+  /* Violet-100 letters on violet-800 keep 7.7:1. */
+  --bot-sleep: var(--color-violet-800);
+  --bot-sleep-foreground: var(--color-violet-100);
   --workspace-status-done: #c7a594;
   --workspace-status-review: #16a34a;
   --workspace-status-progress: #d4a300;

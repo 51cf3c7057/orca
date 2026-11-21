@@ -1663,9 +1663,10 @@
     "panel": {
       "needYou_one": "{{count}} needs you",
       "needYou_other": "{{count}} need you",
+      "ready_one": "{{count}} ready",
+      "ready_other": "{{count}} ready",
       "showNeedYou_one": "Show panel · {{count}} needs you",
       "showNeedYou_other": "Show panel · {{count}} need you",
-      "working": "{{count}} working",
       "working_one": "{{count}} working",
       "working_other": "{{count}} working"
     },
@@ -1674,6 +1675,25 @@
       "replying": "Replying",
       "replyingIn": "Replying in {{place}}",
       "replyingOn": "Replying on {{place}}",
+      "step": {
+        "command": "Running a command",
+        "editAny": "Editing a file",
+        "editFile": "Editing {{file}}",
+        "helper": "Working with a helper agent",
+        "question": "Asking you a question",
+        "readAny": "Reading a file",
+        "readFile": "Reading {{file}}",
+        "readPage": "Reading a web page",
+        "readSite": "Reading {{site}}",
+        "searchCode": "Searching the code",
+        "searchWeb": "Searching the web",
+        "searchWebFor": "Searching the web for {{query}}",
+        "todo": "Updating its to-do list",
+        "useServer": "Using {{server}}",
+        "useTool": "Using {{tool}}",
+        "writeAny": "Writing a file",
+        "writeFile": "Writing {{file}}"
+      },
       "waitingCount": "Waiting on {{count}} events",
       "waitingFor": "Waiting for {{label}}",
       "waitingForUntil": "Waiting for {{label}} · until {{time}}"

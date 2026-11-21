@@ -7,6 +7,7 @@ import WorktreeCard from '@/components/sidebar/workspace-card/surface/WorktreeCa
 import { structuredAgentSessionStatusPaneKey } from '../../../../shared/agent-session/view/structured-agent-session-tab'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { Bot } from '../../../../shared/bot-types'
+import type { BotWorkspaceLiveCounts } from '../../../../shared/bots/bot-sidebar-workspaces'
 import type { ExternalConversationLink } from '../../../../shared/connectors/external-conversation-link'
 import type { Repo } from '../../../../shared/repository/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
@@ -101,8 +102,8 @@ const sessions = [
   session(triage, 'chat-triage', {
     state: 'working',
     updatedAt: now - 10_000,
-    toolName: 'Read',
-    toolInput: 'ENG-42 comments'
+    toolName: 'Bash',
+    toolInput: 'cd ~/.claude/projects/-Users-me-code-orca && ls -la sessions/2026-11-21'
   }),
   session(release, 'chat-release', {
     state: 'done',
@@ -210,11 +211,10 @@ function home(owner: Bot, fields: Parameters<typeof makeFolderWorkspace>[0] = {}
   })
 }
 
-// One live worker in that state, or none.
-const fold = (folded: boolean, live: 'working' | 'permission' | 'failed' | null = 'working') => ({
+// Its live workers by kind; one working unless given.
+const fold = (folded: boolean, live: Partial<BotWorkspaceLiveCounts> = { working: 1 }) => ({
   folded,
-  total: 2,
-  counts: { permission: 0, working: 0, failed: 0, ...(live ? { [live]: 1 } : {}) },
+  counts: { permission: 0, working: 0, ready: 0, failed: 0, ...live },
   onToggle: () => {}
 })
 
@@ -233,7 +233,7 @@ const releaseRow = row(release, {
 
 const CASES: [string, number, React.ReactNode][] = [
   ['Idle bot', 280, row(disk)],
-  ['Working in its Chat', 280, row(triage, { isActive: true })],
+  ['Working in its Chat: a shell command', 280, row(triage, { isActive: true })],
   ['3 threads, one unread', 280, releaseRow],
   [
     'Slack thread, latest turn typed in Orca',
@@ -258,7 +258,7 @@ const CASES: [string, number, React.ReactNode][] = [
     })
   ],
   ['Waiting on something', 280, row(waiting)],
-  ['No activity, says its purpose', 280, row(cos, { fold: fold(false, null) })],
+  ['No activity, says its purpose', 280, row(cos, { fold: fold(false, {}) })],
   ['Long name, no activity', 280, row(quiet)],
   [
     'Unread, workers folded, 3 new in Suggestions',
@@ -303,8 +303,16 @@ const CASES: [string, number, React.ReactNode][] = [
     280,
     <>
       {row(builder, { fold: fold(true) })}
-      {row(builder, { fold: fold(true, 'permission') })}
-      {row(builder, { fold: fold(true, 'failed') })}
+      {row(builder, { fold: fold(true, { permission: 1 }) })}
+      {row(builder, { fold: fold(true, { failed: 1 }) })}
+    </>
+  ],
+  [
+    'Folded: 1 needs you, 3 working, 5 ready; then nothing live',
+    280,
+    <>
+      {row(builder, { fold: fold(true, { permission: 1, working: 3, ready: 5 }) })}
+      {row(builder, { fold: fold(true, {}) })}
     </>
   ],
   ['Paused', 280, row(paused)],
@@ -332,7 +340,7 @@ const CASES: [string, number, React.ReactNode][] = [
     <>
       {releaseRow}
       {row(builder, { fold: fold(true) })}
-      {row(cos, { fold: fold(false, null) })}
+      {row(cos, { fold: fold(false, {}) })}
     </>
   ]
 ]

@@ -146,7 +146,6 @@ export function BotSidebarEntry({
             ? null
             : {
                 folded,
-                total: workspaces.length,
                 counts: countLiveBotWorkspaces(statuses),
                 onToggle: () => toggleCollapsedGroup(groupKey)
               }
