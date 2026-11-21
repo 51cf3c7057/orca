@@ -69,3 +69,21 @@ export function collapseBotGroupRoomRows<
   const shown = new Set(newest.values())
   return sessions.filter((session) => !botGroupRoomOfRow(groups, session) || shown.has(session))
 }
+
+/** A team member's own chats list only in its team: rows run in its home are dropped, its
+ *  team-room sessions kept. */
+export function dropBotTeamMemberRows<
+  T extends Pick<AiVaultSession, 'structuredSession' | 'cwd' | 'cwdAliases'>
+>(sessions: readonly T[], memberHomePaths: ReadonlySet<string>): readonly T[] {
+  if (memberHomePaths.size === 0) {
+    return sessions
+  }
+  const inMemberHome = (session: T) =>
+    (session.cwd !== null && memberHomePaths.has(session.cwd)) ||
+    (session.cwdAliases ?? []).some((path) => memberHomePaths.has(path))
+  const kept = sessions.filter((session) => {
+    const sessionId = session.structuredSession?.sessionId
+    return (sessionId && isBotGroupMemberSession(sessionId)) || !inMemberHome(session)
+  })
+  return kept.length === sessions.length ? sessions : kept
+}
