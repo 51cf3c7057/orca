@@ -9,7 +9,7 @@ import { getLineageGroupKey } from '../../../../shared/sidebar-list/sections/gro
 import { folderWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import { BotGroupRow } from './BotGroupRow'
 
-const MASCOTS: BotMascotId[] = ['F1', 'A1', 'M1']
+const MASCOTS: BotMascotId[] = ['F1', 'A1']
 
 const BOTS: Bot[] = MASCOTS.map((mascot, index) => ({
   id: `bot-${index}`,
@@ -55,6 +55,16 @@ function team(threads: BotGroup['threads']): BotGroup {
 }
 
 const home = makeFolderWorkspace({ id: 'fw-group-1', name: 'Team 0', folderPath: '/bots/group-1' })
+const memberHomes = new Map(
+  BOTS.map((bot) => [
+    bot.id,
+    makeFolderWorkspace({
+      id: bot.folderWorkspaceId,
+      name: bot.name,
+      folderPath: `/bots/${bot.folder}`
+    })
+  ])
+)
 const workspace = folderWorkspaceKey(home.id)
 
 /** The second thread's tab in front, as after opening it from its line. */
@@ -85,6 +95,7 @@ function frame(group: BotGroup, isActive: boolean): React.JSX.Element {
         group={group}
         home={home}
         members={BOTS}
+        memberHomes={memberHomes}
         isActive={isActive}
         onOpen={() => {}}
         onManageMembers={() => {}}
@@ -94,22 +105,22 @@ function frame(group: BotGroup, isActive: boolean): React.JSX.Element {
   )
 }
 
-/** Two threads under the team's row, the second one's tab in front. */
+/** Two members on their line under the team's row, then two threads, the second one's tab in front. */
 export const unfolded = defineFixture({
   width: 320,
   store: SECOND_THREAD_IN_FRONT,
   render: () => frame(team(THREADS), true)
 })
 
-/** Folded by its chevron: the strip shows how many threads it holds. */
+/** Folded by its chevron: the members hide, the threads stay and the strip shows how many members it has. */
 export const folded = defineFixture({
   width: 320,
   store: { ...SECOND_THREAD_IN_FRONT, collapsedGroups: new Set([getLineageGroupKey(workspace)]) },
   render: () => frame(team(THREADS), true)
 })
 
-/** A team with only its original room: no chevron and nothing under it. */
-export const noThreads = defineFixture({
+/** A team with only its original room: its two members and no threads. */
+export const membersOnly = defineFixture({
   width: 320,
   render: () => frame(team(undefined), false)
 })

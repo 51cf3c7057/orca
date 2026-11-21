@@ -34,6 +34,7 @@ import {
 } from '../../../../shared/workspace/identity/workspace-scope'
 import type { Bot } from '../../../../shared/bot-types'
 import { botGroupMemberBots } from '../../../../shared/bots/bot-sidebar-entries'
+import { groupedBotIds } from '../../../../shared/bots/bot-group-membership'
 import { getHostKeyedBotSidebarEntries } from './bot-sidebar-entry-keys'
 import { readBotHostState } from '@/lib/bot-catalog-snapshot'
 import { BotSidebarDragFrame, BotSidebarEntry, type BotSidebarEntryDrag } from './BotSidebarEntry'
@@ -90,10 +91,15 @@ export function SidebarBotsSection({ onOpenBot }: { onOpenBot: () => void }): Re
   const [importOpen, setImportOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<BotGroup | 'new' | null>(null)
   // Bots and groups share one list and one order; the folded header shows bots only.
-  const savedEntries = useMemo(
-    () => getHostKeyedBotSidebarEntries(bots, groups, folderWorkspaces),
-    [bots, groups, folderWorkspaces]
-  )
+  // A team's members list under its row, not as rows of their own; their homes go to that row.
+  const { savedEntries, botHomes } = useMemo(() => {
+    const all = getHostKeyedBotSidebarEntries(bots, groups, folderWorkspaces)
+    const grouped = groupedBotIds(groups)
+    return {
+      savedEntries: all.filter((entry) => entry.kind === 'group' || !grouped.has(entry.bot.id)),
+      botHomes: new Map(all.flatMap((e) => (e.kind === 'bot' ? [[e.bot.id, e.home] as const] : [])))
+    }
+  }, [bots, groups, folderWorkspaces])
   const entries = useBotSidebarArrangement(savedEntries)
   const listRef = useRef<HTMLDivElement>(null)
   // Search shows the list in place and nothing drags while it is open. Its toggle lives only in the
@@ -369,6 +375,7 @@ export function SidebarBotsSection({ onOpenBot }: { onOpenBot: () => void }): Re
                           group={entry.group}
                           home={entry.home}
                           members={botGroupMemberBots(entry.group, bots)}
+                          memberHomes={botHomes}
                           isActive={activeGroupId === entry.group.id}
                           onOpen={onOpenBot}
                           onManageMembers={() => setEditingGroup(entry.group)}

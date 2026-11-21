@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { callBotRpc } from '@/lib/bot-hosts'
 import { Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,15 +25,17 @@ import { botGroupFaces } from '../../../../shared/bots/bot-group-face-layout'
 import { BotGroupFaces } from './BotGroupFaces'
 import { BotRowFoldToggle, type BotRowFold } from './BotRowFoldToggle'
 import { BotGroupThreadLines } from './BotGroupThreadLines'
+import { BotGroupMemberRows } from './BotGroupMemberRows'
 
-// Threads have no live workspaces, so a folded team shows no status dot.
+// A folded team's strip counts its members; their own rows carry their status.
 const NO_LIVE_COUNTS: BotWorkspaceLiveCounts = { permission: 0, working: 0, failed: 0 }
 
-/** A group in the Bots section: its members' faces, the room's newest post, then its threads. */
+/** A group in the Bots section: its members' faces and the room's newest post, then its members, then its threads. */
 export function BotGroupRow({
   group,
   home,
   members,
+  memberHomes,
   isActive,
   onOpen,
   onManageMembers,
@@ -44,6 +46,8 @@ export function BotGroupRow({
   home: FolderWorkspace
   /** Its members' bots, as loaded. */
   members: readonly Bot[]
+  /** Loaded bot homes by bot id; a member drawn under the row needs its home, so one not loaded is skipped. */
+  memberHomes: ReadonlyMap<string, FolderWorkspace>
   isActive: boolean
   onOpen: () => void
   onManageMembers: () => void
@@ -55,12 +59,19 @@ export function BotGroupRow({
   const groupKey = getLineageGroupKey(workspaceId)
   const folded = useAppStore((s) => s.collapsedGroups.has(groupKey))
   const toggleCollapsedGroup = useAppStore((s) => s.toggleCollapsedGroup)
-  const threadCount = group.threads?.length ?? 0
+  const memberRows = useMemo(
+    () =>
+      members.flatMap((bot) => {
+        const memberHome = memberHomes.get(bot.id)
+        return memberHome ? [{ bot, home: memberHome }] : []
+      }),
+    [members, memberHomes]
+  )
   const fold: BotRowFold | null =
-    threadCount > 0
+    memberRows.length > 0
       ? {
           folded,
-          total: threadCount,
+          total: memberRows.length,
           counts: NO_LIVE_COUNTS,
           onToggle: () => toggleCollapsedGroup(groupKey)
         }
@@ -130,7 +141,8 @@ export function BotGroupRow({
           </>
         }
       />
-      {fold && !fold.folded ? <BotGroupThreadLines group={group} /> : null}
+      {fold && !fold.folded ? <BotGroupMemberRows members={memberRows} /> : null}
+      <BotGroupThreadLines group={group} />
     </>
   )
 }
