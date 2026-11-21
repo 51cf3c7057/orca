@@ -58,6 +58,12 @@ export type BotSidebarRowProps = {
   /** Rename and Mark Read/Unread lead the menu; these follow. */
   menuItems: React.ReactNode
   menuFooter: React.ReactNode
+  /** False: the picture never shows the sleeping moon; its other badges still show. */
+  sleepBadge?: boolean
+  /** False: no Rename item, and the title can't be edited. */
+  renamable?: boolean
+  /** False: no Mark Read/Unread item. */
+  readToggle?: boolean
 }
 
 export function BotSidebarRow({
@@ -81,18 +87,18 @@ export function BotSidebarRow({
   trailing = null,
   hoverDetails,
   menuItems,
-  menuFooter
+  menuFooter,
+  sleepBadge = true,
+  renamable = true,
+  readToggle = true
 }: BotSidebarRowProps): React.JSX.Element {
   const t = useTranslate()
   const setWorkspaceUnreadByUser = useAppStore((s) => s.setWorkspaceUnreadByUser)
   const [renameRequested, setRenameRequested] = useState(false)
   const [hoverOpen, setHoverOpen] = useState(false)
   const toggleUnread = (): void => setWorkspaceUnreadByUser(workspaceId, !isUnread, hostId)
-  const badge = {
-    status,
-    sleeping: useBotAvatarBadgeSleeping(workspaceId, status),
-    stopTip
-  }
+  const sleeping = useBotAvatarBadgeSleeping(workspaceId, status)
+  const badge = { status, sleeping: sleepBadge && sleeping, stopTip }
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -101,12 +107,16 @@ export function BotSidebarRow({
           data-worktree-card-active={isActive ? 'primary' : undefined}
           aria-expanded={expanded}
           data-project-group-header-drag-handle={dragHandle ? '' : undefined}
+          // A title that can't be renamed isn't a focus stop, so the row takes it for its menu.
+          tabIndex={renamable ? undefined : 0}
           className={cn(
             WORKTREE_CARD_SURFACE_CLASS_NAME,
             // A two-line workspace card's padding, so bots sit as tight as Projects' rows.
             // A size container: the fold strip slims down in a narrow sidebar.
             'group/bot-row @container/bot-row flex items-center pt-1.25 pb-1.25 pl-1.25',
             !isActive && 'worktree-sidebar-card-hover',
+            !renamable &&
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-worktree-sidebar-ring',
             dimmed && 'opacity-60'
           )}
           onClick={onOpen}
@@ -143,6 +153,7 @@ export function BotSidebarRow({
                   <div className="flex min-w-0 items-center gap-1.5">
                     <WorktreeTitleInlineRename
                       displayName={name}
+                      disabled={!renamable}
                       showUnreadEmphasis={isUnread}
                       dimReadTitle
                       className="text-[13px] leading-5"
@@ -180,15 +191,21 @@ export function BotSidebarRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem disabled={actionsDisabled} onSelect={() => setRenameRequested(true)}>
-          <Pencil className="size-3.5" />
-          {t('bots.row.rename', 'Rename')}
-        </ContextMenuItem>
+        {renamable ? (
+          <ContextMenuItem disabled={actionsDisabled} onSelect={() => setRenameRequested(true)}>
+            <Pencil className="size-3.5" />
+            {t('bots.row.rename', 'Rename')}
+          </ContextMenuItem>
+        ) : null}
         {menuItems}
-        <ContextMenuItem disabled={actionsDisabled} onSelect={toggleUnread}>
-          {isUnread ? <BellOff className="size-3.5" /> : <Bell className="size-3.5" />}
-          {isUnread ? t('bots.row.markRead', 'Mark Read') : t('bots.row.markUnread', 'Mark Unread')}
-        </ContextMenuItem>
+        {readToggle ? (
+          <ContextMenuItem disabled={actionsDisabled} onSelect={toggleUnread}>
+            {isUnread ? <BellOff className="size-3.5" /> : <Bell className="size-3.5" />}
+            {isUnread
+              ? t('bots.row.markRead', 'Mark Read')
+              : t('bots.row.markUnread', 'Mark Unread')}
+          </ContextMenuItem>
+        ) : null}
         {menuFooter}
       </ContextMenuContent>
     </ContextMenu>
